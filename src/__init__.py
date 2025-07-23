@@ -12,10 +12,17 @@ __email__ = ""
 __license__ = "MIT"
 
 # Import main components for easier access
-from .models.captcha_solver import CaptchaSolver
+try:
+    from .models.captcha_solver import CaptchaSolver
+    from .models.predictor import CaptchaPredictor
+except ImportError:
+    # For development environment
+    from models.captcha_solver import CaptchaSolver
+    from models.predictor import CaptchaPredictor
 
 __all__ = [
     "CaptchaSolver",
+    "CaptchaPredictor",
     "__version__",
     "__author__",
     "__license__",

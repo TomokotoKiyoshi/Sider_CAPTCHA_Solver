@@ -18,7 +18,6 @@
    - [test_all_puzzle_shapes.py](#test_all_puzzle_shapespy)
 
 4. [模型测试](#模型测试)
-   - [test_model.py](#test_modelpy)
    - [test_model_architecture.py](#test_model_architecturepy)
    - [test_real_captchas.py](#test_real_captchaspy)
 
@@ -239,34 +238,6 @@ python tests/test_all_puzzle_shapes.py
 ---
 
 ## 模型测试
-
-### test_model.py
-**功能**：测试旧版CaptchaDetector模型的基本功能和预测准确性（注意：这是旧版模型测试脚本，新版本请使用CaptchaSolver）。
-
-**核心特性**：
-- 加载训练好的模型权重并进行批量测试
-- 在测试集上评估Gap和Piece的检测准确率
-- 生成多张可视化结果图（每张20个样本）
-- 支持GPU/CPU自动切换
-- 输出详细的测试统计报告
-
-**使用示例**：
-```bash
-# 测试模型（默认1000个样本）
-python tests/test_model.py
-```
-
-**输出文件**：
-- `results/test_results/test_results_visualization_*.png` - 可视化结果图（5张）
-- `results/test_results/test_results_summary.txt` - 测试统计摘要
-
-**可视化标记**：
-- 黄色X：Gap预测位置
-- 青色O：Piece预测位置
-- 绿色+：真实Gap位置
-- 蓝色+：真实Piece位置
-
-**注意**：此脚本使用旧版CaptchaDetector模型架构，新项目应使用CaptchaSolver。
 
 ### test_model_architecture.py
 **功能**：全面验证CaptchaSolver模型架构（ResNet18 Lite + CenterNet）的正确性，包括输入输出形状、参数数量、解码功能和梯度流。

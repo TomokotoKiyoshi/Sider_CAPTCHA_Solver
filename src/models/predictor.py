@@ -2,43 +2,33 @@
 滑块验证码预测接口
 用于调用训练好的模型进行推理
 """
-import os
-import sys
+
 from pathlib import Path
-import argparse
 import json
 
 import torch
-import torch.nn as nn
 import numpy as np
 import cv2
 from PIL import Image
-
-# 导入matplotlib
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import os
 
-# 添加项目根目录到sys.path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-# 导入正确的模型
-from src.models.captcha_solver import CaptchaSolver
+# 导入模型
+from .captcha_solver import CaptchaSolver
 
 
 class CaptchaPredictor:
     """验证码预测器"""
     
-    def __init__(self, model_path, device='auto', hm_threshold=0.0):
+    def __init__(self, model_path='best', device='auto', hm_threshold=0.0):
         """
         初始化预测器
         
         Args:
-            model_path: 模型权重文件路径
+            model_path: 模型权重文件路径，'best'使用内置最佳模型
             device: 运行设备 ('auto', 'cuda', 'cpu')
-            hm_threshold: 热力图阈值，默认0.0
+            hm_threshold: 热力图阈值，用于过滤低置信度检测
         """
         # 自动选择设备
         if device == 'auto':
@@ -46,7 +36,16 @@ class CaptchaPredictor:
         else:
             self.device = torch.device(device)
         
+        self.hm_threshold = hm_threshold
         print(f"Using device: {self.device}")
+        
+        # 处理模型路径
+        if model_path == 'best':
+            # 使用内置的最佳模型
+            package_dir = Path(__file__).parent.parent
+            model_path = package_dir / 'checkpoints' / 'best_model.pth'
+            if not model_path.exists():
+                raise FileNotFoundError(f"Built-in best model not found at {model_path}")
         
         # 加载模型
         self.model = CaptchaSolver()
@@ -55,9 +54,7 @@ class CaptchaPredictor:
         self.model.to(self.device)
         self.model.eval()
         
-        self.hm_threshold = hm_threshold
         print(f"Model loaded from: {model_path}")
-        print(f"Heatmap threshold: {hm_threshold}")
     
     def preprocess_image(self, image_path):
         """预处理图像"""
@@ -107,7 +104,7 @@ class CaptchaPredictor:
         hm_bg = gap_heatmap.cpu().numpy()
         max_val_bg = hm_bg.max()
         
-        if max_val_bg > self.hm_threshold:
+        if max_val_bg > self.hm_threshold:  # 使用实例属性阈值
             y, x = np.unravel_index(hm_bg.argmax(), hm_bg.shape)
             offset_x = gap_offset[0, y, x].cpu().numpy()
             offset_y = gap_offset[1, y, x].cpu().numpy()
@@ -119,7 +116,7 @@ class CaptchaPredictor:
         hm_slider = piece_heatmap.cpu().numpy()
         max_val_slider = hm_slider.max()
         
-        if max_val_slider > self.hm_threshold:
+        if max_val_slider > self.hm_threshold:  # 使用实例属性阈值
             y, x = np.unravel_index(hm_slider.argmax(), hm_slider.shape)
             offset_x = piece_offset[0, y, x].cpu().numpy()
             offset_y = piece_offset[1, y, x].cpu().numpy()
@@ -143,6 +140,12 @@ class CaptchaPredictor:
         
         Returns:
             dict: 包含预测结果的字典
+                - gap_x: 缺口中心x坐标
+                - gap_y: 缺口中心y坐标
+                - slider_x: 滑块中心x坐标
+                - slider_y: 滑块中心y坐标
+                - gap_confidence: 缺口检测置信度
+                - slider_confidence: 滑块检测置信度
         """
         # 预处理图像
         image_tensor = self.preprocess_image(image_path)
@@ -172,7 +175,7 @@ class CaptchaPredictor:
         可视化预测结果
         
         Args:
-            image_path: 图像路径
+            image_path: 图像路径或numpy数组
             save_path: 保存路径（可选）
             show: 是否显示图像
         """
@@ -250,7 +253,7 @@ class CaptchaPredictor:
         可视化热力图
         
         Args:
-            image_path: 图像路径
+            image_path: 图像路径或numpy数组
             save_path: 保存路径（可选）
             show: 是否显示图像
         """
@@ -327,71 +330,3 @@ class CaptchaPredictor:
             plt.show()
         else:
             plt.close()
-
-
-def main():
-    """主函数"""
-    parser = argparse.ArgumentParser(description='滑块验证码预测')
-    parser.add_argument('--model', type=str, required=True, help='模型权重路径')
-    parser.add_argument('--image', type=str, required=True, help='输入图像路径')
-    parser.add_argument('--threshold', type=float, default=0.1, help='热力图阈值')
-    parser.add_argument('--visualize', action='store_true', help='可视化结果')
-    parser.add_argument('--save-vis', type=str, help='保存可视化结果路径')
-    parser.add_argument('--show-heatmap', action='store_true', help='显示热力图')
-    parser.add_argument('--device', type=str, default='auto', 
-                        choices=['auto', 'cuda', 'cpu'], help='运行设备')
-    
-    args = parser.parse_args()
-    
-    # 创建预测器
-    predictor = CaptchaPredictor(
-        model_path=args.model,
-        device=args.device,
-        hm_threshold=args.threshold
-    )
-    
-    # 预测
-    result = predictor.predict(args.image)
-    
-    print("\n预测结果:")
-    print(f"缺口中心: ({result['gap_x']:.2f}, {result['gap_y']:.2f})" 
-          if result['gap_x'] else "缺口未检测到")
-    print(f"滑块中心: ({result['slider_x']:.2f}, {result['slider_y']:.2f})" 
-          if result['slider_x'] else "滑块未检测到")
-    print(f"缺口置信度: {result['gap_confidence']:.4f}")
-    print(f"滑块置信度: {result['slider_confidence']:.4f}")
-    
-    if result['gap_x'] and result['slider_x']:
-        distance = result['gap_x'] - result['slider_x']
-        print(f"滑动距离: {distance:.2f} 像素")
-    
-    # 可视化
-    if args.visualize or args.save_vis:
-        predictor.visualize_prediction(
-            args.image,
-            save_path=args.save_vis,
-            show=args.visualize
-        )
-    
-    if args.show_heatmap:
-        predictor.visualize_heatmaps(
-            args.image,
-            show=True
-        )
-    
-    # 输出JSON格式结果
-    json_result = {
-        'gap_center': [result['gap_x'], result['gap_y']] if result['gap_x'] else None,
-        'slider_center': [result['slider_x'], result['slider_y']] if result['slider_x'] else None,
-        'gap_confidence': result['gap_confidence'],
-        'slider_confidence': result['slider_confidence'],
-        'sliding_distance': result['gap_x'] - result['slider_x'] 
-                           if result['gap_x'] and result['slider_x'] else None
-    }
-    
-    print("\nJSON输出:")
-    print(json.dumps(json_result, indent=2))
-
-
-if __name__ == '__main__':
-    main()

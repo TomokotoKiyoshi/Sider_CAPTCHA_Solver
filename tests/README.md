@@ -18,7 +18,6 @@ This directory contains various testing and validation scripts for testing model
    - [test_all_puzzle_shapes.py](#test_all_puzzle_shapespy)
 
 4. [Model Testing](#model-testing)
-   - [test_model.py](#test_modelpy)
    - [test_model_architecture.py](#test_model_architecturepy)
    - [test_real_captchas.py](#test_real_captchaspy)
 
@@ -251,34 +250,6 @@ python tests/test_all_puzzle_shapes.py
 ---
 
 ## Model Testing
-
-### test_model.py
-**Function**: Test basic functionality and prediction accuracy of the legacy CaptchaDetector model (Note: This is a legacy model test script, new versions should use CaptchaSolver).
-
-**Core Features**:
-- Load trained model weights and perform batch testing
-- Evaluate Gap and Piece detection accuracy on test set
-- Generate multiple visualization result charts (20 samples per chart)
-- Support automatic GPU/CPU switching
-- Output detailed test statistics report
-
-**Usage Example**:
-```bash
-# Test model (default 1000 samples)
-python tests/test_model.py
-```
-
-**Output Files**:
-- `results/test_results/test_results_visualization_*.png` - Visualization results (5 charts)
-- `results/test_results/test_results_summary.txt` - Test statistics summary
-
-**Visualization Markers**:
-- Yellow X: Gap prediction position
-- Cyan O: Piece prediction position
-- Green +: True Gap position
-- Blue +: True Piece position
-
-**Note**: This script uses the legacy CaptchaDetector model architecture, new projects should use CaptchaSolver.
 
 ### test_model_architecture.py
 **Function**: Comprehensively verify CaptchaSolver model architecture (ResNet18 Lite + CenterNet) correctness, including input/output shapes, parameter count, decoding functionality, and gradient flow.

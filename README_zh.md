@@ -548,7 +548,6 @@ Sider_CAPTCHA_Solver/
 │   ├── test_darkness_levels.py    # 亮度级别测试
 │   ├── test_distance_error_visualization.py  # 距离误差可视化
 │   ├── test_generate_captchas.py  # 生成功能测试
-│   ├── test_model.py             # 模型单元测试
 │   ├── test_model_architecture.py # 模型架构测试
 │   ├── test_real_captchas.py     # 真实验证码测试
 │   └── test_slider_effects.py    # 滑块效果测试
