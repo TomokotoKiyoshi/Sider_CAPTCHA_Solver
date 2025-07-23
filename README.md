@@ -26,15 +26,15 @@ This project is an industrial-grade slider CAPTCHA recognition system that overc
 
 #### Real CAPTCHA Dataset (Zhihu) Recognition Results
 
-> [Insert real dataset recognition results here]
-> 
-> *Figure: Recognition results on real Zhihu CAPTCHAs, with red circles marking gap positions and blue circles marking slider positions*
+![Real Dataset Recognition Results](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/best_model_evaluation/real_captchas/visualizations/sample_0031.png?raw=true)
+
+*Figure: Recognition results on real Zhihu CAPTCHAs, with red circles marking gap positions and blue circles marking slider positions*
 
 #### Test Dataset Recognition Results
 
-> [Insert test dataset recognition results here]
-> 
-> *Figure: Recognition results on synthetic test set, demonstrating the model's adaptability to different shapes and lighting conditions*
+![Test Dataset Recognition Results](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/best_model_evaluation/test_dataset/visualizations/sample_0014.png?raw=true)
+
+*Figure: Recognition results on synthetic test set, demonstrating the model's adaptability to different shapes and lighting conditions*
 
 ## 🚀 Quick Start
 
