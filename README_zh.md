@@ -2,6 +2,12 @@
 
 <div align="center">
 
+[English](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/README.md) | [简体中文](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/README_zh.md)
+
+</div>
+
+<div align="center">
+
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
