@@ -17,6 +17,24 @@ A high-precision slider CAPTCHA recognition solution based on deep learning, uti
 
 </div>
 
+## 📑 Table of Contents
+
+- [📋 Project Overview](#-project-overview)
+  - [🎯 Core Features](#-core-features)
+  - [🖼️ Recognition Performance Demo](#️-recognition-performance-demo)
+- [🚀 Quick Start](#-quick-start)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+  - [Basic Usage](#basic-usage)
+- [📊 Data Generation Process](#-data-generation-process)
+- [🏗️ Network Architecture](#️-network-architecture)
+- [📈 Performance Metrics](#-performance-metrics)
+- [🛠️ Main Features](#️-main-features)
+- [⚠️ Disclaimer](#️-disclaimer)
+- [📁 Project Structure](#-project-structure)
+- [🔧 Tech Stack](#-tech-stack)
+- [📞 Contact](#-contact)
+
 ## 📋 Project Overview
 
 This project is an industrial-grade slider CAPTCHA recognition system that overcomes the accuracy bottleneck of traditional template matching algorithms through deep learning methods. The system is trained on **over 300,000** synthetic CAPTCHA images, employing a lightweight CNN architecture that ensures high precision while maintaining real-time inference capabilities.
