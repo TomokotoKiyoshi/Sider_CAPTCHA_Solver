@@ -1,0 +1,29 @@
+# 滑块验证码检测模型训练配置文件
+# 用于配置训练参数，可根据实际情况调整
+
+# 数据相关配置
+data_dir: data                    # 数据目录（包含train/test子目录）
+
+# 输出相关配置
+output_dir: checkpoints          # 模型检查点和日志输出目录
+
+# 训练参数
+batch_size: 512                  # 批量大小（显存不足可减小，Windows建议256）
+num_workers: 12                  # 数据加载进程数（Windows建议4-8，CPU核心数相关）
+epochs: 20                       # 训练轮数
+lr: 0.001                        # 初始学习率（AdamW优化器）
+weight_decay: 0.0001            # 权重衰减（L2正则化）
+
+# 损失函数权重
+reg_weight: 1.0                 # 偏移量回归损失权重（相对于热力图损失）
+
+# 热力图生成参数
+gaussian_radius: 3              # 高斯核半径（控制热力图峰值大小）
+
+# 预训练权重（可选）
+pretrained_weights: null        # 预训练模型路径，null表示从头训练
+
+# 其他可选参数（脚本中有默认值）
+# seed: 42                      # 随机种子，用于复现
+# gradient_clip: 1.0            # 梯度裁剪阈值
+# log_interval: 10              # 日志记录间隔（步数）

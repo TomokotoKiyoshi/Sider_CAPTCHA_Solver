@@ -1,0 +1,58 @@
+{
+  "hardware": "GPU: NVIDIA GeForce RTX 5090",
+  "device": "cuda",
+  "num_runs": 100,
+  "model_load_time_ms": 101.56726837158203,
+  "image_prep_time_ms": 735.9776496887207,
+  "postprocess_time_ms": 1.0001659393310547,
+  "inference_mean_ms": 1.296250820159912,
+  "inference_std_ms": 0.4369782907629421,
+  "inference_min_ms": 0.5047321319580078,
+  "inference_max_ms": 2.0151138305664062,
+  "inference_median_ms": 1.000523567199707,
+  "fps": 771.4556353195865,
+  "total_time_seconds": 1.2006747722625732,
+  "end_to_end_time_ms": 839.8413348197937,
+  "test_image": "Pic0001_Bgx100Bgy90_Sdx31Sdy90_841ddd70.png",
+  "accuracy": {
+    "ground_truth": {
+      "gap": [
+        100,
+        90
+      ],
+      "slider": [
+        31,
+        90
+      ],
+      "slide_distance": 69
+    },
+    "prediction": {
+      "gap": [
+        100.44848394393921,
+        90.05899286270142
+      ],
+      "slider": [
+        30.733420610427856,
+        89.76255702972412
+      ],
+      "slide_distance": 69.71506333351135
+    },
+    "errors": {
+      "gap_error_pixels": 0.45234721820850815,
+      "slider_error_pixels": 0.35699262608363297,
+      "slide_distance_error_pixels": 0.7150633335113525
+    }
+  },
+  "metric_explanations": {
+    "model_load_time_ms": "Time to load model weights from disk to memory/VRAM",
+    "image_prep_time_ms": "Time for image loading, color conversion, resizing, etc.",
+    "inference_mean_ms": "Average neural network forward pass time, the most important metric",
+    "inference_std_ms": "Variance in inference time, lower is more stable",
+    "inference_min_ms": "Fastest inference, close to hardware limit",
+    "inference_max_ms": "Slowest inference, possibly affected by system scheduling",
+    "inference_median_ms": "Typical inference time excluding outliers",
+    "fps": "Number of CAPTCHAs processable per second, higher is better",
+    "postprocess_time_ms": "Time to decode coordinates from model output",
+    "end_to_end_time_ms": "Complete processing time including all steps"
+  }
+}

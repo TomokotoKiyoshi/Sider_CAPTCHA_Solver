@@ -1,0 +1,143 @@
+2025-07-21 23:03:02,444 - INFO - ============================================================
+2025-07-21 23:03:02,444 - INFO - Starting training accuracy analysis
+2025-07-21 23:03:02,444 - INFO - ============================================================
+2025-07-21 23:03:02,591 - INFO - Using 200 test samples for evaluation
+2025-07-21 23:03:02,594 - INFO - Using 100 real CAPTCHA samples for evaluation
+2025-07-21 23:03:02,594 - INFO - Found 20 checkpoints to evaluate
+2025-07-21 23:03:02,596 - INFO - 
+Evaluating epoch 1...
+2025-07-21 23:03:05,460 - INFO - Epoch 1 - Test 5px: Gap=0.0%, Slider=0.0%, Both=92.5%
+2025-07-21 23:03:05,460 - INFO - Epoch 1 - Test 7px: Gap=0.0%, Slider=0.0%, Both=97.5%
+2025-07-21 23:03:05,460 - INFO - Epoch 1 - Real 5px: Gap=0.0%, Slider=0.0%, Both=34.0%
+2025-07-21 23:03:05,460 - INFO - Epoch 1 - Real 7px: Gap=0.0%, Slider=0.0%, Both=43.0%
+2025-07-21 23:03:05,460 - INFO - 
+Evaluating epoch 2...
+2025-07-21 23:03:07,973 - INFO - Epoch 2 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:07,973 - INFO - Epoch 2 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:07,973 - INFO - Epoch 2 - Real 5px: Gap=0.0%, Slider=0.0%, Both=24.0%
+2025-07-21 23:03:07,973 - INFO - Epoch 2 - Real 7px: Gap=0.0%, Slider=0.0%, Both=37.0%
+2025-07-21 23:03:07,974 - INFO - 
+Evaluating epoch 3...
+2025-07-21 23:03:10,515 - INFO - Epoch 3 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:10,516 - INFO - Epoch 3 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:10,516 - INFO - Epoch 3 - Real 5px: Gap=0.0%, Slider=0.0%, Both=42.0%
+2025-07-21 23:03:10,516 - INFO - Epoch 3 - Real 7px: Gap=0.0%, Slider=0.0%, Both=52.0%
+2025-07-21 23:03:10,516 - INFO - 
+Evaluating epoch 4...
+2025-07-21 23:03:13,097 - INFO - Epoch 4 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:13,097 - INFO - Epoch 4 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:13,097 - INFO - Epoch 4 - Real 5px: Gap=0.0%, Slider=0.0%, Both=50.0%
+2025-07-21 23:03:13,097 - INFO - Epoch 4 - Real 7px: Gap=0.0%, Slider=0.0%, Both=59.0%
+2025-07-21 23:03:13,097 - INFO - 
+Evaluating epoch 5...
+2025-07-21 23:03:15,676 - INFO - Epoch 5 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:15,676 - INFO - Epoch 5 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:15,676 - INFO - Epoch 5 - Real 5px: Gap=0.0%, Slider=0.0%, Both=59.0%
+2025-07-21 23:03:15,676 - INFO - Epoch 5 - Real 7px: Gap=0.0%, Slider=0.0%, Both=66.0%
+2025-07-21 23:03:15,676 - INFO - 
+Evaluating epoch 6...
+2025-07-21 23:03:18,152 - INFO - Epoch 6 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:18,152 - INFO - Epoch 6 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:18,152 - INFO - Epoch 6 - Real 5px: Gap=0.0%, Slider=0.0%, Both=61.0%
+2025-07-21 23:03:18,152 - INFO - Epoch 6 - Real 7px: Gap=0.0%, Slider=0.0%, Both=72.0%
+2025-07-21 23:03:18,152 - INFO - 
+Evaluating epoch 7...
+2025-07-21 23:03:20,652 - INFO - Epoch 7 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:20,652 - INFO - Epoch 7 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:20,652 - INFO - Epoch 7 - Real 5px: Gap=0.0%, Slider=0.0%, Both=60.0%
+2025-07-21 23:03:20,652 - INFO - Epoch 7 - Real 7px: Gap=0.0%, Slider=0.0%, Both=77.0%
+2025-07-21 23:03:20,652 - INFO - 
+Evaluating epoch 8...
+2025-07-21 23:03:23,164 - INFO - Epoch 8 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:23,164 - INFO - Epoch 8 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:23,164 - INFO - Epoch 8 - Real 5px: Gap=0.0%, Slider=0.0%, Both=64.0%
+2025-07-21 23:03:23,164 - INFO - Epoch 8 - Real 7px: Gap=0.0%, Slider=0.0%, Both=71.0%
+2025-07-21 23:03:23,164 - INFO - 
+Evaluating epoch 9...
+2025-07-21 23:03:25,616 - INFO - Epoch 9 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:25,616 - INFO - Epoch 9 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:25,616 - INFO - Epoch 9 - Real 5px: Gap=0.0%, Slider=0.0%, Both=68.0%
+2025-07-21 23:03:25,616 - INFO - Epoch 9 - Real 7px: Gap=0.0%, Slider=0.0%, Both=75.0%
+2025-07-21 23:03:25,616 - INFO - 
+Evaluating epoch 10...
+2025-07-21 23:03:28,086 - INFO - Epoch 10 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:28,086 - INFO - Epoch 10 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:28,086 - INFO - Epoch 10 - Real 5px: Gap=0.0%, Slider=0.0%, Both=68.0%
+2025-07-21 23:03:28,086 - INFO - Epoch 10 - Real 7px: Gap=0.0%, Slider=0.0%, Both=74.0%
+2025-07-21 23:03:28,086 - INFO - 
+Evaluating epoch 11...
+2025-07-21 23:03:30,528 - INFO - Epoch 11 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:30,528 - INFO - Epoch 11 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:30,528 - INFO - Epoch 11 - Real 5px: Gap=0.0%, Slider=0.0%, Both=70.0%
+2025-07-21 23:03:30,528 - INFO - Epoch 11 - Real 7px: Gap=0.0%, Slider=0.0%, Both=77.0%
+2025-07-21 23:03:30,528 - INFO - 
+Evaluating epoch 12...
+2025-07-21 23:03:33,021 - INFO - Epoch 12 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:33,021 - INFO - Epoch 12 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:33,021 - INFO - Epoch 12 - Real 5px: Gap=0.0%, Slider=0.0%, Both=67.0%
+2025-07-21 23:03:33,021 - INFO - Epoch 12 - Real 7px: Gap=0.0%, Slider=0.0%, Both=77.0%
+2025-07-21 23:03:33,021 - INFO - 
+Evaluating epoch 13...
+2025-07-21 23:03:35,566 - INFO - Epoch 13 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:35,566 - INFO - Epoch 13 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:35,566 - INFO - Epoch 13 - Real 5px: Gap=0.0%, Slider=0.0%, Both=71.0%
+2025-07-21 23:03:35,566 - INFO - Epoch 13 - Real 7px: Gap=0.0%, Slider=0.0%, Both=78.0%
+2025-07-21 23:03:35,566 - INFO - 
+Evaluating epoch 14...
+2025-07-21 23:03:38,115 - INFO - Epoch 14 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:38,116 - INFO - Epoch 14 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:38,116 - INFO - Epoch 14 - Real 5px: Gap=0.0%, Slider=0.0%, Both=68.0%
+2025-07-21 23:03:38,116 - INFO - Epoch 14 - Real 7px: Gap=0.0%, Slider=0.0%, Both=77.0%
+2025-07-21 23:03:38,116 - INFO - 
+Evaluating epoch 15...
+2025-07-21 23:03:40,582 - INFO - Epoch 15 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:40,582 - INFO - Epoch 15 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:40,582 - INFO - Epoch 15 - Real 5px: Gap=0.0%, Slider=0.0%, Both=73.0%
+2025-07-21 23:03:40,582 - INFO - Epoch 15 - Real 7px: Gap=0.0%, Slider=0.0%, Both=78.0%
+2025-07-21 23:03:40,582 - INFO - 
+Evaluating epoch 16...
+2025-07-21 23:03:43,134 - INFO - Epoch 16 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:43,135 - INFO - Epoch 16 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:43,135 - INFO - Epoch 16 - Real 5px: Gap=0.0%, Slider=0.0%, Both=72.0%
+2025-07-21 23:03:43,135 - INFO - Epoch 16 - Real 7px: Gap=0.0%, Slider=0.0%, Both=80.0%
+2025-07-21 23:03:43,135 - INFO - 
+Evaluating epoch 17...
+2025-07-21 23:03:45,680 - INFO - Epoch 17 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:45,680 - INFO - Epoch 17 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:45,680 - INFO - Epoch 17 - Real 5px: Gap=0.0%, Slider=0.0%, Both=73.0%
+2025-07-21 23:03:45,680 - INFO - Epoch 17 - Real 7px: Gap=0.0%, Slider=0.0%, Both=80.0%
+2025-07-21 23:03:45,680 - INFO - 
+Evaluating epoch 18...
+2025-07-21 23:03:48,136 - INFO - Epoch 18 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:48,137 - INFO - Epoch 18 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:48,137 - INFO - Epoch 18 - Real 5px: Gap=0.0%, Slider=0.0%, Both=70.0%
+2025-07-21 23:03:48,137 - INFO - Epoch 18 - Real 7px: Gap=0.0%, Slider=0.0%, Both=78.0%
+2025-07-21 23:03:48,137 - INFO - 
+Evaluating epoch 19...
+2025-07-21 23:03:50,625 - INFO - Epoch 19 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:50,625 - INFO - Epoch 19 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:50,625 - INFO - Epoch 19 - Real 5px: Gap=0.0%, Slider=0.0%, Both=71.0%
+2025-07-21 23:03:50,625 - INFO - Epoch 19 - Real 7px: Gap=0.0%, Slider=0.0%, Both=79.0%
+2025-07-21 23:03:50,625 - INFO - 
+Evaluating epoch 20...
+2025-07-21 23:03:53,121 - INFO - Epoch 20 - Test 5px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:53,121 - INFO - Epoch 20 - Test 7px: Gap=0.0%, Slider=0.0%, Both=100.0%
+2025-07-21 23:03:53,121 - INFO - Epoch 20 - Real 5px: Gap=0.0%, Slider=0.0%, Both=71.0%
+2025-07-21 23:03:53,121 - INFO - Epoch 20 - Real 7px: Gap=0.0%, Slider=0.0%, Both=80.0%
+2025-07-21 23:03:54,071 - INFO - Accuracy curves saved to: D:\Hacker\Sider_CAPTCHA_Solver\logs\training_accuracy_curves_all.png
+2025-07-21 23:03:54,071 - INFO - Comparison plot saved to: D:\Hacker\Sider_CAPTCHA_Solver\logs\accuracy_comparison.png
+2025-07-21 23:03:54,075 - INFO - Results saved to CSV: D:\Hacker\Sider_CAPTCHA_Solver\logs\training_accuracy_results.csv
+2025-07-21 23:03:54,076 - INFO - Results saved to JSON: D:\Hacker\Sider_CAPTCHA_Solver\logs\training_accuracy_results.json
+2025-07-21 23:03:54,076 - INFO - Detailed report saved to: D:\Hacker\Sider_CAPTCHA_Solver\logs\training_analysis_report.txt
+2025-07-21 23:03:54,076 - INFO - 
+============================================================
+2025-07-21 23:03:54,076 - INFO - SUMMARY
+2025-07-21 23:03:54,076 - INFO - ============================================================
+2025-07-21 23:03:54,076 - INFO - Test Dataset:
+2025-07-21 23:03:54,076 - INFO -   Best epoch for 5px threshold: Epoch 2 (Both accuracy: 100.0%)
+2025-07-21 23:03:54,076 - INFO -   Best epoch for 7px threshold: Epoch 2 (Both accuracy: 100.0%)
+2025-07-21 23:03:54,076 - INFO - 
+Real CAPTCHAs:
+2025-07-21 23:03:54,076 - INFO -   Best epoch for 5px threshold: Epoch 15 (Both accuracy: 73.0%)
+2025-07-21 23:03:54,076 - INFO -   Best epoch for 7px threshold: Epoch 16 (Both accuracy: 80.0%)
+2025-07-21 23:03:54,076 - INFO - ============================================================

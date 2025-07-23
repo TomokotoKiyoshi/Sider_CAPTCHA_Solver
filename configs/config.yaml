@@ -1,0 +1,147 @@
+# 项目配置文件
+
+# Pixabay API配置
+pixabay:
+  api_key: "pixabay-api-key"
+  base_url: "https://pixabay.com/api/"
+  
+# 数据采集配置
+data_collection:
+  categories:
+    - "minecraft"
+    - "Pixel Food"
+    - "Block Public Square"
+    - "Block Illustration"
+    - "backgrounds"
+    - "buildings"
+    - "nature"
+    - "Anime Cityscape"
+    - "Abstract Geometric Art"
+    - "Geometric art"
+  images_per_category: 200
+  output_dir: "data/raw"
+  download_timeout: 30
+  max_retries: 3
+  concurrent_downloads: 2
+
+# 验证码生成配置
+captcha_generation:
+  # 目标图片尺寸
+  target_size:
+    width: 320
+    height: 160
+  
+  # 拼图形状配置
+  puzzle_shapes:
+    # 普通拼图：四条边（上、右、下、左）每条边有3种状态：凹、平、凸
+    # 总共3^4=81种组合，从中随机选择5种
+    normal_puzzle:
+      total_combinations: 81  # 3^4种组合
+      selected_count: 5      # 每张图片随机选5种
+      
+    # 异形拼图（全部使用）
+    special_shapes:
+      - "circle"
+      - "square"
+      - "triangle"
+      - "hexagon"
+      - "pentagon"
+      - "star"
+  
+  # 拼图大小配置 - 随机选择3种
+  puzzle_sizes:
+    - size: 50
+      knob: 10
+    - size: 60
+      knob: 12
+    - size: 70
+      knob: 14
+  
+  # 滑块配置
+  slider_width: 60
+  
+  # 位置配置 - 随机选择4个位置
+  position_config:
+    min_x_offset: 70  # 滑块宽度(60) + 10px，避免重叠
+    positions_per_image: 4  # 每个形状生成4个不同位置
+  
+  # 输出配置
+  output_dir: "data/captcha_dataset"
+
+# 数据集配置
+dataset:
+  train_ratio: 0.9
+  test_ratio: 0.1
+  random_seed: 42
+  train_dir: "data/train"
+  test_dir: "data/test"
+
+# 模型配置
+model:
+  # 网络架构
+  architecture:
+    backbone: "resnet18_lite"
+    neck_channels: 128
+    stride: 4  # 下采样倍数
+    
+  # 输入输出
+  input_channels: 3
+  input_height: 160
+  input_width: 320
+  output_height: 40  # 160 / stride
+  output_width: 80   # 320 / stride
+  
+  # 头部网络
+  heads:
+    gap:
+      heatmap_channels: 1
+      offset_channels: 2
+    piece:
+      heatmap_channels: 1
+      offset_channels: 2
+
+# 训练配置
+training:
+  # 基础配置
+  batch_size: 32
+  num_epochs: 100
+  num_workers: 4
+  device: "cuda"
+  
+  # 优化器
+  optimizer:
+    type: "adamw"
+    lr: 0.001
+    weight_decay: 0.0001
+  
+  # 学习率调度
+  scheduler:
+    type: "cosine"
+    warmup_epochs: 5
+    min_lr: 0.00001
+  
+  # 损失函数
+  loss:
+    focal_alpha: 2
+    focal_gamma: 4
+    offset_weight: 1.0
+    gaussian_sigma: 2
+  
+  # 保存配置
+  checkpoint_dir: "src/checkpoints"
+  log_dir: "logs"
+  save_interval: 5
+  
+# 推理配置
+inference:
+  # 解码配置
+  decode:
+    max_pool_kernel: 5
+    top_k: 1
+    offset_range: 0.5
+  
+  # 评测指标
+  metrics:
+    mae_threshold: 1.0  # MAE目标：1像素
+    hit_threshold: 2.0  # 命中率阈值：±2像素
+    target_hit_rate: 0.95  # 目标命中率：95%

@@ -1,0 +1,196 @@
+Training configuration:
+  data_dir: d:\hacker\sider_captcha_solver\data
+  output_dir: d:\hacker\sider_captcha_solver\checkpoints
+  batch_size: 512
+  num_workers: 12
+  epochs: 20
+  lr: 0.001
+  weight_decay: 0.0001
+  reg_weight: 1.0
+  gaussian_radius: 3
+  pretrained_weights: None
+Running on Windows. Using 12 workers.
+Disabled pin_memory and persistent_workers for Windows compatibility.
+Warning: Using 12 workers on Windows may cause issues. Consider reducing if you encounter errors.
+Data loaders created with 12 workers, batch size 512
+
+==================================================
+Starting training...
+==================================================
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0001.pth
+Saved best model with val_loss: 1.7247
+
+Epoch 1/20 Summary:
+  Train Loss: 2.4037 (HM: 2.4036, Reg: 0.0001)
+  Val Loss: 1.7247, MAE: 12.18 pixels
+  Learning Rate: 0.000521
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0002.pth
+Saved best model with val_loss: 1.1405
+
+Epoch 2/20 Summary:
+  Train Loss: 1.4686 (HM: 1.4686, Reg: 0.0001)
+  Val Loss: 1.1405, MAE: 4.42 pixels
+  Learning Rate: 0.001000
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0003.pth
+Saved best model with val_loss: 0.6627
+
+Epoch 3/20 Summary:
+  Train Loss: 0.9104 (HM: 0.9104, Reg: 0.0000)
+  Val Loss: 0.6627, MAE: 2.43 pixels
+  Learning Rate: 0.000992
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0004.pth
+Saved best model with val_loss: 0.3830
+
+Epoch 4/20 Summary:
+  Train Loss: 0.5389 (HM: 0.5389, Reg: 0.0000)
+  Val Loss: 0.3830, MAE: 1.31 pixels
+  Learning Rate: 0.000970
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0005.pth
+Saved best model with val_loss: 0.2367
+
+Epoch 5/20 Summary:
+  Train Loss: 0.3291 (HM: 0.3291, Reg: 0.0000)
+  Val Loss: 0.2367, MAE: 1.34 pixels
+  Learning Rate: 0.000933
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0006.pth
+Saved best model with val_loss: 0.1626
+
+Epoch 6/20 Summary:
+  Train Loss: 0.2161 (HM: 0.2161, Reg: 0.0000)
+  Val Loss: 0.1626, MAE: 1.29 pixels
+  Learning Rate: 0.000883
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0007.pth
+Saved best model with val_loss: 0.1173
+
+Epoch 7/20 Summary:
+  Train Loss: 0.1524 (HM: 0.1524, Reg: 0.0000)
+  Val Loss: 0.1173, MAE: 0.99 pixels
+  Learning Rate: 0.000821
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0008.pth
+Saved best model with val_loss: 0.0924
+
+Epoch 8/20 Summary:
+  Train Loss: 0.1154 (HM: 0.1154, Reg: 0.0000)
+  Val Loss: 0.0924, MAE: 0.82 pixels
+  Learning Rate: 0.000750
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0009.pth
+Saved best model with val_loss: 0.0749
+
+Epoch 9/20 Summary:
+  Train Loss: 0.0914 (HM: 0.0914, Reg: 0.0000)
+  Val Loss: 0.0749, MAE: 0.70 pixels
+  Learning Rate: 0.000671
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0010.pth
+Saved best model with val_loss: 0.0738
+
+Epoch 10/20 Summary:
+  Train Loss: 0.0760 (HM: 0.0760, Reg: 0.0000)
+  Val Loss: 0.0738, MAE: 0.78 pixels
+  Learning Rate: 0.000587
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0011.pth
+Saved best model with val_loss: 0.0578
+
+Epoch 11/20 Summary:
+  Train Loss: 0.0655 (HM: 0.0655, Reg: 0.0000)
+  Val Loss: 0.0578, MAE: 0.65 pixels
+  Learning Rate: 0.000500
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0012.pth
+Saved best model with val_loss: 0.0551
+
+Epoch 12/20 Summary:
+  Train Loss: 0.0566 (HM: 0.0565, Reg: 0.0000)
+  Val Loss: 0.0551, MAE: 0.62 pixels
+  Learning Rate: 0.000413
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0013.pth
+Saved best model with val_loss: 0.0498
+
+Epoch 13/20 Summary:
+  Train Loss: 0.0513 (HM: 0.0513, Reg: 0.0000)
+  Val Loss: 0.0498, MAE: 0.52 pixels
+  Learning Rate: 0.000329
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0014.pth
+
+Epoch 14/20 Summary:
+  Train Loss: 0.0463 (HM: 0.0463, Reg: 0.0000)
+  Val Loss: 0.0533, MAE: 0.59 pixels
+  Learning Rate: 0.000250
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0015.pth
+Saved best model with val_loss: 0.0473
+
+Epoch 15/20 Summary:
+  Train Loss: 0.0418 (HM: 0.0418, Reg: 0.0000)
+  Val Loss: 0.0473, MAE: 0.48 pixels
+  Learning Rate: 0.000179
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0016.pth
+Saved best model with val_loss: 0.0443
+
+Epoch 16/20 Summary:
+  Train Loss: 0.0391 (HM: 0.0391, Reg: 0.0000)
+  Val Loss: 0.0443, MAE: 0.48 pixels
+  Learning Rate: 0.000117
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0017.pth
+
+Epoch 17/20 Summary:
+  Train Loss: 0.0371 (HM: 0.0371, Reg: 0.0000)
+  Val Loss: 0.0448, MAE: 0.46 pixels
+  Learning Rate: 0.000067
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0018.pth
+
+Epoch 18/20 Summary:
+  Train Loss: 0.0350 (HM: 0.0350, Reg: 0.0000)
+  Val Loss: 0.0446, MAE: 0.47 pixels
+  Learning Rate: 0.000030
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0019.pth
+
+Epoch 19/20 Summary:
+  Train Loss: 0.0344 (HM: 0.0344, Reg: 0.0000)
+  Val Loss: 0.0451, MAE: 0.48 pixels
+  Learning Rate: 0.000008
+
+Saved latest checkpoint: d:\hacker\sider_captcha_solver\checkpoints\latest_checkpoint.pth
+Saved epoch checkpoint: d:\hacker\sider_captcha_solver\checkpoints\checkpoint_epoch_0020.pth
+
+Epoch 20/20 Summary:
+  Train Loss: 0.0339 (HM: 0.0339, Reg: 0.0000)
+  Val Loss: 0.0447, MAE: 0.47 pixels
+  Learning Rate: 0.000000
+
+Training completed!

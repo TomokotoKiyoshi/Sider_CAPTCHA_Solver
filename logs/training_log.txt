@@ -1,0 +1,84 @@
+Training started at 2025-07-20 06:39:24.105614
+Configuration: {'pixabay': {'api_key': '51344584-28fc0c141a3613f523fa0b79f', 'base_url': 'https://pixabay.com/api/'}, 'data_collection': {'categories': ['minecraft', 'Pixel Food', 'Block Public Square', 'Block Illustration', 'backgrounds', 'buildings', 'nature', 'Anime Cityscape', 'Abstract Geometric Art', 'Geometric art'], 'images_per_category': 200, 'output_dir': 'data/raw', 'download_timeout': 30, 'max_retries': 3, 'concurrent_downloads': 2}, 'captcha_generation': {'target_size': {'width': 320, 'height': 160}, 'puzzle_shapes': {'normal_puzzle': {'total_combinations': 81, 'selected_count': 5}, 'special_shapes': ['circle', 'square', 'triangle', 'hexagon', 'pentagon', 'star']}, 'puzzle_sizes': [{'size': 50, 'knob': 10}, {'size': 60, 'knob': 12}, {'size': 70, 'knob': 14}], 'slider_width': 60, 'position_config': {'min_x_offset': 70, 'positions_per_image': 4}, 'output_dir': 'data/captcha_dataset'}, 'dataset': {'train_ratio': 0.9, 'test_ratio': 0.1, 'random_seed': 42, 'train_dir': 'data/train', 'test_dir': 'data/test'}, 'model': {'architecture': {'backbone': 'resnet18_lite', 'neck_channels': 128, 'stride': 4}, 'input_channels': 3, 'input_height': 160, 'input_width': 320, 'output_height': 40, 'output_width': 80, 'heads': {'gap': {'heatmap_channels': 1, 'offset_channels': 2}, 'piece': {'heatmap_channels': 1, 'offset_channels': 2}}}, 'training': {'batch_size': 32, 'num_epochs': 100, 'num_workers': 4, 'device': 'cuda', 'optimizer': {'type': 'adamw', 'lr': 0.001, 'weight_decay': 0.0001}, 'scheduler': {'type': 'cosine', 'warmup_epochs': 5, 'min_lr': 1e-05}, 'loss': {'focal_alpha': 2, 'focal_gamma': 4, 'offset_weight': 1.0, 'gaussian_sigma': 2}, 'checkpoint_dir': 'checkpoints', 'log_dir': 'logs', 'save_interval': 5}, 'inference': {'decode': {'max_pool_kernel': 5, 'top_k': 1, 'offset_range': 0.5}, 'metrics': {'mae_threshold': 1.0, 'hit_threshold': 2.0, 'target_hit_rate': 0.95}}, 'data_dir': 'data', 'annotations_file': 'data/captchas/annotations.json', 'output_dir': 'checkpoints', 'batch_size': 512, 'num_workers': 24, 'epochs': 10, 'lr': 0.001, 'weight_decay': 0.0001, 'reg_weight': 1.0, 'pretrained_weights': None}
+--------------------------------------------------------------------------------
+
+Epoch 1/10:
+  Train Loss: 6.4347 (HM: 6.4347, Reg: 0.0001)
+  Val Loss: 1.0378, MAE: 3.51 pixels
+  Learning Rate: 0.000976
+  Saved checkpoint: epoch_001.pth
+  ★ Saved best model with val_loss: 1.0378 (MAE: 3.51 pixels)
+
+Epoch 2/10:
+  Train Loss: 0.4206 (HM: 0.4205, Reg: 0.0001)
+  Val Loss: 0.1152, MAE: 1.02 pixels
+  Learning Rate: 0.000905
+  Saved checkpoint: epoch_002.pth
+  ★ Saved best model with val_loss: 0.1152 (MAE: 1.02 pixels)
+
+Epoch 3/10:
+  Train Loss: 0.1284 (HM: 0.1284, Reg: 0.0000)
+  Val Loss: 0.0555, MAE: 0.82 pixels
+  Learning Rate: 0.000796
+  Saved checkpoint: epoch_003.pth
+  ★ Saved best model with val_loss: 0.0555 (MAE: 0.82 pixels)
+
+Epoch 4/10:
+  Train Loss: 0.0769 (HM: 0.0768, Reg: 0.0000)
+  Val Loss: 0.2107, MAE: 0.81 pixels
+  Learning Rate: 0.000658
+  Saved checkpoint: epoch_004.pth
+
+Epoch 5/10:
+  Train Loss: 0.0510 (HM: 0.0509, Reg: 0.0001)
+  Val Loss: 0.0236, MAE: 0.78 pixels
+  Learning Rate: 0.000505
+  Saved checkpoint: epoch_005.pth
+  ★ Saved best model with val_loss: 0.0236 (MAE: 0.78 pixels)
+
+Epoch 6/10:
+  Train Loss: 0.0382 (HM: 0.0381, Reg: 0.0001)
+  Val Loss: 0.0164, MAE: 0.80 pixels
+  Learning Rate: 0.000352
+  Saved checkpoint: epoch_006.pth
+  ★ Saved best model with val_loss: 0.0164 (MAE: 0.80 pixels)
+
+Epoch 7/10:
+  Train Loss: 0.0291 (HM: 0.0290, Reg: 0.0001)
+  Val Loss: 0.0142, MAE: 0.82 pixels
+  Learning Rate: 0.000214
+  Saved checkpoint: epoch_007.pth
+  ★ Saved best model with val_loss: 0.0142 (MAE: 0.82 pixels)
+
+Epoch 8/10:
+  Train Loss: 0.0236 (HM: 0.0236, Reg: 0.0001)
+  Val Loss: 0.0112, MAE: 0.80 pixels
+  Learning Rate: 0.000105
+  Saved checkpoint: epoch_008.pth
+  ★ Saved best model with val_loss: 0.0112 (MAE: 0.80 pixels)
+
+Epoch 9/10:
+  Train Loss: 0.0204 (HM: 0.0203, Reg: 0.0001)
+  Val Loss: 0.0091, MAE: 0.78 pixels
+  Learning Rate: 0.000034
+  Saved checkpoint: epoch_009.pth
+  ★ Saved best model with val_loss: 0.0091 (MAE: 0.78 pixels)
+
+Epoch 10/10:
+  Train Loss: 0.0180 (HM: 0.0179, Reg: 0.0001)
+  Val Loss: 0.0084, MAE: 0.78 pixels
+  Learning Rate: 0.000010
+  Saved checkpoint: epoch_010.pth
+  ★ Saved best model with val_loss: 0.0084 (MAE: 0.78 pixels)
+Training started at 2025-07-20 20:37:12.875226
+Configuration: {'pixabay': {'api_key': '51344584-28fc0c141a3613f523fa0b79f', 'base_url': 'https://pixabay.com/api/'}, 'data_collection': {'categories': ['minecraft', 'Pixel Food', 'Block Public Square', 'Block Illustration', 'backgrounds', 'buildings', 'nature', 'Anime Cityscape', 'Abstract Geometric Art', 'Geometric art'], 'images_per_category': 200, 'output_dir': 'data/raw', 'download_timeout': 30, 'max_retries': 3, 'concurrent_downloads': 2}, 'captcha_generation': {'target_size': {'width': 320, 'height': 160}, 'puzzle_shapes': {'normal_puzzle': {'total_combinations': 81, 'selected_count': 5}, 'special_shapes': ['circle', 'square', 'triangle', 'hexagon', 'pentagon', 'star']}, 'puzzle_sizes': [{'size': 50, 'knob': 10}, {'size': 60, 'knob': 12}, {'size': 70, 'knob': 14}], 'slider_width': 60, 'position_config': {'min_x_offset': 70, 'positions_per_image': 4}, 'output_dir': 'data/captcha_dataset'}, 'dataset': {'train_ratio': 0.9, 'test_ratio': 0.1, 'random_seed': 42, 'train_dir': 'data/train', 'test_dir': 'data/test'}, 'model': {'architecture': {'backbone': 'resnet18_lite', 'neck_channels': 128, 'stride': 4}, 'input_channels': 3, 'input_height': 160, 'input_width': 320, 'output_height': 40, 'output_width': 80, 'heads': {'gap': {'heatmap_channels': 1, 'offset_channels': 2}, 'piece': {'heatmap_channels': 1, 'offset_channels': 2}}}, 'training': {'batch_size': 32, 'num_epochs': 100, 'num_workers': 4, 'device': 'cuda', 'optimizer': {'type': 'adamw', 'lr': 0.001, 'weight_decay': 0.0001}, 'scheduler': {'type': 'cosine', 'warmup_epochs': 5, 'min_lr': 1e-05}, 'loss': {'focal_alpha': 2, 'focal_gamma': 4, 'offset_weight': 1.0, 'gaussian_sigma': 2}, 'checkpoint_dir': 'checkpoints', 'log_dir': 'logs', 'save_interval': 5}, 'inference': {'decode': {'max_pool_kernel': 5, 'top_k': 1, 'offset_range': 0.5}, 'metrics': {'mae_threshold': 1.0, 'hit_threshold': 2.0, 'target_hit_rate': 0.95}}, 'data_dir': 'd:\\hacker\\sider_captcha_solver\\data', 'annotations_file': 'd:\\hacker\\sider_captcha_solver\\data\\captchas\\annotations.json', 'output_dir': 'd:\\hacker\\sider_captcha_solver\\checkpoints', 'batch_size': 512, 'num_workers': 24, 'epochs': 10, 'lr': 0.001, 'weight_decay': 0.0001, 'reg_weight': 1.0, 'pretrained_weights': None}
+--------------------------------------------------------------------------------
+Training started at 2025-07-21 00:43:17.430384
+Configuration: {'pixabay': {'api_key': '51344584-28fc0c141a3613f523fa0b79f', 'base_url': 'https://pixabay.com/api/'}, 'data_collection': {'categories': ['minecraft', 'Pixel Food', 'Block Public Square', 'Block Illustration', 'backgrounds', 'buildings', 'nature', 'Anime Cityscape', 'Abstract Geometric Art', 'Geometric art'], 'images_per_category': 200, 'output_dir': 'data/raw', 'download_timeout': 30, 'max_retries': 3, 'concurrent_downloads': 2}, 'captcha_generation': {'target_size': {'width': 320, 'height': 160}, 'puzzle_shapes': {'normal_puzzle': {'total_combinations': 81, 'selected_count': 5}, 'special_shapes': ['circle', 'square', 'triangle', 'hexagon', 'pentagon', 'star']}, 'puzzle_sizes': [{'size': 50, 'knob': 10}, {'size': 60, 'knob': 12}, {'size': 70, 'knob': 14}], 'slider_width': 60, 'position_config': {'min_x_offset': 70, 'positions_per_image': 4}, 'output_dir': 'data/captcha_dataset'}, 'dataset': {'train_ratio': 0.9, 'test_ratio': 0.1, 'random_seed': 42, 'train_dir': 'data/train', 'test_dir': 'data/test'}, 'model': {'architecture': {'backbone': 'resnet18_lite', 'neck_channels': 128, 'stride': 4}, 'input_channels': 3, 'input_height': 160, 'input_width': 320, 'output_height': 40, 'output_width': 80, 'heads': {'gap': {'heatmap_channels': 1, 'offset_channels': 2}, 'piece': {'heatmap_channels': 1, 'offset_channels': 2}}}, 'training': {'batch_size': 32, 'num_epochs': 100, 'num_workers': 4, 'device': 'cuda', 'optimizer': {'type': 'adamw', 'lr': 0.001, 'weight_decay': 0.0001}, 'scheduler': {'type': 'cosine', 'warmup_epochs': 5, 'min_lr': 1e-05}, 'loss': {'focal_alpha': 2, 'focal_gamma': 4, 'offset_weight': 1.0, 'gaussian_sigma': 2}, 'checkpoint_dir': 'checkpoints', 'log_dir': 'logs', 'save_interval': 5}, 'inference': {'decode': {'max_pool_kernel': 5, 'top_k': 1, 'offset_range': 0.5}, 'metrics': {'mae_threshold': 1.0, 'hit_threshold': 2.0, 'target_hit_rate': 0.95}}, 'data_dir': 'd:\\hacker\\sider_captcha_solver\\data', 'annotations_file': 'd:\\hacker\\sider_captcha_solver\\data\\captchas\\annotations.json', 'output_dir': 'd:\\hacker\\sider_captcha_solver\\checkpoints', 'batch_size': 512, 'num_workers': 24, 'epochs': 10, 'lr': 0.001, 'weight_decay': 0.0001, 'reg_weight': 1.0, 'pretrained_weights': None}
+--------------------------------------------------------------------------------
+Training started at 2025-07-21 00:47:20.269246
+Configuration: {'pixabay': {'api_key': '51344584-28fc0c141a3613f523fa0b79f', 'base_url': 'https://pixabay.com/api/'}, 'data_collection': {'categories': ['minecraft', 'Pixel Food', 'Block Public Square', 'Block Illustration', 'backgrounds', 'buildings', 'nature', 'Anime Cityscape', 'Abstract Geometric Art', 'Geometric art'], 'images_per_category': 200, 'output_dir': 'data/raw', 'download_timeout': 30, 'max_retries': 3, 'concurrent_downloads': 2}, 'captcha_generation': {'target_size': {'width': 320, 'height': 160}, 'puzzle_shapes': {'normal_puzzle': {'total_combinations': 81, 'selected_count': 5}, 'special_shapes': ['circle', 'square', 'triangle', 'hexagon', 'pentagon', 'star']}, 'puzzle_sizes': [{'size': 50, 'knob': 10}, {'size': 60, 'knob': 12}, {'size': 70, 'knob': 14}], 'slider_width': 60, 'position_config': {'min_x_offset': 70, 'positions_per_image': 4}, 'output_dir': 'data/captcha_dataset'}, 'dataset': {'train_ratio': 0.9, 'test_ratio': 0.1, 'random_seed': 42, 'train_dir': 'data/train', 'test_dir': 'data/test'}, 'model': {'architecture': {'backbone': 'resnet18_lite', 'neck_channels': 128, 'stride': 4}, 'input_channels': 3, 'input_height': 160, 'input_width': 320, 'output_height': 40, 'output_width': 80, 'heads': {'gap': {'heatmap_channels': 1, 'offset_channels': 2}, 'piece': {'heatmap_channels': 1, 'offset_channels': 2}}}, 'training': {'batch_size': 32, 'num_epochs': 100, 'num_workers': 4, 'device': 'cuda', 'optimizer': {'type': 'adamw', 'lr': 0.001, 'weight_decay': 0.0001}, 'scheduler': {'type': 'cosine', 'warmup_epochs': 5, 'min_lr': 1e-05}, 'loss': {'focal_alpha': 2, 'focal_gamma': 4, 'offset_weight': 1.0, 'gaussian_sigma': 2}, 'checkpoint_dir': 'checkpoints', 'log_dir': 'logs', 'save_interval': 5}, 'inference': {'decode': {'max_pool_kernel': 5, 'top_k': 1, 'offset_range': 0.5}, 'metrics': {'mae_threshold': 1.0, 'hit_threshold': 2.0, 'target_hit_rate': 0.95}}, 'data_dir': 'd:\\hacker\\sider_captcha_solver\\data', 'annotations_file': 'd:\\hacker\\sider_captcha_solver\\data\\captchas\\annotations.json', 'output_dir': 'd:\\hacker\\sider_captcha_solver\\checkpoints', 'batch_size': 512, 'num_workers': 24, 'epochs': 10, 'lr': 0.001, 'weight_decay': 0.0001, 'reg_weight': 1.0, 'pretrained_weights': None}
+--------------------------------------------------------------------------------
+Training started at 2025-07-21 00:50:05.035877
+Configuration: {'pixabay': {'api_key': '51344584-28fc0c141a3613f523fa0b79f', 'base_url': 'https://pixabay.com/api/'}, 'data_collection': {'categories': ['minecraft', 'Pixel Food', 'Block Public Square', 'Block Illustration', 'backgrounds', 'buildings', 'nature', 'Anime Cityscape', 'Abstract Geometric Art', 'Geometric art'], 'images_per_category': 200, 'output_dir': 'data/raw', 'download_timeout': 30, 'max_retries': 3, 'concurrent_downloads': 2}, 'captcha_generation': {'target_size': {'width': 320, 'height': 160}, 'puzzle_shapes': {'normal_puzzle': {'total_combinations': 81, 'selected_count': 5}, 'special_shapes': ['circle', 'square', 'triangle', 'hexagon', 'pentagon', 'star']}, 'puzzle_sizes': [{'size': 50, 'knob': 10}, {'size': 60, 'knob': 12}, {'size': 70, 'knob': 14}], 'slider_width': 60, 'position_config': {'min_x_offset': 70, 'positions_per_image': 4}, 'output_dir': 'data/captcha_dataset'}, 'dataset': {'train_ratio': 0.9, 'test_ratio': 0.1, 'random_seed': 42, 'train_dir': 'data/train', 'test_dir': 'data/test'}, 'model': {'architecture': {'backbone': 'resnet18_lite', 'neck_channels': 128, 'stride': 4}, 'input_channels': 3, 'input_height': 160, 'input_width': 320, 'output_height': 40, 'output_width': 80, 'heads': {'gap': {'heatmap_channels': 1, 'offset_channels': 2}, 'piece': {'heatmap_channels': 1, 'offset_channels': 2}}}, 'training': {'batch_size': 32, 'num_epochs': 100, 'num_workers': 4, 'device': 'cuda', 'optimizer': {'type': 'adamw', 'lr': 0.001, 'weight_decay': 0.0001}, 'scheduler': {'type': 'cosine', 'warmup_epochs': 5, 'min_lr': 1e-05}, 'loss': {'focal_alpha': 2, 'focal_gamma': 4, 'offset_weight': 1.0, 'gaussian_sigma': 2}, 'checkpoint_dir': 'checkpoints', 'log_dir': 'logs', 'save_interval': 5}, 'inference': {'decode': {'max_pool_kernel': 5, 'top_k': 1, 'offset_range': 0.5}, 'metrics': {'mae_threshold': 1.0, 'hit_threshold': 2.0, 'target_hit_rate': 0.95}}, 'data_dir': 'd:\\hacker\\sider_captcha_solver\\data', 'annotations_file': 'd:\\hacker\\sider_captcha_solver\\data\\captchas\\annotations.json', 'output_dir': 'd:\\hacker\\sider_captcha_solver\\checkpoints', 'batch_size': 512, 'num_workers': 32, 'epochs': 10, 'lr': 0.001, 'weight_decay': 0.0001, 'reg_weight': 1.0, 'pretrained_weights': None}
+--------------------------------------------------------------------------------
