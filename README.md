@@ -402,21 +402,21 @@ Input (3×160×320)
 
 ### Model Parameters
 
-| Component       | Parameters | Description      |
-| -------------- | ---------- | ---------------- |
-| Backbone       | ~3.0M      | ResNet18-Lite    |
-| Neck + UpConv  | ~0.3M      | Feature fusion   |
-| Detection Heads| ~0.2M      | Dual-branch heads|
-| **Total**      | **~3.5M**  | FP32 ~36MB       |
+| Component       | Parameters | Description       |
+| --------------- | ---------- | ----------------- |
+| Backbone        | ~3.0M      | ResNet18-Lite     |
+| Neck + UpConv   | ~0.3M      | Feature fusion    |
+| Detection Heads | ~0.2M      | Dual-branch heads |
+| **Total**       | **~3.5M**  | FP32 ~36MB        |
 
 ## 📈 Performance Metrics
 
 ### Accuracy (Based on Sliding Distance Error)
 
-| Dataset       | 5px Threshold | 7px Threshold | Best Epoch |
-| ------------- | ------------- | ------------- | ---------- |
-| Test Set (Synthetic) | 99.4%  | 99.4%        | 16         |
-| Real CAPTCHAs | **73%**       | **80%**       | 15/16      |
+| Dataset              | 5px Threshold | 7px Threshold | Best Epoch |
+| -------------------- | ------------- | ------------- | ---------- |
+| Test Set (Synthetic) | 99.4%         | 99.4%         | 16         |
+| Real CAPTCHAs        | **73%**       | **80%**       | 15/16      |
 
 ### Inference Performance
 
@@ -465,7 +465,7 @@ Input (3×160×320)
 ## 📁 Project Structure
 
 ```
-Sider_CAPTCHA_Solver/
+ider_CAPTCHA_Solver/
 │
 ├── configs/                       # Configuration files
 │   └── config.yaml               # Project configuration
@@ -576,8 +576,7 @@ Sider_CAPTCHA_Solver/
 ├── api_example.py                # API usage examples
 ├── requirements.txt              # Dependencies
 ├── README.md                     # English documentation
-├── README_zh.md                  # Chinese documentation
-└── CLAUDE.md                     # Project technical specifications
+└── README_zh.md                  # Chinese documentation
 ```
 
 ## 🔧 Tech Stack

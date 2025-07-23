@@ -576,8 +576,7 @@ Sider_CAPTCHA_Solver/
 ├── api_example.py                # API使用示例
 ├── requirements.txt              # 依赖包列表
 ├── README.md                     # 英文说明文档
-├── README_zh.md                  # 中文说明文档
-└── CLAUDE.md                     # 项目技术规范
+└── README_zh.md                  # 中文说明文档
 ```
 
 ## 🔧 技术栈
