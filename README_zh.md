@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PyPI version](https://badge.fury.io/py/Sider-CAPTCHA-Solver.svg)](https://pypi.org/project/Sider-CAPTCHA-Solver/)
+[![PyPI version](https://badge.fury.io/py/sider-captcha-solver.svg)](https://pypi.org/project/sider-captcha-solver/)
 
 一个基于深度学习的高精度滑块验证码识别解决方案，采用改进的CenterNet架构，在真实验证码数据集上达到80%准确率。
 
@@ -57,7 +57,7 @@ pip install -r requirements.txt
 #### 可直接使用 pip 安装
 
 ```bash
-pip install Sider_CAPTCHA_Solver
+pip install sider-captcha-solver
 ```
 
 ### 基础使用
