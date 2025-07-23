@@ -39,6 +39,16 @@ wheels/
 *.egg
 MANIFEST
 
+# PyPI configuration (NEVER commit this!)
+.pypirc
+~/.pypirc
+
+# PyPI build files
+MANIFEST.in
+pyproject.toml
+sider_captcha_solver.py
+setup.py
+
 # PyInstaller
 *.manifest
 *.spec

@@ -11,6 +11,8 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PyPI version](https://badge.fury.io/py/Sider-CAPTCHA-Solver.svg)](https://pypi.org/project/Sider-CAPTCHA-Solver/)
+[![Downloads](https://pepy.tech/badge/sider-captcha-solver)](https://pepy.tech/project/sider-captcha-solver)
 
 一个基于深度学习的高精度滑块验证码识别解决方案，采用改进的CenterNet架构，在真实验证码数据集上达到80%准确率。
 
