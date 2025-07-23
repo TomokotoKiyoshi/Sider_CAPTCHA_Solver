@@ -24,11 +24,11 @@
 
 ### 🖼️ 识别效果展示
 
-#### 真实验证码数据集（某乎）识别效果
+#### 真实验证码数据集识别效果
 
 ![真实数据集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/best_model_evaluation/real_captchas/visualizations/sample_0031.png?raw=true)
 
-*图示：在真实某乎验证码上的识别效果，红色圆圈标记缺口位置，蓝色圆圈标记滑块位置*
+*图示：在某网站真实验证码上的识别效果，红色圆圈标记缺口位置，蓝色圆圈标记滑块位置*
 
 #### 测试集识别效果
 
