@@ -1,0 +1,19 @@
+{
+  "dataset_name": "Real CAPTCHAs",
+  "total_samples": 100,
+  "gap_detection_rate": 100.0,
+  "slider_detection_rate": 100.0,
+  "gap_mean_mae": 10.113603045642376,
+  "gap_std_mae": 31.902214959649687,
+  "gap_median_mae": 1.2291615307331085,
+  "gap_success_rate_5px": 90.0,
+  "gap_success_rate_7px": 92.0,
+  "slider_mean_mae": 2.227330219782889,
+  "slider_std_mae": 2.8722478198046986,
+  "slider_median_mae": 1.307015299797058,
+  "slider_success_rate_5px": 89.0,
+  "slider_success_rate_7px": 95.0,
+  "both_success_rate_5px": 77.0,
+  "both_success_rate_7px": 85.0,
+  "evaluation_time": "2025-07-27 20:28:45"
+}

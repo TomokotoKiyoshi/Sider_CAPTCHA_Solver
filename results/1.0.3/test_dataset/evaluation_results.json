@@ -1,0 +1,19 @@
+{
+  "dataset_name": "Test Dataset (Generated CAPTCHAs)",
+  "total_samples": 1000,
+  "gap_detection_rate": 100.0,
+  "slider_detection_rate": 100.0,
+  "gap_mean_mae": 0.4141823807954788,
+  "gap_std_mae": 2.2368136491962196,
+  "gap_median_mae": 0.20552092790603638,
+  "gap_success_rate_5px": 99.6,
+  "gap_success_rate_7px": 99.6,
+  "slider_mean_mae": 0.2609631942994893,
+  "slider_std_mae": 0.43624044675326207,
+  "slider_median_mae": 0.13882124423980713,
+  "slider_success_rate_5px": 99.9,
+  "slider_success_rate_7px": 99.9,
+  "both_success_rate_5px": 99.5,
+  "both_success_rate_7px": 99.5,
+  "evaluation_time": "2025-07-27 20:28:38"
+}

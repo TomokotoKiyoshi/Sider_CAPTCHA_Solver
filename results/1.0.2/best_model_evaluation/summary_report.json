@@ -1,0 +1,50 @@
+{
+  "model": "best_model.pth",
+  "evaluation_time": "2025-07-21 23:30:32",
+  "datasets": [
+    {
+      "dataset_name": "Test Dataset (Generated CAPTCHAs)",
+      "total_samples": 1000,
+      "gap_detection_rate": 100.0,
+      "slider_detection_rate": 100.0,
+      "gap_mean_mae": 1.1406782597601415,
+      "gap_std_mae": 10.588912335516117,
+      "gap_median_mae": 0.21028178930282593,
+      "gap_success_rate_5px": 99.4,
+      "gap_success_rate_7px": 99.4,
+      "slider_mean_mae": 0.2977830417007208,
+      "slider_std_mae": 0.3545746193346975,
+      "slider_median_mae": 0.19317471981048584,
+      "slider_success_rate_5px": 100.0,
+      "slider_success_rate_7px": 100.0,
+      "both_success_rate_5px": 99.4,
+      "both_success_rate_7px": 99.4,
+      "evaluation_time": "2025-07-21 23:30:25"
+    },
+    {
+      "dataset_name": "Real CAPTCHAs (Annotated)",
+      "total_samples": 100,
+      "gap_detection_rate": 100.0,
+      "slider_detection_rate": 100.0,
+      "gap_mean_mae": 9.984695246815681,
+      "gap_std_mae": 31.19339079893922,
+      "gap_median_mae": 1.2666285037994385,
+      "gap_success_rate_5px": 89.0,
+      "gap_success_rate_7px": 90.0,
+      "slider_mean_mae": 2.8437220453470946,
+      "slider_std_mae": 3.2499521060601815,
+      "slider_median_mae": 1.8079620599746704,
+      "slider_success_rate_5px": 81.0,
+      "slider_success_rate_7px": 91.0,
+      "both_success_rate_5px": 70.0,
+      "both_success_rate_7px": 77.0,
+      "evaluation_time": "2025-07-21 23:30:32"
+    }
+  ],
+  "summary": {
+    "average_gap_mae": 5.562686753287911,
+    "average_slider_mae": 1.5707525435239078,
+    "average_both_success_5px": 84.7,
+    "average_both_success_7px": 88.2
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "hardware": "GPU: NVIDIA GeForce RTX 5090",
+  "device": "cuda",
+  "num_runs": 100,
+  "model_load_time_ms": 113.98601531982422,
+  "image_prep_time_ms": 876.3599395751953,
+  "postprocess_time_ms": 0.0,
+  "inference_mean_ms": 1.5837430953979492,
+  "inference_std_ms": 0.553591663386622,
+  "inference_min_ms": 0.9961128234863281,
+  "inference_max_ms": 2.997159957885742,
+  "inference_median_ms": 1.504659652709961,
+  "fps": 631.4155388622096,
+  "total_time_seconds": 1.3632347583770752,
+  "end_to_end_time_ms": 991.9296979904175,
+  "test_image": "Pic0001_Bgx100Bgy90_Sdx31Sdy90_841ddd70.png",
+  "accuracy": {
+    "ground_truth": {
+      "gap": [
+        100,
+        90
+      ],
+      "slider": [
+        31,
+        90
+      ],
+      "slide_distance": 69
+    },
+    "prediction": {
+      "gap": [
+        100.44908034801483,
+        90.05873775482178
+      ],
+      "slider": [
+        30.734379291534424,
+        89.76289582252502
+      ],
+      "slide_distance": 69.71470105648041
+    },
+    "errors": {
+      "gap_error_pixels": 0.45290537953818283,
+      "slider_error_pixels": 0.3560516138733812,
+      "slide_distance_error_pixels": 0.7147010564804077
+    }
+  },
+  "metric_explanations": {
+    "model_load_time_ms": "Time to load model weights from disk to memory/VRAM",
+    "image_prep_time_ms": "Time for image loading, color conversion, resizing, etc.",
+    "inference_mean_ms": "Average neural network forward pass time, the most important metric",
+    "inference_std_ms": "Variance in inference time, lower is more stable",
+    "inference_min_ms": "Fastest inference, close to hardware limit",
+    "inference_max_ms": "Slowest inference, possibly affected by system scheduling",
+    "inference_median_ms": "Typical inference time excluding outliers",
+    "fps": "Number of CAPTCHAs processable per second, higher is better",
+    "postprocess_time_ms": "Time to decode coordinates from model output",
+    "end_to_end_time_ms": "Complete processing time including all steps"
+  }
+}
