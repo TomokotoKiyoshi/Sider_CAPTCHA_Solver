@@ -11,7 +11,7 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PyPI version](https://badge.fury.io/py/sider-captcha-solver.svg)](https://pypi.org/project/sider-captcha-solver/)
+[![PyPI version](https://img.shields.io/badge/PyPI-v1.0.3-blue.svg)](https://pypi.org/project/sider-captcha-solver/)
 [![GitHub version](https://img.shields.io/badge/GitHub-v1.0.3-blue.svg)](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver)
 
 A high-precision slider CAPTCHA recognition solution based on deep learning, utilizing an improved CenterNet architecture to achieve 85%+ accuracy on real CAPTCHA datasets.
