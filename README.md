@@ -11,18 +11,19 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PyPI version](https://img.shields.io/badge/PyPI-v1.0.3-blue.svg)](https://pypi.org/project/sider-captcha-solver/)
-[![GitHub version](https://img.shields.io/badge/GitHub-v1.0.3-blue.svg)](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver)
+[![PyPI version](https://img.shields.io/badge/PyPI-v1.0.4-blue.svg)](https://pypi.org/project/sider-captcha-solver/)
+[![GitHub version](https://img.shields.io/badge/GitHub-v1.0.4-blue.svg)](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver)
 
 A high-precision slider CAPTCHA recognition solution based on deep learning, utilizing an improved CenterNet architecture to achieve 85%+ accuracy on real CAPTCHA datasets.
 
-**Latest Version**: v1.0.3
+**Latest Version**: v1.0.4
 
 </div>
 
 ## 🆕 What's New
 
-### v1.0.3 (2025-07-27) - Latest Version
+### v1.0.4 (2025-07-27) - Latest Version
+
 - 🛡️ **Enhanced Anti-Confusion Features**:
   - Gap rotation (0.5-1.8° random rotation, 50% probability)
   - Perlin noise on sliders (40-80% intensity, 50% probability)
@@ -37,6 +38,7 @@ A high-precision slider CAPTCHA recognition solution based on deep learning, uti
   - Better error handling
 
 ### v1.0.2 (2025-07-21) - Initial Release
+
 - 🚀 Initial public release
 - 📦 Basic slider CAPTCHA recognition
 - 🎯 80% accuracy on real CAPTCHAs with 7px error tolerance
@@ -67,7 +69,7 @@ This project is an industrial-grade slider CAPTCHA recognition system that overc
 
 ### 🎯 Core Features
 
-- **High-Precision Recognition**: 85%+ accuracy with 7px error tolerance on real CAPTCHAs (v1.0.3)
+- **High-Precision Recognition**: 85%+ accuracy with 7px error tolerance on real CAPTCHAs (v1.0.4)
 - **Enhanced Anti-Confusion**: Supports rotated gaps, Perlin noise on sliders, confusing gaps, and gap highlighting effects
 - **Real-Time Inference**: GPU inference 1.30ms (RTX 5090), CPU inference 5.21ms (AMD Ryzen 9 9950X), supporting real-time applications
 - **Lightweight Architecture**: Only 3.5M parameters, model file approximately 36MB
@@ -78,13 +80,13 @@ This project is an industrial-grade slider CAPTCHA recognition system that overc
 
 #### Real CAPTCHA Dataset Recognition Results
 
-![Real Dataset Recognition Results](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.1/best_model_evaluation/real_captchas/visualizations/sample_0031.png?raw=true)
+![Real Dataset Recognition Results](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.3/real_captchas/visualizations/sample_0000.png)
 
 *Figure: Recognition results on real website CAPTCHAs, with red circles marking gap positions and blue circles marking slider positions*
 
 #### Test Dataset Recognition Results
 
-![Test Dataset Recognition Results](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.1/best_model_evaluation/test_dataset/visualizations/sample_0014.png?raw=true)
+![Test Dataset Recognition Results](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.3/test_dataset/visualizations/sample_0025.png)
 
 *Figure: Recognition results on synthetic test set, demonstrating the model's adaptability to different shapes and lighting conditions*
 
@@ -94,7 +96,7 @@ This project is an industrial-grade slider CAPTCHA recognition system that overc
 
 ```bash
 # Python 3.8+
-pip install -r requirements.txt
+pip install -r requirements.tx
 ```
 
 ### Installation
@@ -102,7 +104,7 @@ pip install -r requirements.txt
 #### Install via pip
 
 ```bash
-pip install sider-captcha-solver  # Install v1.0.3 from PyPI
+pip install sider-captcha-solver  # Install v1.0.4 from PyPI
 ```
 
 ### Basic Usage
@@ -374,7 +376,7 @@ Raw Images (2000+) → Resize(320×160) → Puzzle Generation
 **Puzzle Shape Design**:
 
 - 5 regular puzzle shapes (combinations of convex, concave, and flat edges)
-- 6 special shapes (circle, square, triangle, hexagon, pentagon, star)
+- 4 special shapes (circle, square, triangle, hexagon)
 
 **Random Parameters**:
 
@@ -558,7 +560,7 @@ ider_CAPTCHA_Solver/
 │   ├── checkpoints/               # Model weights
 │   │   ├── 1.0.1/best_model.pth  # v1.0.1 model
 │   │   ├── 1.0.2/best_model.pth  # v1.0.2 model (current)
-│   │   ├── 1.0.3/best_model.pth  # v1.0.3 model (with anti-confusion)
+│   │   ├── 1.0.3/best_model.pth  # v1.0.4 model (with anti-confusion)
 │   │   ├── checkpoint_epoch_0001.pth ~ checkpoint_epoch_0020.pth  # Epoch checkpoints
 │   │   ├── latest_checkpoint.pth  # Latest checkpoint
 │   │   ├── training_log_*.txt     # Training logs

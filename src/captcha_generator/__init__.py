@@ -2,21 +2,13 @@
 """
 验证码生成器模块
 
-包含以下组件：
-- SimplePuzzleGenerator: 简单拼图生成器
-- BatchGenerator: 批量验证码生成器
-- LightingEffects: 光照效果处理
-- SliderEffects: 滑块效果处理
+模块结构：
+- puzzle_shapes_generator: 拼图形状生成
+  - create_common_puzzle_piece: 普通拼图（凸起/凹陷边缘）
+  - create_special_puzzle_piece: 特殊形状（圆形、正方形、三角形、六边形）
+- lighting: 光照效果
+  - gap_lighting: 缺口光照效果（阴影/高光）
+  - slider_lighting: 滑块光照效果（3D凸起）
+- confusion_system: 混淆系统
+  - strategies: 各种混淆策略
 """
-
-from .simple_puzzle_generator import SimplePuzzleGenerator
-from .batch_generator import BatchGenerator
-from .lighting_effects import LightingEffects
-from .slider_effects import SliderEffects
-
-__all__ = [
-    'SimplePuzzleGenerator',
-    'BatchGenerator',
-    'LightingEffects',
-    'SliderEffects'
-]

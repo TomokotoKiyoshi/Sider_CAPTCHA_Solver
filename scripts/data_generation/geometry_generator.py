@@ -938,28 +938,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.single:
-        # 单张生成模式（带预览）
+        # 单张生成模式
         print(f"Output directory: {OUTPUT_DIR}")
         filename = generate_pattern(noise_strength=20)
-        
-        # 尝试在不同环境中显示图像
-        try:
-            # 如果在Jupyter/IPython环境中
-            from IPython.display import Image, display
-            display(Image(filename))
-            print("Image displayed in Jupyter")
-        except:
-            try:
-                # 尝试使用系统默认图像查看器打开
-                if platform.system() == 'Windows':
-                    os.startfile(filename)
-                elif platform.system() == 'Darwin':  # macOS
-                    os.system(f'open {filename}')
-                else:  # Linux
-                    os.system(f'xdg-open {filename}')
-                print("Image opened with system default viewer")
-            except:
-                print(f"Please manually open file: {filename}")
+        print(f"Pattern saved to: {filename}")
     else:
         # 批量生成模式
         if args.sequential:

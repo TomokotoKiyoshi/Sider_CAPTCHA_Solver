@@ -11,18 +11,19 @@
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PyPI version](https://img.shields.io/badge/PyPI-v1.0.3-blue.svg)](https://pypi.org/project/sider-captcha-solver/)
-[![GitHub version](https://img.shields.io/badge/GitHub-v1.0.3-blue.svg)](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver)
+[![PyPI version](https://img.shields.io/badge/PyPI-v1.0.4-blue.svg)](https://pypi.org/project/sider-captcha-solver/)
+[![GitHub version](https://img.shields.io/badge/GitHub-v1.0.4-blue.svg)](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver)
 
 一个基于深度学习的高精度滑块验证码识别解决方案，采用改进的CenterNet架构，在真实验证码数据集上达到85%+准确率。
 
-**最新版本**: v1.0.3
+**最新版本**: v1.0.4
 
 </div>
 
 ## 🆕 更新日志
 
-### v1.0.3 (2025-07-27) - 最新版本
+### v1.0.4 (2025-07-27) - 最新版本
+
 - 🛡️ **增强的抗混淆特性**：
   - 缺口旋转（0.5-1.8°随机旋转，50%概率）
   - 滑块柏林噪声（40-80%强度，50%概率）
@@ -37,6 +38,7 @@
   - 更好的错误处理
 
 ### v1.0.2 (2025-07-21) - 初始发布
+
 - 🚀 首次公开发布
 - 📦 基础滑块验证码识别
 - 🎯 真实验证码7px误差80%准确率
@@ -67,7 +69,7 @@
 
 ### 🎯 核心特性
 
-- **高精度识别**：真实验证码7px误差准确率达85%+（v1.0.3）
+- **高精度识别**：真实验证码7px误差准确率达85%+（v1.0.4）
 - **增强抗混淆能力**：支持缺口旋转、滑块柏林噪声、混淆缺口、缺口高光效果
 - **实时推理**：GPU推理 1.30ms（RTX 5090），CPU推理 5.21ms（AMD Ryzen 9 9950X），支持实时应用
 - **轻量架构**：仅3.5M参数，模型文件约36MB
@@ -78,15 +80,15 @@
 
 #### 真实验证码数据集识别效果
 
-![真实数据集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/best_model_evaluation/real_captchas/visualizations/sample_0031.png?raw=true)
+![真实数据集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.3/real_captchas/visualizations/sample_0000.png)
 
 *图示：在某网站真实验证码上的识别效果，红色圆圈标记缺口位置，蓝色圆圈标记滑块位置*
 
 #### 测试集识别效果
 
-![测试集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/best_model_evaluation/test_dataset/visualizations/sample_0014.png?raw=true)
+![测试集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.3/test_dataset/visualizations/sample_0025.png)
 
-*图示：在合成测试集上的识别效果，展示了模型对不同形状和光照条件的适应能力*
+
 
 ## 🚀 快速开始
 
@@ -102,7 +104,7 @@ pip install -r requirements.txt
 #### 可直接使用 pip 安装
 
 ```bash
-pip install sider-captcha-solver  # 安装 v1.0.3 版本
+pip install sider-captcha-solver  # 安装 v1.0.4 版本
 ```
 
 ### 基础使用
@@ -374,7 +376,7 @@ print(f"FPS: {1000 / np.mean(times):.1f}")
 **拼图形状设计**：
 
 - 5种普通拼图形状（四边凹凸平组合）
-- 6种特殊形状（圆形、正方形、三角形、六边形、五边形、五角星）
+- 6种特殊形状（圆形、正方形、三角形、六边形）
 
 **随机参数**：
 

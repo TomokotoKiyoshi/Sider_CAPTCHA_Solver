@@ -1,0 +1,1488 @@
+{
+  "total_errors": 78,
+  "error_rate": "7.80%",
+  "errors": [
+    {
+      "sample_idx": 24,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 52,
+      "slider_pos": [
+        30,
+        93
+      ],
+      "gap_pos": [
+        75,
+        93
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=75, Slider x=30, size=52",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=75, Slider x=30, size=52\n"
+    },
+    {
+      "sample_idx": 52,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "triangle",
+      "size": 40,
+      "slider_pos": [
+        27,
+        109
+      ],
+      "gap_pos": [
+        58,
+        109
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=58, Slider x=27, size=40",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=58, Slider x=27, size=40\n"
+    },
+    {
+      "sample_idx": 55,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "triangle",
+      "size": 38,
+      "slider_pos": [
+        28,
+        85
+      ],
+      "gap_pos": [
+        64,
+        85
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=64, Slider x=28, size=38",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=64, Slider x=28, size=38\n"
+    },
+    {
+      "sample_idx": 67,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "hexagon",
+      "size": 58,
+      "slider_pos": [
+        34,
+        37
+      ],
+      "gap_pos": [
+        83,
+        37
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=83, Slider x=34, size=58",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=83, Slider x=34, size=58\n"
+    },
+    {
+      "sample_idx": 72,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 60,
+      "slider_pos": [
+        39,
+        35
+      ],
+      "gap_pos": [
+        222,
+        35
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,80) (80,80) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 376, in _create_gap_background\n    background = apply_gap_highlighting(\n                 ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 271, in apply_gap_highlighting\n    lightened = channel + (total_highlight * mask_factor)\n                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,80) (80,80) \n"
+    },
+    {
+      "sample_idx": 87,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "square",
+      "size": 40,
+      "slider_pos": [
+        22,
+        100
+      ],
+      "gap_pos": [
+        59,
+        100
+      ],
+      "confusion_type": "none",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=59, Slider x=22, size=40",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=59, Slider x=22, size=40\n"
+    },
+    {
+      "sample_idx": 91,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "triangle",
+      "size": 50,
+      "slider_pos": [
+        28,
+        85
+      ],
+      "gap_pos": [
+        73,
+        85
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=73, Slider x=28, size=50",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=73, Slider x=28, size=50\n"
+    },
+    {
+      "sample_idx": 96,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0247_20250721_022310_684.png",
+      "pic_index": 2,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 52,
+      "slider_pos": [
+        33,
+        55
+      ],
+      "gap_pos": [
+        78,
+        55
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=78, Slider x=33, size=52",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=78, Slider x=33, size=52\n"
+    },
+    {
+      "sample_idx": 39,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 48,
+      "slider_pos": [
+        33,
+        68
+      ],
+      "gap_pos": [
+        70,
+        68
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=70, Slider x=33, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=70, Slider x=33, size=48\n"
+    },
+    {
+      "sample_idx": 42,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "triangle",
+      "size": 34,
+      "slider_pos": [
+        24,
+        106
+      ],
+      "gap_pos": [
+        51,
+        106
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=51, Slider x=24, size=34",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=51, Slider x=24, size=34\n"
+    },
+    {
+      "sample_idx": 51,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 34,
+      "slider_pos": [
+        26,
+        128
+      ],
+      "gap_pos": [
+        54,
+        128
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=54, Slider x=26, size=34",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=54, Slider x=26, size=34\n"
+    },
+    {
+      "sample_idx": 55,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 54,
+      "slider_pos": [
+        34,
+        91
+      ],
+      "gap_pos": [
+        80,
+        91
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=80, Slider x=34, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=80, Slider x=34, size=54\n"
+    },
+    {
+      "sample_idx": 60,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 32,
+      "slider_pos": [
+        23,
+        120
+      ],
+      "gap_pos": [
+        53,
+        120
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=53, Slider x=23, size=32",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=53, Slider x=23, size=32\n"
+    },
+    {
+      "sample_idx": 74,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 50,
+      "slider_pos": [
+        33,
+        95
+      ],
+      "gap_pos": [
+        77,
+        95
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=77, Slider x=33, size=50",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=77, Slider x=33, size=50\n"
+    },
+    {
+      "sample_idx": 78,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "('flat', 'concave', 'flat', 'flat')",
+      "size": 56,
+      "slider_pos": [
+        35,
+        124
+      ],
+      "gap_pos": [
+        254,
+        124
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (73,75) (75,75) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (73,75) (75,75) \n"
+    },
+    {
+      "sample_idx": 82,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "hexagon",
+      "size": 48,
+      "slider_pos": [
+        29,
+        124
+      ],
+      "gap_pos": [
+        76,
+        124
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=76, Slider x=29, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=76, Slider x=29, size=48\n"
+    },
+    {
+      "sample_idx": 96,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_art\\Pic0168.png",
+      "pic_index": 1,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 34,
+      "slider_pos": [
+        26,
+        40
+      ],
+      "gap_pos": [
+        59,
+        40
+      ],
+      "confusion_type": "none",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=59, Slider x=26, size=34",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=59, Slider x=26, size=34\n"
+    },
+    {
+      "sample_idx": 0,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "square",
+      "size": 60,
+      "slider_pos": [
+        37,
+        96
+      ],
+      "gap_pos": [
+        81,
+        96
+      ],
+      "confusion_type": "none",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=81, Slider x=37, size=60",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=81, Slider x=37, size=60\n"
+    },
+    {
+      "sample_idx": 3,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 48,
+      "slider_pos": [
+        31,
+        94
+      ],
+      "gap_pos": [
+        78,
+        94
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=78, Slider x=31, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=78, Slider x=31, size=48\n"
+    },
+    {
+      "sample_idx": 4,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 50,
+      "slider_pos": [
+        30,
+        46
+      ],
+      "gap_pos": [
+        69,
+        46
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=69, Slider x=30, size=50",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=69, Slider x=30, size=50\n"
+    },
+    {
+      "sample_idx": 12,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('concave', 'concave', 'convex', 'concave')",
+      "size": 60,
+      "slider_pos": [
+        33,
+        43
+      ],
+      "gap_pos": [
+        133,
+        43
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,90) (90,90) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,90) (90,90) \n"
+    },
+    {
+      "sample_idx": 15,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 56,
+      "slider_pos": [
+        29,
+        85
+      ],
+      "gap_pos": [
+        83,
+        85
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=83, Slider x=29, size=56",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=83, Slider x=29, size=56\n"
+    },
+    {
+      "sample_idx": 26,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 48,
+      "slider_pos": [
+        30,
+        42
+      ],
+      "gap_pos": [
+        64,
+        42
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=64, Slider x=30, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=64, Slider x=30, size=48\n"
+    },
+    {
+      "sample_idx": 46,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 48,
+      "slider_pos": [
+        28,
+        102
+      ],
+      "gap_pos": [
+        70,
+        102
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=70, Slider x=28, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=70, Slider x=28, size=48\n"
+    },
+    {
+      "sample_idx": 50,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 34,
+      "slider_pos": [
+        27,
+        45
+      ],
+      "gap_pos": [
+        60,
+        45
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=60, Slider x=27, size=34",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=60, Slider x=27, size=34\n"
+    },
+    {
+      "sample_idx": 59,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "triangle",
+      "size": 50,
+      "slider_pos": [
+        30,
+        53
+      ],
+      "gap_pos": [
+        77,
+        53
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=77, Slider x=30, size=50",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=77, Slider x=30, size=50\n"
+    },
+    {
+      "sample_idx": 69,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "circle",
+      "size": 32,
+      "slider_pos": [
+        24,
+        78
+      ],
+      "gap_pos": [
+        52,
+        78
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=52, Slider x=24, size=32",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=52, Slider x=24, size=32\n"
+    },
+    {
+      "sample_idx": 72,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "square",
+      "size": 54,
+      "slider_pos": [
+        27,
+        37
+      ],
+      "gap_pos": [
+        91,
+        37
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,83) (83,83) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,83) (83,83) \n"
+    },
+    {
+      "sample_idx": 91,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "('concave', 'concave', 'convex', 'concave')",
+      "size": 48,
+      "slider_pos": [
+        30,
+        40
+      ],
+      "gap_pos": [
+        65,
+        40
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=65, Slider x=30, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=65, Slider x=30, size=48\n"
+    },
+    {
+      "sample_idx": 94,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "circle",
+      "size": 56,
+      "slider_pos": [
+        32,
+        122
+      ],
+      "gap_pos": [
+        82,
+        122
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=82, Slider x=32, size=56",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=82, Slider x=32, size=56\n"
+    },
+    {
+      "sample_idx": 97,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0080.png",
+      "pic_index": 3,
+      "shape": "square",
+      "size": 48,
+      "slider_pos": [
+        32,
+        50
+      ],
+      "gap_pos": [
+        74,
+        50
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=74, Slider x=32, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=74, Slider x=32, size=48\n"
+    },
+    {
+      "sample_idx": 14,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated\\geometric_pattern_20250720_230626.png",
+      "pic_index": 4,
+      "shape": "hexagon",
+      "size": 60,
+      "slider_pos": [
+        33,
+        67
+      ],
+      "gap_pos": [
+        84,
+        67
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=84, Slider x=33, size=60",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=84, Slider x=33, size=60\n"
+    },
+    {
+      "sample_idx": 3,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 60,
+      "slider_pos": [
+        32,
+        68
+      ],
+      "gap_pos": [
+        74,
+        68
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=74, Slider x=32, size=60",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=74, Slider x=32, size=60\n"
+    },
+    {
+      "sample_idx": 6,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 46,
+      "slider_pos": [
+        26,
+        50
+      ],
+      "gap_pos": [
+        70,
+        50
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=70, Slider x=26, size=46",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=70, Slider x=26, size=46\n"
+    },
+    {
+      "sample_idx": 8,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "hexagon",
+      "size": 60,
+      "slider_pos": [
+        30,
+        117
+      ],
+      "gap_pos": [
+        84,
+        117
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=84, Slider x=30, size=60",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=84, Slider x=30, size=60\n"
+    },
+    {
+      "sample_idx": 14,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "hexagon",
+      "size": 58,
+      "slider_pos": [
+        29,
+        88
+      ],
+      "gap_pos": [
+        74,
+        88
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=74, Slider x=29, size=58",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=74, Slider x=29, size=58\n"
+    },
+    {
+      "sample_idx": 18,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 46,
+      "slider_pos": [
+        32,
+        82
+      ],
+      "gap_pos": [
+        70,
+        82
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=70, Slider x=32, size=46",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=70, Slider x=32, size=46\n"
+    },
+    {
+      "sample_idx": 37,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('flat', 'concave', 'flat', 'flat')",
+      "size": 38,
+      "slider_pos": [
+        22,
+        77
+      ],
+      "gap_pos": [
+        59,
+        77
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=59, Slider x=22, size=38",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=59, Slider x=22, size=38\n"
+    },
+    {
+      "sample_idx": 55,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 54,
+      "slider_pos": [
+        29,
+        81
+      ],
+      "gap_pos": [
+        78,
+        81
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=78, Slider x=29, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=78, Slider x=29, size=54\n"
+    },
+    {
+      "sample_idx": 60,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 48,
+      "slider_pos": [
+        32,
+        31
+      ],
+      "gap_pos": [
+        74,
+        31
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=74, Slider x=32, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=74, Slider x=32, size=48\n"
+    },
+    {
+      "sample_idx": 62,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('flat', 'concave', 'flat', 'flat')",
+      "size": 48,
+      "slider_pos": [
+        28,
+        49
+      ],
+      "gap_pos": [
+        69,
+        49
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=69, Slider x=28, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=69, Slider x=28, size=48\n"
+    },
+    {
+      "sample_idx": 88,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Geometric_Generated_white\\geometric_pattern_white_20250721_000717.png",
+      "pic_index": 5,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 52,
+      "slider_pos": [
+        31,
+        121
+      ],
+      "gap_pos": [
+        74,
+        121
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=74, Slider x=31, size=52",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=74, Slider x=31, size=52\n"
+    },
+    {
+      "sample_idx": 2,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "hexagon",
+      "size": 54,
+      "slider_pos": [
+        34,
+        32
+      ],
+      "gap_pos": [
+        71,
+        32
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=71, Slider x=34, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=71, Slider x=34, size=54\n"
+    },
+    {
+      "sample_idx": 10,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "circle",
+      "size": 50,
+      "slider_pos": [
+        29,
+        31
+      ],
+      "gap_pos": [
+        225,
+        31
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,70) (70,70) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,70) (70,70) \n"
+    },
+    {
+      "sample_idx": 25,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "circle",
+      "size": 60,
+      "slider_pos": [
+        32,
+        117
+      ],
+      "gap_pos": [
+        88,
+        117
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=88, Slider x=32, size=60",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=88, Slider x=32, size=60\n"
+    },
+    {
+      "sample_idx": 42,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 60,
+      "slider_pos": [
+        36,
+        33
+      ],
+      "gap_pos": [
+        128,
+        33
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,98) (98,98) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,98) (98,98) \n"
+    },
+    {
+      "sample_idx": 57,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "('concave', 'concave', 'convex', 'concave')",
+      "size": 52,
+      "slider_pos": [
+        33,
+        44
+      ],
+      "gap_pos": [
+        84,
+        44
+      ],
+      "confusion_type": "none",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=84, Slider x=33, size=52",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=84, Slider x=33, size=52\n"
+    },
+    {
+      "sample_idx": 61,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 56,
+      "slider_pos": [
+        28,
+        124
+      ],
+      "gap_pos": [
+        193,
+        124
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (79,87) (87,87) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 376, in _create_gap_background\n    background = apply_gap_highlighting(\n                 ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 271, in apply_gap_highlighting\n    lightened = channel + (total_highlight * mask_factor)\n                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (79,87) (87,87) \n"
+    },
+    {
+      "sample_idx": 62,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "triangle",
+      "size": 60,
+      "slider_pos": [
+        36,
+        111
+      ],
+      "gap_pos": [
+        89,
+        111
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=89, Slider x=36, size=60",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=89, Slider x=36, size=60\n"
+    },
+    {
+      "sample_idx": 74,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "square",
+      "size": 52,
+      "slider_pos": [
+        28,
+        126
+      ],
+      "gap_pos": [
+        85,
+        126
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (77,87) (87,87) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (77,87) (87,87) \n"
+    },
+    {
+      "sample_idx": 93,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\backgrounds\\Pic0032.png",
+      "pic_index": 6,
+      "shape": "('flat', 'concave', 'flat', 'flat')",
+      "size": 58,
+      "slider_pos": [
+        30,
+        34
+      ],
+      "gap_pos": [
+        80,
+        34
+      ],
+      "confusion_type": "none",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=80, Slider x=30, size=58",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=80, Slider x=30, size=58\n"
+    },
+    {
+      "sample_idx": 10,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Block_Illustration\\Pic0170.png",
+      "pic_index": 7,
+      "shape": "square",
+      "size": 46,
+      "slider_pos": [
+        28,
+        82
+      ],
+      "gap_pos": [
+        61,
+        82
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=61, Slider x=28, size=46",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=61, Slider x=28, size=46\n"
+    },
+    {
+      "sample_idx": 20,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Block_Illustration\\Pic0170.png",
+      "pic_index": 7,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 60,
+      "slider_pos": [
+        33,
+        128
+      ],
+      "gap_pos": [
+        228,
+        128
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (80,97) (97,97) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (80,97) (97,97) \n"
+    },
+    {
+      "sample_idx": 58,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Block_Illustration\\Pic0170.png",
+      "pic_index": 7,
+      "shape": "circle",
+      "size": 42,
+      "slider_pos": [
+        22,
+        117
+      ],
+      "gap_pos": [
+        63,
+        117
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=63, Slider x=22, size=42",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=63, Slider x=22, size=42\n"
+    },
+    {
+      "sample_idx": 73,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Block_Illustration\\Pic0170.png",
+      "pic_index": 7,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 58,
+      "slider_pos": [
+        37,
+        108
+      ],
+      "gap_pos": [
+        89,
+        108
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=89, Slider x=37, size=58",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=89, Slider x=37, size=58\n"
+    },
+    {
+      "sample_idx": 90,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Block_Illustration\\Pic0170.png",
+      "pic_index": 7,
+      "shape": "circle",
+      "size": 60,
+      "slider_pos": [
+        32,
+        38
+      ],
+      "gap_pos": [
+        237,
+        38
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,83) (83,83) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,83) (83,83) \n"
+    },
+    {
+      "sample_idx": 2,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0040_20250721_022201_256.png",
+      "pic_index": 8,
+      "shape": "triangle",
+      "size": 46,
+      "slider_pos": [
+        23,
+        84
+      ],
+      "gap_pos": [
+        56,
+        84
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=56, Slider x=23, size=46",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=56, Slider x=23, size=46\n"
+    },
+    {
+      "sample_idx": 17,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0040_20250721_022201_256.png",
+      "pic_index": 8,
+      "shape": "circle",
+      "size": 54,
+      "slider_pos": [
+        30,
+        36
+      ],
+      "gap_pos": [
+        79,
+        36
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=79, Slider x=30, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=79, Slider x=30, size=54\n"
+    },
+    {
+      "sample_idx": 52,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0040_20250721_022201_256.png",
+      "pic_index": 8,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 50,
+      "slider_pos": [
+        27,
+        128
+      ],
+      "gap_pos": [
+        197,
+        128
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (67,70) (70,70) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (67,70) (70,70) \n"
+    },
+    {
+      "sample_idx": 53,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0040_20250721_022201_256.png",
+      "pic_index": 8,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 60,
+      "slider_pos": [
+        34,
+        69
+      ],
+      "gap_pos": [
+        93,
+        69
+      ],
+      "confusion_type": "none",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=93, Slider x=34, size=60",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=93, Slider x=34, size=60\n"
+    },
+    {
+      "sample_idx": 86,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0040_20250721_022201_256.png",
+      "pic_index": 8,
+      "shape": "square",
+      "size": 34,
+      "slider_pos": [
+        19,
+        90
+      ],
+      "gap_pos": [
+        49,
+        90
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=49, Slider x=19, size=34",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=49, Slider x=19, size=34\n"
+    },
+    {
+      "sample_idx": 91,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0040_20250721_022201_256.png",
+      "pic_index": 8,
+      "shape": "circle",
+      "size": 60,
+      "slider_pos": [
+        38,
+        37
+      ],
+      "gap_pos": [
+        210,
+        37
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,90) (90,90) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,90) (90,90) \n"
+    },
+    {
+      "sample_idx": 0,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Anime_Cityscape\\Pic0018.png",
+      "pic_index": 10,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 54,
+      "slider_pos": [
+        34,
+        97
+      ],
+      "gap_pos": [
+        71,
+        97
+      ],
+      "confusion_type": "none",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=71, Slider x=34, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=71, Slider x=34, size=54\n"
+    },
+    {
+      "sample_idx": 5,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Anime_Cityscape\\Pic0018.png",
+      "pic_index": 10,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 54,
+      "slider_pos": [
+        30,
+        54
+      ],
+      "gap_pos": [
+        70,
+        54
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=70, Slider x=30, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=70, Slider x=30, size=54\n"
+    },
+    {
+      "sample_idx": 18,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Anime_Cityscape\\Pic0018.png",
+      "pic_index": 10,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 54,
+      "slider_pos": [
+        36,
+        100
+      ],
+      "gap_pos": [
+        86,
+        100
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=86, Slider x=36, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=86, Slider x=36, size=54\n"
+    },
+    {
+      "sample_idx": 27,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Anime_Cityscape\\Pic0018.png",
+      "pic_index": 10,
+      "shape": "circle",
+      "size": 56,
+      "slider_pos": [
+        28,
+        101
+      ],
+      "gap_pos": [
+        76,
+        101
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=76, Slider x=28, size=56",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=76, Slider x=28, size=56\n"
+    },
+    {
+      "sample_idx": 57,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Anime_Cityscape\\Pic0018.png",
+      "pic_index": 10,
+      "shape": "hexagon",
+      "size": 54,
+      "slider_pos": [
+        31,
+        50
+      ],
+      "gap_pos": [
+        79,
+        50
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=79, Slider x=31, size=54",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=79, Slider x=31, size=54\n"
+    },
+    {
+      "sample_idx": 65,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Anime_Cityscape\\Pic0018.png",
+      "pic_index": 10,
+      "shape": "('concave', 'concave', 'convex', 'concave')",
+      "size": 56,
+      "slider_pos": [
+        31,
+        130
+      ],
+      "gap_pos": [
+        290,
+        130
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (71,82) (82,82) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 376, in _create_gap_background\n    background = apply_gap_highlighting(\n                 ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 271, in apply_gap_highlighting\n    lightened = channel + (total_highlight * mask_factor)\n                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (71,82) (82,82) \n"
+    },
+    {
+      "sample_idx": 86,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Anime_Cityscape\\Pic0018.png",
+      "pic_index": 10,
+      "shape": "circle",
+      "size": 38,
+      "slider_pos": [
+        29,
+        130
+      ],
+      "gap_pos": [
+        61,
+        130
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=61, Slider x=29, size=38",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=61, Slider x=29, size=38\n"
+    },
+    {
+      "sample_idx": 0,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 60,
+      "slider_pos": [
+        33,
+        30
+      ],
+      "gap_pos": [
+        286,
+        30
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,81) (81,81) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 376, in _create_gap_background\n    background = apply_gap_highlighting(\n                 ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 271, in apply_gap_highlighting\n    lightened = channel + (total_highlight * mask_factor)\n                ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,81) (81,81) \n"
+    },
+    {
+      "sample_idx": 36,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "('convex', 'convex', 'flat', 'flat')",
+      "size": 52,
+      "slider_pos": [
+        32,
+        32
+      ],
+      "gap_pos": [
+        206,
+        32
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,76) (76,76) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,76) (76,76) \n"
+    },
+    {
+      "sample_idx": 43,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 48,
+      "slider_pos": [
+        29,
+        78
+      ],
+      "gap_pos": [
+        68,
+        78
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=68, Slider x=29, size=48",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=68, Slider x=29, size=48\n"
+    },
+    {
+      "sample_idx": 44,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "circle",
+      "size": 58,
+      "slider_pos": [
+        29,
+        96
+      ],
+      "gap_pos": [
+        71,
+        96
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=71, Slider x=29, size=58",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=71, Slider x=29, size=58\n"
+    },
+    {
+      "sample_idx": 54,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "('concave', 'concave', 'flat', 'convex')",
+      "size": 30,
+      "slider_pos": [
+        25,
+        119
+      ],
+      "gap_pos": [
+        51,
+        119
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=51, Slider x=25, size=30",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=51, Slider x=25, size=30\n"
+    },
+    {
+      "sample_idx": 61,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 58,
+      "slider_pos": [
+        29,
+        43
+      ],
+      "gap_pos": [
+        126,
+        43
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "operands could not be broadcast together with shapes (0,94) (94,94) ",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 130, in generate\n    background = self._create_gap_background(\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 386, in _create_gap_background\n    background = apply_gap_lighting(\n                 ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\lighting\\gap_lighting.py\", line 82, in apply_gap_lighting\n    darkened = channel - (total_shadow * mask_factor)\n               ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nValueError: operands could not be broadcast together with shapes (0,94) (94,94) \n"
+    },
+    {
+      "sample_idx": 80,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "('flat', 'convex', 'convex', 'concave')",
+      "size": 50,
+      "slider_pos": [
+        28,
+        72
+      ],
+      "gap_pos": [
+        63,
+        72
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=63, Slider x=28, size=50",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=63, Slider x=28, size=50\n"
+    },
+    {
+      "sample_idx": 92,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "('convex', 'concave', 'flat', 'concave')",
+      "size": 58,
+      "slider_pos": [
+        29,
+        39
+      ],
+      "gap_pos": [
+        71,
+        39
+      ],
+      "confusion_type": "single",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=71, Slider x=29, size=58",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=71, Slider x=29, size=58\n"
+    },
+    {
+      "sample_idx": 98,
+      "img_path": "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\raw\\Puzzle_Backgrounds\\puzzle_bg_0022_20250721_022156_786.png",
+      "pic_index": 9,
+      "shape": "hexagon",
+      "size": 52,
+      "slider_pos": [
+        31,
+        123
+      ],
+      "gap_pos": [
+        70,
+        123
+      ],
+      "confusion_type": "combined",
+      "error_type": "ValueError",
+      "error_message": "Gap and slider overlap! Gap x=70, Slider x=31, size=52",
+      "traceback": "Traceback (most recent call last):\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\scripts\\data_generation\\generate_captchas.py\", line 245, in generate_captcha_batch\n    result = generator.generate(\n             ^^^^^^^^^^^^^^^^^^^\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 55, in generate\n    self._validate_positions(gap_position, slider_position, gap_mask.shape)\n  File \"D:\\Hacker\\Sider_CAPTCHA_Solver\\src\\captcha_generator\\confusion_system\\generator.py\", line 229, in _validate_positions\n    raise ValueError(f\"Gap and slider overlap! Gap x={gap_x}, Slider x={slider_x}, size={w}\")\nValueError: Gap and slider overlap! Gap x=70, Slider x=31, size=52\n"
+    }
+  ]
+}

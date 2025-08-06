@@ -45,8 +45,6 @@ captcha_generation:
       - "square"
       - "triangle"
       - "hexagon"
-      - "pentagon"
-      - "star"
   
   # 拼图大小配置 - 随机选择3种
   puzzle_sizes:

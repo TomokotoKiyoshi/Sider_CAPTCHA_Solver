@@ -1,0 +1,67 @@
+{
+  "generation_time": "0:00:03.061246",
+  "total_backgrounds": 10,
+  "total_samples": 922,
+  "total_errors": 78,
+  "error_rate": "7.80%",
+  "statistics": {
+    "shape_circle": 108,
+    "size_40": 58,
+    "confusion_none": 185,
+    "shape_('flat', 'concave', 'flat', 'flat')": 82,
+    "confusion_combined": 291,
+    "shape_('convex', 'convex', 'flat', 'flat')": 89,
+    "size_48": 52,
+    "confusion_single": 446,
+    "shape_square": 88,
+    "size_54": 71,
+    "size_36": 62,
+    "size_52": 59,
+    "shape_hexagon": 88,
+    "size_58": 55,
+    "size_34": 48,
+    "size_42": 75,
+    "shape_('concave', 'concave', 'flat', 'convex')": 102,
+    "size_30": 52,
+    "size_50": 54,
+    "shape_('convex', 'concave', 'flat', 'concave')": 104,
+    "shape_('flat', 'convex', 'convex', 'concave')": 96,
+    "size_46": 55,
+    "shape_triangle": 84,
+    "size_32": 59,
+    "size_44": 53,
+    "size_56": 56,
+    "size_60": 55,
+    "size_38": 58,
+    "shape_('concave', 'concave', 'convex', 'concave')": 81
+  },
+  "config": {
+    "slider_x_range": [
+      15,
+      35
+    ],
+    "puzzle_sizes": [
+      30,
+      32,
+      34,
+      36,
+      38,
+      40,
+      42,
+      44,
+      46,
+      48,
+      50,
+      52,
+      54,
+      56,
+      58,
+      60
+    ],
+    "confusion_distribution": {
+      "none": 0.2,
+      "single": 0.5,
+      "combined": 0.3
+    }
+  }
+}
