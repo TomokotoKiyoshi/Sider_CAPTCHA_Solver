@@ -51,8 +51,8 @@ class CaptchaGenerator:
         # 2. 创建拼图掩码
         gap_mask = self._create_puzzle_mask(puzzle_shape, puzzle_size)
         
-        # 3. 验证位置合法性
-        self._validate_positions(gap_position, slider_position, gap_mask.shape)
+        # 3. 验证位置合法性（传入实际图像尺寸）
+        self._validate_positions(gap_position, slider_position, gap_mask.shape, img.shape)
         
         # 4. 提取原始区域作为基础图像（将成为滑块和缺口的来源）
         original_piece = self._extract_gap_image(img, gap_position, gap_mask, puzzle_shape)
@@ -154,7 +154,7 @@ class CaptchaGenerator:
         )
     
     def _load_and_resize_image(self, image: Union[str, np.ndarray]) -> np.ndarray:
-        """加载并调整图片大小"""
+        """加载图片（不再强制调整大小，支持动态尺寸）"""
         if isinstance(image, str):
             img = cv2.imread(image)
             if img is None:
@@ -162,9 +162,8 @@ class CaptchaGenerator:
         else:
             img = image.copy()
         
-        # 确保图片大小为 320x160
-        if img.shape[:2] != (160, 320):
-            img = cv2.resize(img, (320, 160))
+        # 不再强制调整到320x160，保留原始尺寸
+        # 图片尺寸应该已经在外部处理好了
         
         return img
     
@@ -189,15 +188,15 @@ class CaptchaGenerator:
     def _validate_positions(self,
                            gap_position: Tuple[int, int],
                            slider_position: Tuple[int, int],
-                           mask_shape: Tuple[int, int]) -> None:
+                           mask_shape: Tuple[int, int],
+                           img_shape: Tuple[int, int, int]) -> None:
         """验证位置参数"""
         gap_x, gap_y = gap_position
         slider_x, slider_y = slider_position
         h, w = mask_shape[:2]
         
-        # 背景图像尺寸
-        bg_width = 320
-        bg_height = 160
+        # 使用实际图像尺寸而不是硬编码值
+        bg_height, bg_width = img_shape[:2]
         
         # 验证滑块位置
         # 滑块中心x坐标必须在 [w/2, w/2 + 10] 范围内

@@ -8,9 +8,22 @@ from typing import List, Dict, Tuple
 class DatasetConfig:
     """数据集生成配置"""
     
+    # ========== 输入输出路径配置 ==========
+    INPUT_DIR: str = 'data/raw'                     # 输入目录（背景图片）
+    OUTPUT_DIR: str = 'data'                        # 输出目录
+    
+    # ========== 并行处理配置 ==========
+    MAX_WORKERS: int = None                         # 工作进程数（None表示自动）
+    MAX_IMAGES: int = None                          # 最大处理图片数（None表示全部）
+    RANDOM_SEED: int = None                         # 随机种子（None表示随机）
+    
+    # ========== 图像尺寸配置 ==========
+    USE_RANDOM_SIZE: bool = True                    # 是否使用随机尺寸
+    SIZE_CONFIG_MODULE: str = 'config.size_confusion_config'  # 尺寸配置模块
+    
     # ========== 位置采样范围 ==========
-    SLIDER_X_RANGE: Tuple[int, int] = (20, 35)     # 滑块x范围
-    SLIDER_Y_RANGE: Tuple[int, int] = (30, 130)    # 滑块y范围
+    SLIDER_X_RANGE: Tuple[int, int] = (20, 35)     # 滑块x范围（基于320x160）
+    SLIDER_Y_RANGE: Tuple[int, int] = (30, 130)    # 滑块y范围（基于320x160）
     
     # ========== 数据集规模 ==========
     MIN_BACKGROUNDS: int = 2000        # 最少背景图数量
@@ -37,7 +50,7 @@ class DatasetConfig:
     
     # ========== 组件保存配置 ==========
     SAVE_FULL_IMAGE: bool = False  # 不保存完整合成图片
-    SAVE_COMPONENTS: bool = True   # 保存单独的滑块和缺口组件
+    SAVE_COMPONENTS: bool = False  # 默认不保存单独的滑块和缺口组件
     COMPONENT_FORMAT: str = 'png'  # 组件图片格式
     SAVE_MASKS: bool = False       # 是否额外保存二值mask
     

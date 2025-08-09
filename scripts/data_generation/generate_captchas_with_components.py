@@ -16,7 +16,6 @@ import json
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
-import argparse
 from typing import List, Dict, Any, Tuple, Optional
 from collections import defaultdict
 
@@ -45,9 +44,11 @@ from src.captcha_generator.confusion_system.strategies import (
 # 导入配置
 from config.confusion_config import ConfusionConfig
 from config.dataset_config import DatasetConfig
+from config.size_confusion_config import CaptchaSizeConfig
 
 # 导入标签生成器
 from src.captcha_generator import CaptchaLabelGenerator, create_label_from_captcha_result
+from src.captcha_generator.size_variation import SizeVariation
 
 
 def select_puzzle_sizes_for_image(
@@ -79,7 +80,9 @@ def select_puzzle_sizes_for_image(
 def generate_fixed_gap_positions(
     pic_index: int,
     gap_x_count: int = 4,
-    gap_y_count: int = 3
+    gap_y_count: int = 3,
+    img_width: int = 320,
+    img_height: int = 160
 ) -> Tuple[List[int], List[int]]:
     """
     为每张图片生成固定的gap位置（不依赖于puzzle_size）
@@ -89,16 +92,19 @@ def generate_fixed_gap_positions(
         pic_index: 图片索引（用作随机种子）
         gap_x_count: 缺口x轴位置数量
         gap_y_count: 缺口y轴位置数量
+        img_width: 图像宽度
+        img_height: 图像高度
         
     Returns:
         (gap_x_positions, gap_y_positions)
     """
     rng = np.random.RandomState(pic_index)
     
-    # 使用最大puzzle_size(60)来确定安全范围
-    max_puzzle_size = 60
-    gap_x_min = max_puzzle_size + 20  # 80
-    gap_x_max = 320 - max_puzzle_size // 2  # 290
+    # 使用最大puzzle_size(60)来确定安全范围，根据图像尺寸缩放
+    scale_factor = min(img_width / 320, img_height / 160)
+    max_puzzle_size = int(60 * scale_factor)
+    gap_x_min = max_puzzle_size + 20  
+    gap_x_max = img_width - max_puzzle_size // 2  
     
     # 为这张图片生成固定的gap x坐标
     gap_x_positions = sorted([int(x) for x in rng.choice(
@@ -108,8 +114,8 @@ def generate_fixed_gap_positions(
     )])
     
     # 生成gap y位置（使用最大size的安全边距）
-    gap_y_min = max_puzzle_size // 2 + 5  # 35
-    gap_y_max = 160 - max_puzzle_size // 2 - 5  # 125
+    gap_y_min = max_puzzle_size // 2 + 5  
+    gap_y_max = img_height - max_puzzle_size // 2 - 5
     gap_y_positions = sorted([int(y) for y in rng.choice(
         range(gap_y_min, gap_y_max),
         size=gap_y_count,
@@ -124,7 +130,9 @@ def generate_positions_for_size(
     puzzle_size: int,
     gap_x_positions: List[int],
     gap_y_positions: List[int],
-    slider_x_count: int = 4
+    slider_x_count: int = 4,
+    img_width: int = 320,
+    img_height: int = 160
 ) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
     """
     基于固定的gap位置和特定的puzzle_size，生成有效的位置组合
@@ -135,6 +143,8 @@ def generate_positions_for_size(
         gap_x_positions: 固定的gap x位置列表
         gap_y_positions: 固定的gap y位置列表
         slider_x_count: 滑块x轴位置数量
+        img_width: 图像宽度
+        img_height: 图像高度
         
     Returns:
         位置列表 [(slider_pos, gap_pos), ...]
@@ -245,7 +255,6 @@ def generate_confusion_plan(pic_index: int, confusion_counts: Dict[str, int]) ->
     
     # 验证总数
     total = len(confusion_plan)
-    print(f"Generating confusion plan: {total} samples")
     
     # 打乱顺序（使用固定种子）
     rng.shuffle(confusion_plan)
@@ -344,18 +353,26 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
     samples_per_bg = gen_config.get('samples_per_bg', DatasetConfig.MAX_SAMPLES_PER_BG)
     confusion_counts = gen_config.get('confusion_counts', DatasetConfig.CONFUSION_COUNTS)
     
-    # 设置随机种子（基于图片路径）
-    seed = int(hashlib.md5(str(img_path).encode()).hexdigest()[:8], 16)
-    rng = np.random.RandomState(seed)
-    np.random.seed(seed)
-    random.seed(seed)
-    
-    # 读取并调整图片
+    # 读取图片
     img = cv2.imread(str(img_path))
     if img is None:
         return [], {}, "", []
     
-    img = cv2.resize(img, (320, 160))
+    # 创建尺寸配置和处理器 - 在设置种子之前生成随机尺寸
+    size_config = CaptchaSizeConfig()
+    size_processor = SizeVariation(size_config)
+    
+    # 生成随机尺寸并调整图片（使用真正的随机性）
+    target_size = size_config.generate_random_size()
+    img, size_info = size_processor.apply_size_variation(img, target_size)
+    
+    # 设置随机种子（基于图片路径和尺寸）- 用于形状和位置的可重现性
+    # 注意：现在seed包含尺寸信息，确保相同图片+尺寸组合的形状/位置可重现
+    seed_str = f"{str(img_path)}_{target_size[0]}x{target_size[1]}"
+    seed = int(hashlib.md5(seed_str.encode()).hexdigest()[:8], 16)
+    rng = np.random.RandomState(seed)
+    np.random.seed(seed)
+    random.seed(seed)
     
     # 计算背景哈希（用于数据集划分）
     img_hash = hashlib.md5(img.tobytes()).hexdigest()
@@ -377,21 +394,42 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
     # 生成混淆计划
     confusion_plan = generate_confusion_plan(pic_index, confusion_counts)
     
-    # 为这张图片选择固定的puzzle_sizes
+    # 为这张图片选择固定的puzzle_sizes（根据图像尺寸缩放）
+    # 使用高度作为缩放基准，确保滑块不会太大
+    scale_factor = size_info['height'] / 160
+    scaled_puzzle_sizes = []
+    for s in puzzle_sizes:
+        scaled_size = int(s * scale_factor)
+        # 确保是偶数（便于中心对齐）
+        if scaled_size % 2 != 0:
+            scaled_size += 1
+        # 确保不超过图像高度的合理范围（最大为高度的40%）
+        max_size = int(size_info['height'] * 0.4)
+        scaled_size = min(scaled_size, max_size)
+        # 额外限制：确保puzzle_size不超过60，以避免slider位置计算问题
+        # 当half_size > 30时，slider_x_min会大于slider_x_max(40)
+        scaled_size = min(scaled_size, 60)
+        scaled_puzzle_sizes.append(scaled_size)
+    
     selected_sizes = select_puzzle_sizes_for_image(
         pic_index, 
-        puzzle_sizes,
+        scaled_puzzle_sizes,
         sizes_per_image
     )
     
     # 为这张图片生成固定的gap位置（不依赖于size）
-    gap_x_positions, gap_y_positions = generate_fixed_gap_positions(pic_index)
+    gap_x_positions, gap_y_positions = generate_fixed_gap_positions(
+        pic_index, 
+        img_width=size_info['width'],
+        img_height=size_info['height']
+    )
     
     # 为每个选中的size生成位置列表
     all_positions = {}
     for puzzle_size in selected_sizes:
         positions = generate_positions_for_size(
-            pic_index, puzzle_size, gap_x_positions, gap_y_positions
+            pic_index, puzzle_size, gap_x_positions, gap_y_positions,
+            img_width=size_info['width'], img_height=size_info['height']
         )
         all_positions[puzzle_size] = positions
     
@@ -460,14 +498,15 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
             final_image = create_final_image(result.background, result.slider, slider_pos)
             
             # 保存组合图片到captchas目录
-            captchas_dir = output_dir / 'captchas'
+            from pathlib import Path
+            captchas_dir = Path(output_dir) / 'captchas'
             captchas_dir.mkdir(parents=True, exist_ok=True)
             composite_path = captchas_dir / filename
             cv2.imwrite(str(composite_path), final_image)
             
             # 如果需要保存组件
             if save_components:
-                components_dir = output_dir / 'components'
+                components_dir = Path(output_dir) / 'components'
                 
                 # 使用统一的基础文件名（包含所有位置信息）
                 base_filename = f"Pic{pic_index:04d}_Bgx{gap_pos[0]}Bgy{gap_pos[1]}_Sdx{slider_pos[0]}Sdy{slider_pos[1]}_{file_hash}"
@@ -482,7 +521,7 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 bg_path = components_dir / 'backgrounds' / bg_filename
                 cv2.imwrite(str(bg_path), result.background)
             
-            # 记录标注
+            # 记录标注（包含尺寸信息）
             annotation = {
                 'filename': filename,
                 'background_hash': img_hash,
@@ -490,6 +529,9 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 'sd_center': [int(slider_pos[0]), int(slider_pos[1])],
                 'shape': str(shape),
                 'size': int(size),
+                'image_width': size_info['width'],
+                'image_height': size_info['height'],
+                'aspect_ratio': size_info['aspect_ratio'],
                 'confusion_type': confusion_type,
                 'confusion_details': result.confusion_type,
                 'hash': file_hash,
@@ -591,7 +633,7 @@ def generate_dataset_parallel(
     max_workers: int = None,
     max_images: int = None,
     seed: int = None,
-    save_components: bool = True  # 默认保存组件
+    save_components: bool = False  # 默认不保存组件
 ) -> None:
     """并行生成数据集"""
     start_time = datetime.now()
@@ -836,67 +878,40 @@ def generate_dataset_parallel(
 
 
 def main():
-    """主函数"""
-    parser = argparse.ArgumentParser(
-        description='Generate industrial-grade CAPTCHA dataset with continuous sampling and component export'
-    )
-    parser.add_argument('--input-dir', type=str, default='data/raw',
-                        help='Input directory containing background images')
-    parser.add_argument('--output-dir', type=str, default='data',
-                        help='Output directory for generated CAPTCHAs')
-    parser.add_argument('--workers', type=int, default=None,
-                        help='Number of worker processes (default: auto)')
-    parser.add_argument('--max-images', type=int, default=None,
-                        help='Maximum number of background images to use')
-    parser.add_argument('--seed', type=int, default=None,
-                        help='Random seed for reproducibility')
-    parser.add_argument('--no-save-components', action='store_true',
-                        help='Do NOT save slider and background as separate component images')
-    
-    # 新增：puzzle尺寸配置
-    parser.add_argument('--puzzle-sizes', type=str, default=None,
-                        help='Puzzle sizes (e.g., "30,40,50" or "30-60" or "30-60:5")')
-    parser.add_argument('--sizes-per-image', type=int, default=None,
-                        help='Number of different sizes to use per image (default: 4)')
-    
-    # 新增：混淆策略配置
-    parser.add_argument('--samples-per-bg', type=int, default=None,
-                        help='Number of samples per background image (default: 100)')
-    
-    args = parser.parse_args()
-    
-    # 更新配置
-    if args.puzzle_sizes:
-        sizes = DatasetConfig.parse_size_string(args.puzzle_sizes)
-        DatasetConfig.update_puzzle_sizes(sizes)
-        print(f"Using custom puzzle sizes: {sizes}")
-    
-    if args.sizes_per_image:
-        DatasetConfig.SIZES_PER_IMAGE = args.sizes_per_image
-        print(f"Using {args.sizes_per_image} sizes per image")
-    
-    if args.samples_per_bg:
-        DatasetConfig.MAX_SAMPLES_PER_BG = args.samples_per_bg
-        print(f"Generating {args.samples_per_bg} samples per background")
+    """主函数 - 所有配置从DatasetConfig读取"""
     
     # 验证配置
     if not DatasetConfig.validate():
         print("Configuration validation failed!")
+        print("Please check the settings in config/dataset_config.py")
         return
     
     # 获取项目根目录
     project_root = Path(__file__).parent.parent.parent
-    input_dir = project_root / args.input_dir
-    output_dir = project_root / args.output_dir
+    input_dir = project_root / DatasetConfig.INPUT_DIR
+    output_dir = project_root / DatasetConfig.OUTPUT_DIR
+    
+    # 打印配置信息
+    print("=" * 60)
+    print("CAPTCHA Dataset Generation")
+    print("=" * 60)
+    print(f"Configuration loaded from: config/dataset_config.py")
+    print(f"Input directory: {input_dir}")
+    print(f"Output directory: {output_dir}")
+    print(f"Workers: {DatasetConfig.MAX_WORKERS or 'auto'}")
+    print(f"Max images: {DatasetConfig.MAX_IMAGES or 'all'}")
+    print(f"Random seed: {DatasetConfig.RANDOM_SEED or 'random'}")
+    print(f"Save components: {DatasetConfig.SAVE_COMPONENTS}")
+    print("=" * 60)
     
     # 生成数据集
     generate_dataset_parallel(
         input_dir=input_dir,
         output_dir=output_dir,
-        max_workers=args.workers,
-        max_images=args.max_images,
-        seed=args.seed,
-        save_components=not args.no_save_components  # 默认为True，除非指定了--no-save-components
+        max_workers=DatasetConfig.MAX_WORKERS,
+        max_images=DatasetConfig.MAX_IMAGES,
+        seed=DatasetConfig.RANDOM_SEED,
+        save_components=DatasetConfig.SAVE_COMPONENTS
     )
 
 
