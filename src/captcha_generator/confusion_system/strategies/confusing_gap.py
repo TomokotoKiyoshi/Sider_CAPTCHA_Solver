@@ -63,16 +63,16 @@ class ConfusingGapConfusion(ConfusionStrategy):
             
             # 提取变换后的掩码（用于在背景上创建缺口）
             if transformed.shape[2] == 4:
-                # 使用alpha通道作为掩码
-                mask = transformed[:, :, 3] > 128
+                # 保留完整的alpha通道，包括hollow效果
+                alpha_mask = transformed[:, :, 3].copy()
             else:
-                # 如果没有alpha通道，创建一个全1的掩码
-                mask = np.ones(transformed.shape[:2], dtype=bool)
+                # 如果没有alpha通道，创建一个全255的掩码
+                alpha_mask = np.ones(transformed.shape[:2], dtype=np.uint8) * 255
             
-            # 保存额外的gap信息
+            # 保存额外的gap信息（使用完整的alpha通道而不是二值掩码）
             self.additional_gaps.append({
                 'position': gap_config['position'],  # 中心位置
-                'mask': mask,  # 二值掩码
+                'mask': alpha_mask,  # 完整的alpha通道（保留hollow效果）
                 'size': (transformed.shape[1], transformed.shape[0]),  # (w, h)
                 'type': gap_config['type'],
                 'rotation': gap_config.get('rotation', 0),
@@ -192,20 +192,26 @@ class ConfusingGapConfusion(ConfusionStrategy):
             # 使用统一的函数计算变换后的边界框大小
             new_width, new_height = self._calculate_transformed_bounds(gap_w, gap_h, rotation, scale)
             
-            # 使用最大维度作为安全边界（添加小的边距用于抗锯齿）
-            transformed_bound = max(new_width, new_height) + 2  # +2像素用于边缘抗锯齿
+            # 使用最大维度作为安全边界（添加更大的安全边距）
+            transformed_bound = max(new_width, new_height) + 10  # +10像素安全边距
             safe_radius = int(transformed_bound / 2)
             
-            # 左侧边界：滑块宽度(gap_w) + 10px随机量 + 安全半径
-            left_boundary = gap_w + 10 + safe_radius
-            # 右侧边界：320 - 安全半径
-            right_boundary = 320 - safe_radius
+            # 更保守的边界设置，确保混淆缺口完全在图像内
+            # 左侧边界：确保混淆缺口左边缘不会超出图像左边界
+            left_boundary = max(safe_radius + 5, gap_w + 10 + safe_radius)  # +5额外安全边距
+            # 右侧边界：确保混淆缺口右边缘不会超出图像右边界
+            right_boundary = min(320 - safe_radius - 5, 320 - safe_radius)  # -5额外安全边距
+            
+            # Y轴的安全边界（这是关键！）
+            top_boundary = safe_radius + 5  # 顶部边界
+            bottom_boundary = 160 - safe_radius - 5  # 底部边界
             
             # 生成位置
             attempts = 0
             while attempts < 100:
                 if gap_type == 'same_y':
-                    y = real_y
+                    # 确保y坐标在安全边界内
+                    y = np.clip(real_y, top_boundary, bottom_boundary)
                     # 在x方向上找位置，避开真实gap
                     if i % 2 == 0:  # 尝试左侧
                         # 从左边界到真实gap左侧
@@ -236,12 +242,12 @@ class ConfusingGapConfusion(ConfusionStrategy):
                     if x_overlap:
                         # x有重叠，需要确保y有足够间距避免重叠
                         y_options = []
-                        # 上方区域
-                        if real_y - int(gap_h/2) - min_distance - safe_radius > safe_radius:
-                            y_options.extend(range(safe_radius, real_y - int(gap_h/2) - min_distance - safe_radius))
-                        # 下方区域
-                        if real_y + int(gap_h/2) + min_distance + safe_radius < 160 - safe_radius:
-                            y_options.extend(range(real_y + int(gap_h/2) + min_distance + safe_radius, 160 - safe_radius))
+                        # 上方区域（使用top_boundary）
+                        if real_y - int(gap_h/2) - min_distance - safe_radius > top_boundary:
+                            y_options.extend(range(top_boundary, real_y - int(gap_h/2) - min_distance - safe_radius))
+                        # 下方区域（使用bottom_boundary）
+                        if real_y + int(gap_h/2) + min_distance + safe_radius < bottom_boundary:
+                            y_options.extend(range(real_y + int(gap_h/2) + min_distance + safe_radius, bottom_boundary))
                         
                         if y_options:
                             y = self.rng.choice(y_options)
@@ -251,9 +257,9 @@ class ConfusingGapConfusion(ConfusionStrategy):
                             continue
                     else:
                         # x没有重叠，y只需偏移10px以上，确保不超出边界
-                        # 计算可用的y范围（混淆缺口边缘距离图片边界至少10px）
-                        y_min = safe_radius + min_distance  # 顶部边界 + 10px间距
-                        y_max = 160 - safe_radius - min_distance  # 底部边界 - 10px间距
+                        # 使用已定义的边界
+                        y_min = top_boundary  # 使用top_boundary
+                        y_max = bottom_boundary  # 使用bottom_boundary
                         
                         # 向上和向下的可选范围（至少偏移10px）
                         # 向上偏移（y值变小）
@@ -296,13 +302,20 @@ class ConfusingGapConfusion(ConfusionStrategy):
                         break
                 
                 if valid:
-                    configs.append({
-                        'position': (x, y),
-                        'type': gap_type,
-                        'rotation': rotation,
-                        'scale': scale
-                    })
-                    break
+                    # 最终边界检查
+                    if (x - safe_radius >= 0 and x + safe_radius <= 320 and
+                        y - safe_radius >= 0 and y + safe_radius <= 160):
+                        configs.append({
+                            'position': (x, y),
+                            'type': gap_type,
+                            'rotation': rotation,
+                            'scale': scale
+                        })
+                        break
+                    else:
+                        # 位置超出边界，跳过
+                        attempts += 1
+                        continue
                 
                 attempts += 1
             
