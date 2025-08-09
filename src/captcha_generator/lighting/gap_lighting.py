@@ -32,8 +32,10 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
     gap_region = result[y:y+mask_h, x:x+mask_w].copy()
     
     # 1. 计算距离变换 - 找出每个像素到边缘的距离
-    # 使用更精确的距离计算
-    dist_transform = cv2.distanceTransform(mask_alpha, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+    # 注意：不能直接对带hollow的mask使用distanceTransform
+    # 需要先创建一个二值mask，只标记实体部分
+    solid_mask = (mask_alpha > 128).astype(np.uint8) * 255
+    dist_transform = cv2.distanceTransform(solid_mask, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
     
     # 2. 创建基础阴影层
     # 整个缺口区域都比背景暗
@@ -73,18 +75,33 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
     # 5. 组合所有阴影效果
     total_shadow = base_shadow + edge_shadow + directional_shadow
     
-    # 6. 在缺口区域应用阴影效果（保留原始内容，只是变暗）
-    for c in range(3):
-        # 对每个通道，在拼图形状内减去阴影值
-        channel = gap_region[:, :, c].astype(np.float32)
-        # 只在mask_alpha > 0的地方应用阴影
-        mask_factor = mask_alpha / 255.0
-        darkened = channel - (total_shadow * mask_factor)
-        # 确保值在0-255范围内
-        gap_region[:, :, c] = np.clip(darkened, 0, 255).astype(np.uint8)
+    # 6. 在缺口区域应用阴影效果并真正挖空
+    # 重要：只在alpha > 0的区域创建缺口，保留hollow效果
+    # 先保存原始背景区域
+    original_region = result[y:y+mask_h, x:x+mask_w].copy()
     
-    # 7. 将处理后的缺口区域放回结果图像
-    result[y:y+mask_h, x:x+mask_w] = gap_region
+    # 创建一个阴影层
+    shadow_layer = np.zeros((mask_h, mask_w, 3), dtype=np.float32)
+    for c in range(3):
+        shadow_layer[:, :, c] = -total_shadow
+    
+    # 对于缺口实体部分（alpha > 128）：应用强阴影模拟深度
+    # 对于缺口边缘（0 < alpha <= 128）：应用渐变阴影
+    # 对于hollow区域（alpha = 0）：保持原背景
+    for c in range(3):
+        channel = result[y:y+mask_h, x:x+mask_w, c].astype(np.float32)
+        
+        # 根据alpha值混合：
+        # - alpha=255: 完全应用阴影（模拟深缺口）
+        # - alpha=0 (hollow): 保持原背景
+        # - 中间值: 渐变过渡
+        mask_factor = mask_alpha / 255.0
+        
+        # 应用阴影创建深度效果
+        result[y:y+mask_h, x:x+mask_w, c] = np.clip(
+            channel + shadow_layer[:, :, c] * mask_factor, 
+            0, 255
+        ).astype(np.uint8)
     
     # 8. 在缺口边缘外添加微弱的阴影（增强3D效果）
     # 只有当outer_edge_darkness > 0时才处理
@@ -102,13 +119,14 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
             result[y:y+mask_h, x:x+mask_w, c] = np.clip(darkened, 0, 255).astype(np.uint8)
     
     # 9. 对缺口区域进行轻微模糊，模拟景深效果
-    gap_mask = mask_alpha > 0
+    # 只对实体部分（非hollow区域）应用模糊
+    solid_region = mask_alpha > 128  # 使用更高的阈值，排除渐变边缘
     blurred_result = cv2.GaussianBlur(result[y:y+mask_h, x:x+mask_w], (3, 3), 0.8)
     
-    # 只在缺口内应用轻微模糊
+    # 只在实体缺口内应用轻微模糊，保留hollow区域的背景
     for c in range(3):
         result[y:y+mask_h, x:x+mask_w, c] = np.where(
-            gap_mask,
+            solid_region,
             blurred_result[:, :, c],
             result[y:y+mask_h, x:x+mask_w, c]
         )
@@ -116,84 +134,6 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
     # 不要挖空！保留缺口内容，只是变暗了
     return result
 
-
-def apply_gap_highlighting(background, x, y, mask_alpha, mask_h, mask_w,
-                          base_lightness=30, edge_lightness=45, 
-                          directional_lightness=20, outer_edge_lightness=15):
-    """
-    为拼图缺口应用高光效果（与阴影相反）
-    
-    Args:
-        background: 背景图片
-        x, y: 缺口位置
-        mask_alpha: 拼图掩码的alpha通道
-        mask_h, mask_w: 掩码尺寸
-        base_lightness: 基础亮度增加（整个缺口区域）
-        edge_lightness: 边缘额外亮度
-        directional_lightness: 方向性高光（右下方向）
-        outer_edge_lightness: 外边缘高光
-    
-    Returns:
-        应用高光效果后的背景
-    """
-    # 创建工作副本
-    result = background.copy()
-    
-    # 1. 计算距离变换
-    dist_transform = cv2.distanceTransform(mask_alpha, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
-    
-    # 2. 创建高光层
-    highlight_layer = np.zeros((mask_h, mask_w), dtype=np.float32)
-    
-    # 3. 基础高光 - 整个缺口区域变亮
-    mask = mask_alpha > 128
-    highlight_layer[mask] = base_lightness
-    
-    # 4. 边缘高光效果
-    # 找到边缘像素（距离值在0-3之间）
-    edge_mask = (dist_transform > 0) & (dist_transform < 3)
-    
-    # 使用高斯模糊使边缘高光更柔和
-    edge_highlight = np.zeros_like(highlight_layer)
-    edge_highlight[edge_mask] = edge_lightness
-    edge_highlight = cv2.GaussianBlur(edge_highlight, (5, 5), 1.5)
-    
-    highlight_layer += edge_highlight
-    
-    # 5. 方向性高光（右下角更亮，模拟光源）
-    if directional_lightness > 0:
-        for i in range(mask_h):
-            for j in range(mask_w):
-                if mask[i, j]:
-                    # 右下方向的渐变
-                    gradient = (i / mask_h * 0.5 + j / mask_w * 0.5)
-                    highlight_layer[i, j] += directional_lightness * gradient
-    
-    # 6. 应用高光到图像
-    for c in range(3):  # BGR通道
-        channel = result[y:y+mask_h, x:x+mask_w, c].astype(np.float32)
-        
-        # 应用高光（增加亮度）
-        highlighted = channel + highlight_layer * (mask_alpha / 255.0)
-        
-        # 限制在0-255范围内
-        result[y:y+mask_h, x:x+mask_w, c] = np.clip(highlighted, 0, 255).astype(np.uint8)
-    
-    # 7. 外边缘高光（可选）
-    if outer_edge_lightness > 0:
-        # 创建稍大的掩码
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
-        dilated_alpha = cv2.dilate(mask_alpha, kernel, iterations=1)
-        outer_edge = cv2.bitwise_xor(dilated_alpha, mask_alpha)
-        
-        # 外边缘高光
-        for c in range(3):
-            channel = result[y:y+mask_h, x:x+mask_w, c].astype(np.float32)
-            edge_factor = outer_edge / 255.0
-            brightened = channel + (outer_edge_lightness * edge_factor)
-            result[y:y+mask_h, x:x+mask_w, c] = np.clip(brightened, 0, 255).astype(np.uint8)
-    
-    return result
 
 
 def apply_gap_highlighting(background, x, y, mask_alpha, mask_h, mask_w,
@@ -222,7 +162,10 @@ def apply_gap_highlighting(background, x, y, mask_alpha, mask_h, mask_w,
     gap_region = result[y:y+mask_h, x:x+mask_w].copy()
     
     # 1. 计算距离变换 - 找出每个像素到边缘的距离
-    dist_transform = cv2.distanceTransform(mask_alpha, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+    # 注意：不能直接对带hollow的mask使用distanceTransform
+    # 需要先创建一个二值mask，只标记实体部分
+    solid_mask = (mask_alpha > 128).astype(np.uint8) * 255
+    dist_transform = cv2.distanceTransform(solid_mask, cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
     
     # 2. 创建基础高光层
     # 整个缺口区域都比背景亮
@@ -262,18 +205,28 @@ def apply_gap_highlighting(background, x, y, mask_alpha, mask_h, mask_w,
     # 5. 组合所有高光效果
     total_highlight = base_highlight + edge_highlight + directional_highlight
     
-    # 6. 在缺口区域应用高光效果（保留原始内容，只是变亮）
+    # 6. 在缺口区域应用高光效果并保持hollow透明
+    # 重要：只在alpha > 0的区域应用高光，保留hollow效果
+    # 创建高光层
+    highlight_layer = np.zeros((mask_h, mask_w, 3), dtype=np.float32)
     for c in range(3):
-        # 对每个通道，在拼图形状内添加高光值
-        channel = gap_region[:, :, c].astype(np.float32)
-        # 只在mask_alpha > 0的地方应用高光
-        mask_factor = mask_alpha / 255.0
-        lightened = channel + (total_highlight * mask_factor)
-        # 确保值在0-255范围内
-        gap_region[:, :, c] = np.clip(lightened, 0, 255).astype(np.uint8)
+        highlight_layer[:, :, c] = total_highlight
     
-    # 7. 将处理后的缺口区域放回结果图像
-    result[y:y+mask_h, x:x+mask_w] = gap_region
+    # 应用高光效果
+    for c in range(3):
+        channel = result[y:y+mask_h, x:x+mask_w, c].astype(np.float32)
+        
+        # 根据alpha值混合：
+        # - alpha=255: 完全应用高光（缺口边缘变亮）
+        # - alpha=0 (hollow): 保持原背景
+        # - 中间值: 渐变过渡
+        mask_factor = mask_alpha / 255.0
+        
+        # 应用高光创建3D效果
+        result[y:y+mask_h, x:x+mask_w, c] = np.clip(
+            channel + highlight_layer[:, :, c] * mask_factor,
+            0, 255
+        ).astype(np.uint8)
     
     # 8. 在缺口边缘外添加微弱的高光（增强3D效果）
     if outer_edge_lightness > 0:
@@ -290,13 +243,14 @@ def apply_gap_highlighting(background, x, y, mask_alpha, mask_h, mask_w,
             result[y:y+mask_h, x:x+mask_w, c] = np.clip(lightened, 0, 255).astype(np.uint8)
     
     # 9. 对缺口区域进行轻微模糊，模拟景深效果
-    gap_mask = mask_alpha > 0
+    # 只对实体部分（非hollow区域）应用模糊
+    solid_region = mask_alpha > 128
     blurred_result = cv2.GaussianBlur(result[y:y+mask_h, x:x+mask_w], (3, 3), 0.8)
     
-    # 只在缺口内应用轻微模糊
+    # 只在实体缺口内应用轻微模糊，保留hollow区域的背景
     for c in range(3):
         result[y:y+mask_h, x:x+mask_w, c] = np.where(
-            gap_mask,
+            solid_region,
             blurred_result[:, :, c],
             result[y:y+mask_h, x:x+mask_w, c]
         )

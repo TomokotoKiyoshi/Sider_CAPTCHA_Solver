@@ -367,8 +367,8 @@ class CaptchaGenerator:
                 x2 = x1 + w
                 y2 = y1 + h
                 
-                # 创建alpha通道（从二值掩码）
-                alpha_channel = mask[:h, :w].astype(np.uint8) * 255
+                # 使用完整的alpha通道（已包含hollow效果）
+                alpha_channel = mask[:h, :w].astype(np.uint8)
                 
                 # 应用阴影或高光效果（与主缺口相同）
                 if has_highlight and highlight_params:

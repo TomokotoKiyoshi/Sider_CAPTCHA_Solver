@@ -24,9 +24,7 @@ class HollowCenterConfusion(ConfusionStrategy):
         # 镂空比例（相对于原始大小）
         self.hollow_ratio = self.config.get('hollow_ratio', 0.4)
         
-        # 验证参数
-        assert 0.2 <= self.hollow_ratio <= 0.7, \
-            f"hollow_ratio must be between 0.2 and 0.7, got: {self.hollow_ratio}"
+        # 只验证参数存在性，不限制范围（由配置文件控制）
     
     def apply_to_gap(self, gap_image: GapImage) -> GapImage:
         """
@@ -80,8 +78,8 @@ class HollowCenterConfusion(ConfusionStrategy):
         # 更新结果图像的alpha通道
         result_image[:, :, 3] = new_alpha
         
-        # 可选：也将RGB通道的镂空区域设为0（完全黑色透明）
-        result_image[hollow_region, :3] = 0
+        # 不要修改RGB通道！保持原始颜色，仅通过alpha=0实现透明
+        # 这样可以避免黑色边缘泄露问题
         
         # 返回新的GapImage对象
         return GapImage(

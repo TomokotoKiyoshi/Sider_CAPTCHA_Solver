@@ -11,4 +11,12 @@
   - slider_lighting: 滑块光照效果（3D凸起）
 - confusion_system: 混淆系统
   - strategies: 各种混淆策略
+- label_generator: 训练标签生成
+  - CaptchaLabelGenerator: 标签生成器类
+  - create_label_from_captcha_result: 便捷标签生成函数
 """
+
+# 导入标签生成器
+from .label_generator import CaptchaLabelGenerator, create_label_from_captcha_result
+
+__all__ = ['CaptchaLabelGenerator', 'create_label_from_captcha_result']

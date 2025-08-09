@@ -27,11 +27,10 @@ class PerlinNoiseConfusion(ConfusionStrategy):
         # 噪声缩放（控制噪声的粗细）
         self.noise_scale = self.config.get('noise_scale', 0.1)
         
-        # 验证参数
+        # 验证参数存在性
         assert self.noise_strength is not None, "noise_strength must be provided in config"
         assert isinstance(self.noise_strength, (int, float)), "noise_strength must be a number"
-        assert 0.4 <= self.noise_strength <= 0.8, f"noise_strength must be between 0.4 and 0.8 (40-80%), got: {self.noise_strength}"
-        assert 0.01 <= self.noise_scale <= 1.0, f"noise_scale must be between 0.01 and 1.0, got: {self.noise_scale}"
+        # 不限制范围，相信配置文件的设置
     
     def apply_to_gap(self, gap_image: GapImage) -> GapImage:
         """
