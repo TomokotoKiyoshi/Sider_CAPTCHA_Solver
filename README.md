@@ -16,13 +16,13 @@
 
 A high-precision slider CAPTCHA recognition solution based on deep learning, utilizing an improved CenterNet architecture to achieve 85%+ accuracy on real CAPTCHA datasets.
 
-**Latest Version**: v1.0.4
+**Latest Version**: v1.0.3
 
 </div>
 
 ## 🆕 What's New
 
-### v1.0.4 (2025-07-27) - Latest Version
+### v1.0.3 (2025-07-27) - Latest Version
 
 - 🛡️ **Enhanced Anti-Confusion Features**:
   - Gap rotation (0.5-1.8° random rotation, 50% probability)
