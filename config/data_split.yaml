@@ -1,0 +1,41 @@
+# ============================================================
+# Data Split Configuration
+# 数据集划分配置
+# ============================================================
+
+# Split ratio for train/val/test sets
+# 训练集/验证集/测试集划分比例
+split_ratio:
+  train: 0.8     # 80% for training
+  val: 0.1       # 10% for validation
+  test: 0.1      # 10% for testing
+
+# Path configuration
+# 路径配置
+paths:
+  # Input directory containing generated captchas
+  # 包含生成的验证码的输入目录
+  input_dir: 'data/generated'
+  
+  # Output directory for split JSON files
+  # 输出划分JSON文件的目录
+  output_dir: 'data/split_for_training'
+  
+  # Metadata directory containing annotations
+  # 包含标注信息的元数据目录
+  metadata_dir: 'data/metadata'
+
+# Split options
+# 划分选项
+options:
+  # Random seed for reproducibility
+  # 用于可重现性的随机种子
+  random_seed: 42
+  
+  # Whether to stratify by image ID to prevent data leakage
+  # 是否按图片ID分层以防止数据泄漏
+  stratify_by_image: true
+  
+  # Whether to shuffle the data before splitting
+  # 划分前是否打乱数据
+  shuffle: true
