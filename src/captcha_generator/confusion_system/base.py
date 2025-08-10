@@ -16,6 +16,7 @@ class GapImage:
     position: Tuple[int, int]      # 在背景中的中心位置
     original_mask: np.ndarray      # 原始形状掩码
     metadata: Optional[Dict[str, Any]] = None  # 元数据（包含形状信息等）
+    background_size: Optional[Tuple[int, int]] = None  # 背景图像尺寸 (width, height)
     
     @property
     def shape(self) -> Tuple[int, int, int]:
@@ -38,7 +39,8 @@ class GapImage:
             image=self.image.copy(),
             position=self.position,
             original_mask=self.original_mask.copy(),
-            metadata=self.metadata.copy() if self.metadata else None
+            metadata=self.metadata.copy() if self.metadata else None,
+            background_size=self.background_size
         )
 
 

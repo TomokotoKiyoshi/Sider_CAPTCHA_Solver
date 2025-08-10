@@ -22,64 +22,97 @@ class DatasetConfig:
     def _load_config(self):
         """从YAML文件加载配置"""
         # 路径配置
-        self.INPUT_DIR = self.loader.get('captcha_config.dataset.paths.input_dir', 'data/raw')
-        self.OUTPUT_DIR = self.loader.get('captcha_config.dataset.paths.output_dir', 'data')
+        input_dir = self.loader.get('captcha_config.dataset.paths.input_dir')
+        output_dir = self.loader.get('captcha_config.dataset.paths.output_dir')
+        assert input_dir is not None, "Must configure dataset.paths.input_dir in captcha_config.yaml"
+        assert output_dir is not None, "Must configure dataset.paths.output_dir in captcha_config.yaml"
+        self.INPUT_DIR = input_dir
+        self.OUTPUT_DIR = output_dir
         
         # 并行处理配置
-        self.MAX_WORKERS = self.loader.get('captcha_config.dataset.processing.max_workers')
-        self.MAX_IMAGES = self.loader.get('captcha_config.dataset.processing.max_images')
-        self.RANDOM_SEED = self.loader.get('captcha_config.dataset.processing.random_seed')
+        max_workers = self.loader.get('captcha_config.dataset.processing.max_workers')
+        max_images = self.loader.get('captcha_config.dataset.processing.max_images')
+        random_seed = self.loader.get('captcha_config.dataset.processing.random_seed')
+        assert max_workers is not None, "Must configure dataset.processing.max_workers in captcha_config.yaml"
+        self.MAX_WORKERS = max_workers
+        self.MAX_IMAGES = max_images  # This can be None
+        self.RANDOM_SEED = random_seed  # This can be None
         
         # 图像尺寸配置
         self.USE_RANDOM_SIZE = True
         self.SIZE_CONFIG_MODULE = 'src.config.size_confusion_config'
         
         # 数据集规模
-        self.MIN_BACKGROUNDS = self.loader.get('captcha_config.dataset.scale.min_backgrounds', 2000)
-        self.MAX_SAMPLES_PER_BG = self.loader.get('captcha_config.dataset.scale.max_samples_per_bg', 100)
+        min_bg = self.loader.get('captcha_config.dataset.scale.min_backgrounds')
+        captchas_per_img = self.loader.get('captcha_config.dataset.scale.captchas_per_image')
+        assert min_bg is not None, "Must configure dataset.scale.min_backgrounds in captcha_config.yaml"
+        assert captchas_per_img is not None, "Must configure dataset.scale.captchas_per_image in captcha_config.yaml"
+        self.MIN_BACKGROUNDS = min_bg
+        self.CAPTCHAS_PER_IMAGE = captchas_per_img
         
         # 混淆策略数量控制
-        self.CONFUSION_COUNTS = self.loader.get('captcha_config.dataset.confusion_counts', {
-            'none': 30,
-            'rotation': 10,
-            'perlin_noise': 10,
-            'highlight': 10,
-            'confusing_gap': 10,
-            'hollow_center': 10,
-            'combined': 20
-        })
+        confusion_counts = self.loader.get('captcha_config.dataset.confusion_counts')
+        assert confusion_counts is not None, "Must configure dataset.confusion_counts in captcha_config.yaml"
+        self.CONFUSION_COUNTS = confusion_counts
         
         # 形状配置
-        self.SPECIAL_SHAPES = self.loader.get('captcha_config.dataset.shapes.special', 
-                                              ['circle', 'square', 'triangle', 'hexagon'])
-        self.NORMAL_SHAPES_COUNT = self.loader.get('captcha_config.dataset.shapes.normal_count', 6)
+        special_shapes = self.loader.get('captcha_config.dataset.shapes.special')
+        normal_count = self.loader.get('captcha_config.dataset.shapes.normal_count')
+        assert special_shapes is not None, "Must configure dataset.shapes.special in captcha_config.yaml"
+        assert normal_count is not None, "Must configure dataset.shapes.normal_count in captcha_config.yaml"
+        self.SPECIAL_SHAPES = special_shapes
+        self.NORMAL_SHAPES_COUNT = normal_count
         
         # Puzzle尺寸配置
-        self.ALL_PUZZLE_SIZES = self.loader.get('captcha_config.dataset.puzzle_sizes.all_sizes',
-                                                list(range(40, 62, 2)))
-        self.SIZES_PER_IMAGE = self.loader.get('captcha_config.dataset.puzzle_sizes.sizes_per_image', 4)
+        all_sizes = self.loader.get('captcha_config.dataset.puzzle_sizes.all_sizes')
+        sizes_per_image = self.loader.get('captcha_config.dataset.puzzle_sizes.sizes_per_image')
+        assert all_sizes is not None, "Must configure dataset.puzzle_sizes.all_sizes in captcha_config.yaml"
+        assert sizes_per_image is not None, "Must configure dataset.puzzle_sizes.sizes_per_image in captcha_config.yaml"
+        self.ALL_PUZZLE_SIZES = all_sizes
+        self.SIZES_PER_IMAGE = sizes_per_image
         
         # 组件保存配置
-        self.SAVE_FULL_IMAGE = self.loader.get('captcha_config.dataset.save.full_image', False)
-        self.SAVE_COMPONENTS = self.loader.get('captcha_config.dataset.save.components', False)
-        self.COMPONENT_FORMAT = self.loader.get('captcha_config.dataset.save.component_format', 'png')
-        self.SAVE_MASKS = self.loader.get('captcha_config.dataset.save.masks', False)
+        save_full = self.loader.get('captcha_config.dataset.save.full_image')
+        save_comp = self.loader.get('captcha_config.dataset.save.components')
+        comp_format = self.loader.get('captcha_config.dataset.save.component_format')
+        save_masks = self.loader.get('captcha_config.dataset.save.masks')
+        assert save_full is not None, "Must configure dataset.save.full_image in captcha_config.yaml"
+        assert save_comp is not None, "Must configure dataset.save.components in captcha_config.yaml"
+        assert comp_format is not None, "Must configure dataset.save.component_format in captcha_config.yaml"
+        assert save_masks is not None, "Must configure dataset.save.masks in captcha_config.yaml"
+        self.SAVE_FULL_IMAGE = save_full
+        self.SAVE_COMPONENTS = save_comp
+        self.COMPONENT_FORMAT = comp_format
+        self.SAVE_MASKS = save_masks
         
-        # Gap位置生成配置
-        self.GAP_X_COUNT = self.loader.get('captcha_config.dataset.gap_generation.gap_x_count', 4)
-        self.GAP_Y_COUNT = self.loader.get('captcha_config.dataset.gap_generation.gap_y_count', 3)
-        self.SLIDER_X_COUNT = self.loader.get('captcha_config.dataset.gap_generation.slider_x_count', 4)
+        # Grid位置生成配置 - 从正确的路径读取，不提供默认值
+        gap_x = self.loader.get('captcha_config.dataset.grid_positions.gap_x_positions')
+        gap_y = self.loader.get('captcha_config.dataset.grid_positions.gap_y_positions')
+        slider_x = self.loader.get('captcha_config.dataset.grid_positions.slider_x_positions')
+        
+        # 没有读到配置就直接报错
+        assert gap_x is not None, "必须在captcha_config.yaml中配置dataset.grid_positions.gap_x_positions"
+        assert gap_y is not None, "必须在captcha_config.yaml中配置dataset.grid_positions.gap_y_positions"
+        assert slider_x is not None, "必须在captcha_config.yaml中配置dataset.grid_positions.slider_x_positions"
+        
+        self.GAP_X_COUNT = gap_x
+        self.GAP_Y_COUNT = gap_y
+        self.SLIDER_X_COUNT = slider_x
         
         # 旋转配置
-        self.ROTATION_ENABLED = self.loader.get('captcha_config.dataset.rotation.enabled', True)
-        self.MAX_ROTATION_ANGLE = self.loader.get('captcha_config.dataset.rotation.max_angle', 1.8)
+        rotation_enabled = self.loader.get('captcha_config.dataset.rotation.enabled')
+        max_angle = self.loader.get('captcha_config.dataset.rotation.max_angle')
+        assert rotation_enabled is not None, "Must configure dataset.rotation.enabled in captcha_config.yaml"
+        assert max_angle is not None, "Must configure dataset.rotation.max_angle in captcha_config.yaml"
+        self.ROTATION_ENABLED = rotation_enabled
+        self.MAX_ROTATION_ANGLE = max_angle
     
     def validate(self) -> bool:
         """验证配置的合理性"""
         # 验证混淆策略数量总和
         total_confusion = sum(self.CONFUSION_COUNTS.values())
-        if total_confusion != self.MAX_SAMPLES_PER_BG:
-            print(f"Warning: Total confusion count ({total_confusion}) does not match samples per background ({self.MAX_SAMPLES_PER_BG})")
+        if total_confusion != self.CAPTCHAS_PER_IMAGE:
+            print(f"Warning: Total confusion count ({total_confusion}) does not match captchas per image ({self.CAPTCHAS_PER_IMAGE})")
             print("Adjusting confusion counts proportionally...")
             # 自动调整混淆策略数量以匹配样本数
             self._adjust_confusion_counts()
@@ -104,7 +137,7 @@ class DatasetConfig:
         if original_total == 0:
             # 如果没有定义混淆策略，使用默认分配
             self.CONFUSION_COUNTS = {
-                'none': self.MAX_SAMPLES_PER_BG,
+                'none': self.CAPTCHAS_PER_IMAGE,
                 'rotation': 0,
                 'perlin_noise': 0,
                 'highlight': 0,
@@ -115,7 +148,7 @@ class DatasetConfig:
             return
         
         # 按比例调整每种策略的数量
-        ratio = self.MAX_SAMPLES_PER_BG / original_total
+        ratio = self.CAPTCHAS_PER_IMAGE / original_total
         adjusted_counts = {}
         total_assigned = 0
         
@@ -125,7 +158,7 @@ class DatasetConfig:
             total_assigned += adjusted
         
         # 处理舍入误差，将剩余的分配给'none'或第一个非零策略
-        remaining = self.MAX_SAMPLES_PER_BG - total_assigned
+        remaining = self.CAPTCHAS_PER_IMAGE - total_assigned
         if remaining > 0:
             if 'none' in adjusted_counts:
                 adjusted_counts['none'] += remaining
@@ -275,7 +308,7 @@ class DatasetConfig:
         
         print("\n[Dataset Scale]")
         print(f"  Min backgrounds: {self.MIN_BACKGROUNDS}")
-        print(f"  Samples per background: {self.MAX_SAMPLES_PER_BG}")
+        print(f"  CAPTCHAs per image: {self.CAPTCHAS_PER_IMAGE}")
         
         print("\n[Confusion Strategy Distribution]")
         for strategy, count in self.CONFUSION_COUNTS.items():

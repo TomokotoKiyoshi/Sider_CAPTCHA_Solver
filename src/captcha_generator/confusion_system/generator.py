@@ -284,7 +284,8 @@ class CaptchaGenerator:
             image=gap_image,
             position=gap_position,
             original_mask=gap_mask,
-            metadata={'puzzle_shape': puzzle_shape}  # 传递形状信息
+            metadata={'puzzle_shape': puzzle_shape},  # 传递形状信息
+            background_size=(full_image.shape[1], full_image.shape[0])  # 传递背景尺寸 (width, height)
         )
     
     def _extract_slider_from_gap(self, gap_image: GapImage) -> np.ndarray:
@@ -341,9 +342,11 @@ class CaptchaGenerator:
         x2 = x1 + actual_w
         y2 = y1 + actual_h
         
-        # 验证不超出边界
-        if x1 < 0 or y1 < 0 or x2 > img.shape[1] or y2 > img.shape[0]:
-            raise ValueError(f"Gap position causes out of bounds: ({x1},{y1}) to ({x2},{y2}), image size: {img.shape[:2]}")
+        # 边界检查断言 - 主缺口绝不能超出背景边界
+        assert x1 >= 0, f"主缺口x1坐标不能为负: x1={x1}, x={x}, actual_w={actual_w}"
+        assert y1 >= 0, f"主缺口y1坐标不能为负: y1={y1}, y={y}, actual_h={actual_h}"
+        assert x2 <= img.shape[1], f"主缺口超出右边界: x2={x2}, img_w={img.shape[1]}, x={x}, actual_w={actual_w}"
+        assert y2 <= img.shape[0], f"主缺口超出下边界: y2={y2}, img_h={img.shape[0]}, y={y}, actual_h={actual_h}"
         
         # 提取alpha通道（使用实际尺寸）
         # 优先使用rotated_piece_for_background的alpha通道（包含hollow效果）
@@ -391,6 +394,13 @@ class CaptchaGenerator:
                 y1 = cy - h // 2
                 x2 = x1 + w
                 y2 = y1 + h
+                
+                # 边界检查断言 - 混淆缺口绝不能超出背景边界
+                bg_h, bg_w = background.shape[:2]
+                assert x1 >= 0, f"混淆缺口x1坐标不能为负: x1={x1}, cx={cx}, w={w}"
+                assert y1 >= 0, f"混淆缺口y1坐标不能为负: y1={y1}, cy={cy}, h={h}"
+                assert x2 <= bg_w, f"混淆缺口超出右边界: x2={x2}, bg_w={bg_w}, cx={cx}, w={w}"
+                assert y2 <= bg_h, f"混淆缺口超出下边界: y2={y2}, bg_h={bg_h}, cy={cy}, h={h}"
                 
                 # 使用完整的alpha通道（已包含hollow效果）
                 alpha_channel = mask[:h, :w].astype(np.uint8)

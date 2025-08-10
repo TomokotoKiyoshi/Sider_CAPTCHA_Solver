@@ -22,8 +22,11 @@ class ConfusingGapConfusion(ConfusionStrategy):
     def validate_config(self):
         """验证并设置默认配置"""
         # 简化的配置参数
-        self.num_confusing_gaps = self.config.get('num_confusing_gaps', 1)
-        self.confusing_type = self.config.get('confusing_type', 'mixed')
+        self.num_confusing_gaps = self.config.get('num_confusing_gaps')
+        self.confusing_type = self.config.get('confusing_type')
+        
+        assert self.num_confusing_gaps is not None, "num_confusing_gaps must be provided in config"
+        assert self.confusing_type is not None, "confusing_type must be provided in config"
         
         # 验证参数
         assert isinstance(self.num_confusing_gaps, int) and 1 <= self.num_confusing_gaps <= 3, \
@@ -48,9 +51,13 @@ class ConfusingGapConfusion(ConfusionStrategy):
         real_pos = gap_image.position
         gap_h, gap_w = gap_image.image.shape[:2]
         
+        # 背景尺寸必须提供
+        assert gap_image.background_size is not None, "背景尺寸必须提供给GapImage"
+        bg_width, bg_height = gap_image.background_size
+        
         # 生成混淆gap配置
         confusing_configs = self._generate_confusing_configs(
-            real_pos, gap_w, gap_h, self.num_confusing_gaps
+            real_pos, gap_w, gap_h, self.num_confusing_gaps, bg_width, bg_height
         )
         
         # 清空之前的additional_gaps
@@ -154,7 +161,8 @@ class ConfusingGapConfusion(ConfusionStrategy):
     
     def _generate_confusing_configs(self, real_pos: Tuple[int, int], 
                                    gap_w: int, gap_h: int, 
-                                   num_gaps: int) -> List[Dict[str, Any]]:
+                                   num_gaps: int,
+                                   bg_width: int, bg_height: int) -> List[Dict[str, Any]]:
         """
         自动生成混淆gap的配置
         
@@ -162,6 +170,7 @@ class ConfusingGapConfusion(ConfusionStrategy):
             real_pos: 真实gap的中心位置
             gap_w, gap_h: gap的宽高
             num_gaps: 要生成的混淆gap数量
+            bg_width, bg_height: 背景图像的宽高
             
         Returns:
             混淆gap配置列表
@@ -200,11 +209,11 @@ class ConfusingGapConfusion(ConfusionStrategy):
             # 左侧边界：确保混淆缺口左边缘不会超出图像左边界
             left_boundary = max(safe_radius + 5, gap_w + 10 + safe_radius)  # +5额外安全边距
             # 右侧边界：确保混淆缺口右边缘不会超出图像右边界
-            right_boundary = min(320 - safe_radius - 5, 320 - safe_radius)  # -5额外安全边距
+            right_boundary = min(bg_width - safe_radius - 5, bg_width - safe_radius)  # -5额外安全边距
             
             # Y轴的安全边界（这是关键！）
             top_boundary = safe_radius + 5  # 顶部边界
-            bottom_boundary = 160 - safe_radius - 5  # 底部边界
+            bottom_boundary = bg_height - safe_radius - 5  # 底部边界
             
             # 生成位置
             attempts = 0
@@ -303,8 +312,8 @@ class ConfusingGapConfusion(ConfusionStrategy):
                 
                 if valid:
                     # 最终边界检查
-                    if (x - safe_radius >= 0 and x + safe_radius <= 320 and
-                        y - safe_radius >= 0 and y + safe_radius <= 160):
+                    if (x - safe_radius >= 0 and x + safe_radius <= bg_width and
+                        y - safe_radius >= 0 and y + safe_radius <= bg_height):
                         configs.append({
                             'position': (x, y),
                             'type': gap_type,

@@ -25,7 +25,8 @@ class PerlinNoiseConfusion(ConfusionStrategy):
         self.noise_strength = self.config.get('noise_strength')
         
         # 噪声缩放（控制噪声的粗细）
-        self.noise_scale = self.config.get('noise_scale', 0.1)
+        self.noise_scale = self.config.get('noise_scale')
+        assert self.noise_scale is not None, "noise_scale must be provided in config"
         
         # 验证参数存在性
         assert self.noise_strength is not None, "noise_strength must be provided in config"
@@ -77,7 +78,9 @@ class PerlinNoiseConfusion(ConfusionStrategy):
         return GapImage(
             image=result_image,
             position=gap_image.position,
-            original_mask=gap_image.original_mask
+            original_mask=gap_image.original_mask,
+            metadata=gap_image.metadata,
+            background_size=gap_image.background_size  # 保留背景尺寸
         )
     
     def _generate_perlin_noise(self, height: int, width: int, scale: float) -> np.ndarray:

@@ -22,7 +22,8 @@ class HollowCenterConfusion(ConfusionStrategy):
     def validate_config(self):
         """验证并设置默认配置"""
         # 镂空比例（相对于原始大小）
-        self.hollow_ratio = self.config.get('hollow_ratio', 0.4)
+        self.hollow_ratio = self.config.get('hollow_ratio')
+        assert self.hollow_ratio is not None, "hollow_ratio must be provided in config"
         
         # 只验证参数存在性，不限制范围（由配置文件控制）
     
@@ -85,7 +86,9 @@ class HollowCenterConfusion(ConfusionStrategy):
         return GapImage(
             image=result_image,
             position=gap_image.position,
-            original_mask=gap_image.original_mask
+            original_mask=gap_image.original_mask,
+            metadata=gap_image.metadata,
+            background_size=gap_image.background_size  # 保留背景尺寸
         )
     
     def get_metadata(self) -> Dict[str, Any]:

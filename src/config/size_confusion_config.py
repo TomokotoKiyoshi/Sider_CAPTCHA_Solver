@@ -27,31 +27,35 @@ class SizeConfusionConfig:
         
         # ========== 生成尺寸范围 ==========
         # 验证码生成时的随机尺寸范围
-        min_size_list = self.loader.get(f'{base_path}.generation.min_size', [280, 140])
-        max_size_list = self.loader.get(f'{base_path}.generation.max_size', [480, 240])
+        min_size_list = self.loader.get(f'{base_path}.generation.min_size')
+        max_size_list = self.loader.get(f'{base_path}.generation.max_size')
+        assert min_size_list is not None, f"Must configure {base_path}.generation.min_size in captcha_config.yaml"
+        assert max_size_list is not None, f"Must configure {base_path}.generation.max_size in captcha_config.yaml"
         self.min_size = tuple(min_size_list)  # 最小宽x高
         self.max_size = tuple(max_size_list)  # 最大宽x高
         
         # ========== 目标尺寸（神经网络输入 - 从model_config读取） ==========
         # 最终padding到的目标尺寸
-        target_size_list = self.loader.get('model_config.input.target_size', [512, 256])
+        target_size_list = self.loader.get('model_config.input.target_size')
+        assert target_size_list is not None, "Must configure input.target_size in model_config.yaml"
         self.target_size = tuple(target_size_list)  # 目标宽x高
         
         # ========== 常见尺寸（提高这些尺寸的生成概率） ==========
-        common_sizes_list = self.loader.get(f'{base_path}.generation.common_sizes', [
-            [320, 160],  # 2:1 标准尺寸
-            [360, 180],  # 2:1
-            [400, 200],  # 2:1
-            [384, 192],  # 2:1
-        ])
+        common_sizes_list = self.loader.get(f'{base_path}.generation.common_sizes')
+        common_prob = self.loader.get(f'{base_path}.generation.common_size_probability')
+        assert common_sizes_list is not None, f"Must configure {base_path}.generation.common_sizes in captcha_config.yaml"
+        assert common_prob is not None, f"Must configure {base_path}.generation.common_size_probability in captcha_config.yaml"
         self.common_sizes = [tuple(size) for size in common_sizes_list]
-        self.common_size_probability = self.loader.get(f'{base_path}.generation.common_size_probability', 0.3)
+        self.common_size_probability = common_prob
         
         # ========== Padding配置 (从model_config读取) ==========
         # 从model_config.yaml的preprocessing.padding部分读取
-        padding_color_list = self.loader.get('model_config.preprocessing.padding.color', [0, 0, 0])
+        padding_color_list = self.loader.get('model_config.preprocessing.padding.color')
+        padding_mode = self.loader.get('model_config.preprocessing.padding.mode')
+        assert padding_color_list is not None, "Must configure preprocessing.padding.color in model_config.yaml"
+        assert padding_mode is not None, "Must configure preprocessing.padding.mode in model_config.yaml"
         self.padding_color = tuple(padding_color_list)  # 黑色padding
-        self.padding_mode = self.loader.get('model_config.preprocessing.padding.mode', 'letterbox')  # letterbox模式
+        self.padding_mode = padding_mode  # letterbox模式
     
     def generate_random_size(self) -> Tuple[int, int]:
         """

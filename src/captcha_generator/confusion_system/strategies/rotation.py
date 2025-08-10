@@ -84,7 +84,9 @@ class RotationConfusion(ConfusionStrategy):
         return GapImage(
             image=rotated_image,
             position=gap_image.position,  # 位置保持不变
-            original_mask=rotated_mask
+            original_mask=rotated_mask,
+            metadata=gap_image.metadata,
+            background_size=gap_image.background_size  # 保留背景尺寸
         )
     
     def get_metadata(self) -> Dict[str, Any]:

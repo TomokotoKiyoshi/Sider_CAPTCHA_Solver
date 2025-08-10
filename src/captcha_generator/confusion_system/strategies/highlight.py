@@ -21,9 +21,13 @@ class HighlightConfusion(ConfusionStrategy):
     
     def validate_config(self):
         """验证并设置默认配置"""
-        self.base_lightness = self.config.get('base_lightness', 30)
-        self.edge_lightness = self.config.get('edge_lightness', 45)
-        self.directional_lightness = self.config.get('directional_lightness', 20)
+        self.base_lightness = self.config.get('base_lightness')
+        self.edge_lightness = self.config.get('edge_lightness')
+        self.directional_lightness = self.config.get('directional_lightness')
+        
+        assert self.base_lightness is not None, "base_lightness must be provided in config"
+        assert self.edge_lightness is not None, "edge_lightness must be provided in config"
+        assert self.directional_lightness is not None, "directional_lightness must be provided in config"
         
         # 验证参数范围
         assert 0 <= self.base_lightness <= 100, "base_lightness must be between 0 and 100"

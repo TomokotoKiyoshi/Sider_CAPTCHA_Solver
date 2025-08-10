@@ -24,127 +24,197 @@ class ConfusionConfig:
         base_path = 'captcha_config.confusion_strategies'
         
         # ========== 柏林噪声 (PerlinNoise) ==========
+        noise_min = self.loader.get(f'{base_path}.perlin_noise.noise_strength.min')
+        noise_max = self.loader.get(f'{base_path}.perlin_noise.noise_strength.max')
+        noise_scale = self.loader.get(f'{base_path}.perlin_noise.noise_scale')
+        assert noise_min is not None, f"Must configure {base_path}.perlin_noise.noise_strength.min in captcha_config.yaml"
+        assert noise_max is not None, f"Must configure {base_path}.perlin_noise.noise_strength.max in captcha_config.yaml"
+        assert noise_scale is not None, f"Must configure {base_path}.perlin_noise.noise_scale in captcha_config.yaml"
+        
         self.PERLIN_NOISE = {
             'noise_strength': {
-                'min': self.loader.get(f'{base_path}.perlin_noise.noise_strength.min', 0.2),
-                'max': self.loader.get(f'{base_path}.perlin_noise.noise_strength.max', 0.5),
+                'min': noise_min,
+                'max': noise_max,
                 'description': '噪声强度，值越大噪声越明显'
             },
             'noise_scale': {
-                'value': self.loader.get(f'{base_path}.perlin_noise.noise_scale', 0.1),
+                'value': noise_scale,
                 'description': '噪声缩放比例，影响噪声纹理的粗细'
             }
         }
         
         # ========== 旋转 (Rotation) ==========
+        rot_min = self.loader.get(f'{base_path}.rotation.rotation_angle.min')
+        rot_max = self.loader.get(f'{base_path}.rotation.rotation_angle.max')
+        assert rot_min is not None, f"Must configure {base_path}.rotation.rotation_angle.min in captcha_config.yaml"
+        assert rot_max is not None, f"Must configure {base_path}.rotation.rotation_angle.max in captcha_config.yaml"
+        
         self.ROTATION = {
             'rotation_angle': {
-                'min': self.loader.get(f'{base_path}.rotation.rotation_angle.min', 0.5),
-                'max': self.loader.get(f'{base_path}.rotation.rotation_angle.max', 1.5),
+                'min': rot_min,
+                'max': rot_max,
                 'description': '缺口旋转角度（度），只旋转缺口不旋转滑块'
             }
         }
         
         # ========== 高光 (Highlight) ==========
+        hl_base_min = self.loader.get(f'{base_path}.highlight.base_lightness.min')
+        hl_base_max = self.loader.get(f'{base_path}.highlight.base_lightness.max')
+        hl_edge_min = self.loader.get(f'{base_path}.highlight.edge_lightness.min')
+        hl_edge_max = self.loader.get(f'{base_path}.highlight.edge_lightness.max')
+        hl_dir_min = self.loader.get(f'{base_path}.highlight.directional_lightness.min')
+        hl_dir_max = self.loader.get(f'{base_path}.highlight.directional_lightness.max')
+        hl_outer = self.loader.get(f'{base_path}.highlight.outer_edge_lightness')
+        
+        assert hl_base_min is not None, f"Must configure {base_path}.highlight.base_lightness.min in captcha_config.yaml"
+        assert hl_base_max is not None, f"Must configure {base_path}.highlight.base_lightness.max in captcha_config.yaml"
+        assert hl_edge_min is not None, f"Must configure {base_path}.highlight.edge_lightness.min in captcha_config.yaml"
+        assert hl_edge_max is not None, f"Must configure {base_path}.highlight.edge_lightness.max in captcha_config.yaml"
+        assert hl_dir_min is not None, f"Must configure {base_path}.highlight.directional_lightness.min in captcha_config.yaml"
+        assert hl_dir_max is not None, f"Must configure {base_path}.highlight.directional_lightness.max in captcha_config.yaml"
+        assert hl_outer is not None, f"Must configure {base_path}.highlight.outer_edge_lightness in captcha_config.yaml"
+        
         self.HIGHLIGHT = {
             'base_lightness': {
-                'min': self.loader.get(f'{base_path}.highlight.base_lightness.min', 20),
-                'max': self.loader.get(f'{base_path}.highlight.base_lightness.max', 40),
+                'min': hl_base_min,
+                'max': hl_base_max,
                 'description': '基础亮度增加值'
             },
             'edge_lightness': {
-                'min': self.loader.get(f'{base_path}.highlight.edge_lightness.min', 40),
-                'max': self.loader.get(f'{base_path}.highlight.edge_lightness.max', 60),
+                'min': hl_edge_min,
+                'max': hl_edge_max,
                 'description': '边缘额外亮度'
             },
             'directional_lightness': {
-                'min': self.loader.get(f'{base_path}.highlight.directional_lightness.min', 15),
-                'max': self.loader.get(f'{base_path}.highlight.directional_lightness.max', 30),
+                'min': hl_dir_min,
+                'max': hl_dir_max,
                 'description': '方向性高光强度'
             },
             'outer_edge_lightness': {
-                'value': self.loader.get(f'{base_path}.highlight.outer_edge_lightness', 0),
+                'value': hl_outer,
                 'description': '外边缘高光强度（设为0表示不使用）'
             }
         }
         
         # ========== 混淆缺口 (ConfusingGap) ==========
+        cg_num = self.loader.get(f'{base_path}.confusing_gap.num_confusing_gaps')
+        cg_type = self.loader.get(f'{base_path}.confusing_gap.confusing_type')
+        cg_rot_min = self.loader.get(f'{base_path}.confusing_gap.rotation_range.min')
+        cg_rot_max = self.loader.get(f'{base_path}.confusing_gap.rotation_range.max')
+        cg_scale_min = self.loader.get(f'{base_path}.confusing_gap.scale_range.min')
+        cg_scale_max = self.loader.get(f'{base_path}.confusing_gap.scale_range.max')
+        
+        assert cg_num is not None, f"Must configure {base_path}.confusing_gap.num_confusing_gaps in captcha_config.yaml"
+        assert cg_type is not None, f"Must configure {base_path}.confusing_gap.confusing_type in captcha_config.yaml"
+        assert cg_rot_min is not None, f"Must configure {base_path}.confusing_gap.rotation_range.min in captcha_config.yaml"
+        assert cg_rot_max is not None, f"Must configure {base_path}.confusing_gap.rotation_range.max in captcha_config.yaml"
+        assert cg_scale_min is not None, f"Must configure {base_path}.confusing_gap.scale_range.min in captcha_config.yaml"
+        assert cg_scale_max is not None, f"Must configure {base_path}.confusing_gap.scale_range.max in captcha_config.yaml"
+        
         self.CONFUSING_GAP = {
             'num_confusing_gaps': {
-                'choices': self.loader.get(f'{base_path}.confusing_gap.num_confusing_gaps', [1, 2]),
+                'choices': cg_num,
                 'description': '生成的混淆缺口数量'
             },
             'confusing_type': {
-                'value': self.loader.get(f'{base_path}.confusing_gap.confusing_type', 'mixed'),
+                'value': cg_type,
                 'choices': ['same_y', 'different_y', 'mixed'],
                 'description': '混淆缺口类型：same_y同行，different_y不同行，mixed混合'
             },
             'rotation_range': {
-                'min': self.loader.get(f'{base_path}.confusing_gap.rotation_range.min', 10),
-                'max': self.loader.get(f'{base_path}.confusing_gap.rotation_range.max', 30),
+                'min': cg_rot_min,
+                'max': cg_rot_max,
                 'description': '混淆缺口的旋转角度范围（度）'
             },
             'scale_range': {
-                'min': self.loader.get(f'{base_path}.confusing_gap.scale_range.min', 0.8),
-                'max': self.loader.get(f'{base_path}.confusing_gap.scale_range.max', 1.2),
+                'min': cg_scale_min,
+                'max': cg_scale_max,
                 'description': '混淆缺口的缩放比例范围'
             }
         }
         
         # ========== 空心中心 (HollowCenter) ==========
+        hc_min = self.loader.get(f'{base_path}.hollow_center.scale.min')
+        hc_max = self.loader.get(f'{base_path}.hollow_center.scale.max')
+        assert hc_min is not None, f"Must configure {base_path}.hollow_center.scale.min in captcha_config.yaml"
+        assert hc_max is not None, f"Must configure {base_path}.hollow_center.scale.max in captcha_config.yaml"
+        
         self.HOLLOW_CENTER = {
             'scale': {
-                'min': self.loader.get(f'{base_path}.hollow_center.scale.min', 0.3),
-                'max': self.loader.get(f'{base_path}.hollow_center.scale.max', 0.4),
+                'min': hc_min,
+                'max': hc_max,
                 'description': '空心部分占整个拼图的比例'
             }
         }
         
         # ========== 组合混淆 (Combined) ==========
+        cb_num = self.loader.get(f'{base_path}.combined.num_strategies')
+        cb_avail = self.loader.get(f'{base_path}.combined.available_strategies')
+        assert cb_num is not None, f"Must configure {base_path}.combined.num_strategies in captcha_config.yaml"
+        assert cb_avail is not None, f"Must configure {base_path}.combined.available_strategies in captcha_config.yaml"
+        
         self.COMBINED = {
             'num_strategies': {
-                'choices': self.loader.get(f'{base_path}.combined.num_strategies', [2, 3]),
+                'choices': cb_num,
                 'description': '组合使用的混淆策略数量'
             },
             'available_strategies': {
-                'value': self.loader.get(f'{base_path}.combined.available_strategies', 
-                                       ['perlin_noise', 'rotation', 'highlight', 'hollow_center', 'confusing_gap']),
+                'value': cb_avail,
                 'description': '可用于组合的混淆策略列表'
             }
         }
         
         # ========== 光照效果 (Lighting Effects) ==========
         lighting_path = 'captcha_config.lighting_effects'
+        
+        # Shadow params
+        sh_base = self.loader.get(f'{lighting_path}.gap_shadow.base_darkness')
+        sh_edge = self.loader.get(f'{lighting_path}.gap_shadow.edge_darkness')
+        sh_dir = self.loader.get(f'{lighting_path}.gap_shadow.directional_darkness')
+        assert sh_base is not None, f"Must configure {lighting_path}.gap_shadow.base_darkness in captcha_config.yaml"
+        assert sh_edge is not None, f"Must configure {lighting_path}.gap_shadow.edge_darkness in captcha_config.yaml"
+        assert sh_dir is not None, f"Must configure {lighting_path}.gap_shadow.directional_darkness in captcha_config.yaml"
+        
+        # Highlight params
+        gh_base = self.loader.get(f'{lighting_path}.gap_highlight.base_lightness')
+        gh_edge = self.loader.get(f'{lighting_path}.gap_highlight.edge_lightness')
+        gh_dir = self.loader.get(f'{lighting_path}.gap_highlight.directional_lightness')
+        gh_outer = self.loader.get(f'{lighting_path}.gap_highlight.outer_edge_lightness')
+        assert gh_base is not None, f"Must configure {lighting_path}.gap_highlight.base_lightness in captcha_config.yaml"
+        assert gh_edge is not None, f"Must configure {lighting_path}.gap_highlight.edge_lightness in captcha_config.yaml"
+        assert gh_dir is not None, f"Must configure {lighting_path}.gap_highlight.directional_lightness in captcha_config.yaml"
+        assert gh_outer is not None, f"Must configure {lighting_path}.gap_highlight.outer_edge_lightness in captcha_config.yaml"
+        
         self.GAP_LIGHTING = {
             'shadow': {
                 'base_darkness': {
-                    'value': self.loader.get(f'{lighting_path}.gap_shadow.base_darkness', 40),
+                    'value': sh_base,
                     'description': '基础暗度（整个缺口区域的基础变暗程度）'
                 },
                 'edge_darkness': {
-                    'value': self.loader.get(f'{lighting_path}.gap_shadow.edge_darkness', 50),
+                    'value': sh_edge,
                     'description': '边缘暗度（边缘额外的变暗程度）'
                 },
                 'directional_darkness': {
-                    'value': self.loader.get(f'{lighting_path}.gap_shadow.directional_darkness', 20),
+                    'value': sh_dir,
                     'description': '方向性暗度（左上和右下的额外变暗程度）'
                 }
             },
             'highlight': {
                 'base_lightness': {
-                    'value': self.loader.get(f'{lighting_path}.gap_highlight.base_lightness', 30),
+                    'value': gh_base,
                     'description': '基础亮度（整个缺口区域的基础变亮程度）'
                 },
                 'edge_lightness': {
-                    'value': self.loader.get(f'{lighting_path}.gap_highlight.edge_lightness', 45),
-                    'description': '边缘亮度（边缘额外的变亮程度）'
+                    'value': gh_edge,
+                    'description': '边缘亮度（边羘额外的变亮程度）'
                 },
                 'directional_lightness': {
-                    'value': self.loader.get(f'{lighting_path}.gap_highlight.directional_lightness', 20),
+                    'value': gh_dir,
                     'description': '方向性亮度（右下和左上的额外变亮程度）'
                 },
                 'outer_edge_lightness': {
-                    'value': self.loader.get(f'{lighting_path}.gap_highlight.outer_edge_lightness', 0),
+                    'value': gh_outer,
                     'description': '外边缘亮度（缺口外围的高光强度）'
                 }
             }

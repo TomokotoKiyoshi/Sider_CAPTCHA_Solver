@@ -20,7 +20,7 @@ dataset:
   # Dataset scale
   scale:
     min_backgrounds: 2000
-    max_samples_per_bg: 100
+    captchas_per_image: 100  # Number of CAPTCHAs to generate per background image
   
   # Confusion strategy distribution
   confusion_counts:
@@ -42,11 +42,18 @@ dataset:
     all_sizes: [40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60]
     sizes_per_image: 4
   
-  # Gap position generation
-  gap_generation:
-    gap_x_count: 4
-    gap_y_count: 3
-    slider_x_count: 4
+  # Grid-based position generation
+  # 网格化位置生成系统
+  grid_positions:
+    # Background gap positions
+    gap_x_positions: 4      # 背景缺口x轴4个位置
+    gap_y_positions: 3      # 背景缺口y轴3个位置
+    # Total gap combinations: 4 * 3 = 12
+    
+    # Slider positions  
+    slider_x_positions: 3   # 滑块x轴3个位置（固定在左侧）
+    # Slider uses same y positions as gap
+    # Total captcha combinations: 12 * 3 = 36
   
   # Save options
   save:
