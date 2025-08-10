@@ -534,7 +534,6 @@ Sider_CAPTCHA_Solver/
 │   │   └── annotate_captchas_web.py         # Web标注界面
 │   │
 │   ├── data_generation/           # 数据生成脚本
-│   │   ├── geometry_generator.py  # 几何形状生成器
 │   │   └── puzzle_background_generator.py   # 拼图背景生成器
 │   │
 │   ├── training/                  # 训练相关

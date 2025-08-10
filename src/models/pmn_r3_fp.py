@@ -8,6 +8,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, Tuple, List, Optional
+import sys
+import os
+
+# 添加配置路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from config.model_config import model_config
 
 # 导入各个模块
 from .backbone import HRBackbone, SharedStem
@@ -26,25 +32,30 @@ class InputPreprocessor(nn.Module):
     def forward(self, rgb_input):
         """
         Args:
-            rgb_input: [B, 3, 256, 512] - RGB输入
+            rgb_input: [B, C, H, W] - RGB输入，尺寸由配置文件决定
         Returns:
-            X0: [B, 6, 256, 512] - 融合输入
+            X0: [B, 6, H, W] - 融合输入
         """
         B, C, H, W = rgb_input.shape
         device = rgb_input.device
         
+        # 验证输入尺寸
+        expected_h, expected_w = model_config.input_height, model_config.input_width
+        if H != expected_h or W != expected_w:
+            raise ValueError(f"Expected input size ({expected_h}, {expected_w}), got ({H}, {W})")
+        
         # RGB通道
-        X_rgb = rgb_input  # [B, 3, 256, 512]
+        X_rgb = rgb_input  # [B, C, H, W]
         
         # 坐标编码
-        X_coord = self.coord_conv(X_rgb)  # [B, 2, 256, 512]
+        X_coord = self.coord_conv(X_rgb)  # [B, 2, H, W]
         
         # Padding掩码 (检测黑色边缘)
         gray = 0.299 * X_rgb[:, 0] + 0.587 * X_rgb[:, 1] + 0.114 * X_rgb[:, 2]
-        X_pad = (gray < 0.1).float().unsqueeze(1)  # [B, 1, 256, 512]
+        X_pad = (gray < 0.1).float().unsqueeze(1)  # [B, 1, H, W]
         
         # 通道拼接
-        X0 = torch.cat([X_rgb, X_coord, X_pad], dim=1)  # [B, 6, 256, 512]
+        X0 = torch.cat([X_rgb, X_coord, X_pad], dim=1)  # [B, 6, H, W]
         
         return X0
 
@@ -52,13 +63,17 @@ class InputPreprocessor(nn.Module):
 class PMN_R3_FP(nn.Module):
     """PMN-R3-FP完整模型"""
     
-    def __init__(self, num_classes=2, top_k_proposals=100):
+    def __init__(self, num_classes=2, top_k_proposals=None):
         """
         Args:
             num_classes: 分类数 (背景 + 缺口)
-            top_k_proposals: 保留的候选框数量
+            top_k_proposals: 保留的候选框数量 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置读取参数
+        if top_k_proposals is None:
+            top_k_proposals = model_config.proposal_top_k
         
         # 输入预处理
         self.input_preprocessor = InputPreprocessor()
@@ -68,8 +83,8 @@ class PMN_R3_FP(nn.Module):
         
         # Region支路 (FPN+PAN)
         self.fpn_pan = FPN_PAN(
-            in_channels_list=[64, 128, 256, 512],
-            out_channels=256
+            in_channels_list=model_config.fpn_in_channels,
+            out_channels=model_config.fpn_out_channels
         )
         
         # Shape支路
@@ -77,27 +92,27 @@ class PMN_R3_FP(nn.Module):
         
         # Proposal生成器
         self.proposal_generator = ProposalGenerator(
-            strides=[4, 8, 16, 32],
+            strides=model_config.proposal_strides,
             top_k=top_k_proposals
         )
         
         # ROI特征提取
         self.roi_align_region = ROIAlignExtractor(
-            output_size=64,
-            spatial_scale=0.25  # 对应1/4分辨率特征
+            output_size=model_config.roi_region_size,
+            spatial_scale=model_config.roi_region_scale
         )
         
         self.roi_align_shape = ROIAlignExtractor(
-            output_size=64,
-            spatial_scale=1.0   # 对应全分辨率特征
+            output_size=model_config.roi_shape_size,
+            spatial_scale=model_config.roi_shape_scale
         )
         
         # SE(2)变换器匹配
         self.se2_transformer = SE2Transformer(
-            d_model=256,
-            n_heads=8,
-            n_layers=3,
-            dropout=0.1
+            d_model=model_config.se2_d_model,
+            n_heads=model_config.se2_n_heads,
+            n_layers=model_config.se2_n_layers,
+            dropout=model_config.se2_dropout
         )
         
         # 几何精修器
@@ -132,7 +147,7 @@ class PMN_R3_FP(nn.Module):
     def forward(self, images, return_features=False):
         """
         Args:
-            images: [B, 3, 256, 512] - 输入图像
+            images: [B, C, H, W] - 输入图像，尺寸由配置文件决定
             return_features: 是否返回中间特征
         Returns:
             Dict containing:
@@ -146,14 +161,15 @@ class PMN_R3_FP(nn.Module):
         device = images.device
         
         # 输入预处理
-        X0 = self.input_preprocessor(images)  # [B, 6, 256, 512]
+        X0 = self.input_preprocessor(images)  # [B, 6, H, W]
         
         # 骨干网络提取特征
         backbone_features = self.backbone(X0)
-        # s1: [B, 64, 64, 128]
-        # s2: [B, 128, 32, 64]
-        # s3: [B, 256, 16, 32]
-        # s4: [B, 512, 8, 16]
+        # 特征图尺寸根据输入动态计算
+        # s1: [B, 64, H/4, W/4]
+        # s2: [B, 128, H/8, W/8]
+        # s3: [B, 256, H/16, W/16]
+        # s4: [B, 512, H/32, W/32]
         
         # Region支路 (FPN+PAN)
         region_output = self.fpn_pan(backbone_features)
@@ -250,7 +266,7 @@ class PMN_R3_FP(nn.Module):
         """
         推理接口
         Args:
-            images: [B, 3, 256, 512]
+            images: [B, C, H, W] - 输入图像，尺寸由配置文件决定
         Returns:
             Dict with gap and piece positions
         """
@@ -303,7 +319,10 @@ if __name__ == "__main__":
     print(f"  Trainable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
     
     # 测试前向传播
-    images = torch.randn(2, 3, 256, 512)
+    # 从配置获取输入尺寸
+    input_shape = model_config.get_input_shape(batch_size=2)
+    print(f"\nTesting with input shape: {input_shape}")
+    images = torch.randn(*input_shape)
     output = model(images, return_features=True)
     
     print("\nModel Output:")

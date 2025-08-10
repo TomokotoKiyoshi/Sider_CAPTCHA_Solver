@@ -42,9 +42,14 @@ from src.captcha_generator.confusion_system.strategies import (
 )
 
 # 导入配置
-from config.confusion_config import ConfusionConfig
-from config.dataset_config import DatasetConfig
-from config.size_confusion_config import CaptchaSizeConfig
+from src.config import get_confusion_config, get_dataset_config, get_size_confusion_config
+from src.config.size_confusion_config import SizeConfusionConfig
+
+# 获取配置实例（作为全局变量使用）
+DatasetConfig = get_dataset_config()
+ConfusionConfig = get_confusion_config()
+CaptchaSizeConfig = get_size_confusion_config()
+size_config = CaptchaSizeConfig  # 兼容旧代码
 
 # 导入标签生成器
 from src.captcha_generator import CaptchaLabelGenerator, create_label_from_captcha_result
@@ -77,110 +82,46 @@ def select_puzzle_sizes_for_image(
     return selected_sizes
 
 
-def generate_fixed_gap_positions(
-    pic_index: int,
-    gap_x_count: int = 4,
-    gap_y_count: int = 3,
-    img_width: int = 320,
-    img_height: int = 160
-) -> Tuple[List[int], List[int]]:
-    """
-    为每张图片生成固定的gap位置（不依赖于puzzle_size）
-    使用最大可能的puzzle_size来确保安全范围，并考虑旋转
-    
-    Args:
-        pic_index: 图片索引（用作随机种子）
-        gap_x_count: 缺口x轴位置数量
-        gap_y_count: 缺口y轴位置数量
-        img_width: 图像宽度
-        img_height: 图像高度
-        
-    Returns:
-        (gap_x_positions, gap_y_positions)
-    """
-    rng = np.random.RandomState(pic_index)
-    
-    # 使用最大puzzle_size(60)来确定安全范围，根据图像尺寸缩放
-    scale_factor = min(img_width / 320, img_height / 160)
-    max_puzzle_size = int(60 * scale_factor)
-    
-    # 使用DatasetConfig的安全范围计算（考虑旋转）
-    gap_x_min, gap_x_max = DatasetConfig.calculate_safe_gap_range(
-        max_puzzle_size, img_width, img_height, with_rotation=True
-    )
-    
-    # 检查是否有有效的范围
-    if gap_x_min >= gap_x_max:
-        # 对于很大的puzzle尺寸，可能没有有效范围，使用较小的尺寸
-        fallback_size = int(max_puzzle_size * 0.8)  # 使用80%的大小
-        gap_x_min, gap_x_max = DatasetConfig.calculate_safe_gap_range(
-            fallback_size, img_width, img_height, with_rotation=True
-        )
-    
-    # 为这张图片生成固定的gap x坐标
-    if gap_x_max - gap_x_min >= gap_x_count:
-        gap_x_positions = sorted([int(x) for x in rng.choice(
-            range(gap_x_min, gap_x_max),
-            size=gap_x_count,
-            replace=False
-        )])
-    else:
-        # 范围太小，生成均匀分布的位置
-        gap_x_positions = np.linspace(gap_x_min, gap_x_max - 1, gap_x_count, dtype=int).tolist()
-    
-    # 生成gap y位置（考虑旋转后的尺寸）
-    if DatasetConfig.ROTATION_ENABLED:
-        angle_rad = np.radians(DatasetConfig.MAX_ROTATION_ANGLE)
-        effective_size = int(max_puzzle_size * (np.cos(angle_rad) + np.sin(angle_rad)))
-    else:
-        effective_size = max_puzzle_size
-    
-    half_size = effective_size // 2
-    gap_y_min = half_size + 5  
-    gap_y_max = img_height - half_size - 5
-    
-    if gap_y_max - gap_y_min >= gap_y_count:
-        gap_y_positions = sorted([int(y) for y in rng.choice(
-            range(gap_y_min, gap_y_max),
-            size=gap_y_count,
-            replace=False
-        )])
-    else:
-        # 范围太小，生成均匀分布的位置
-        gap_y_positions = np.linspace(gap_y_min, gap_y_max - 1, gap_y_count, dtype=int).tolist()
-    
-    return gap_x_positions, gap_y_positions
+
 
 
 def generate_positions_for_size(
     pic_index: int,
     puzzle_size: int,
-    gap_x_positions: List[int],
-    gap_y_positions: List[int],
-    slider_x_count: int = 4,
     img_width: int = 320,
-    img_height: int = 160
+    img_height: int = 160,
+    gap_x_count: int = 4,
+    gap_y_count: int = 3,
+    slider_x_count: int = 4
 ) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
     """
-    基于固定的gap位置和特定的puzzle_size，生成有效的位置组合（考虑旋转）
+    根据puzzle_size和图像尺寸完全动态生成位置组合
     
     Args:
         pic_index: 图片索引（用作随机种子）
         puzzle_size: 拼图大小
-        gap_x_positions: 固定的gap x位置列表
-        gap_y_positions: 固定的gap y位置列表
-        slider_x_count: 滑块x轴位置数量
         img_width: 图像宽度
         img_height: 图像高度
+        gap_x_count: 缺口x轴位置数量
+        gap_y_count: 缺口y轴位置数量
+        slider_x_count: 滑块x轴位置数量
         
     Returns:
         位置列表 [(slider_pos, gap_pos), ...]
     """
+    # 使用配置中的目标尺寸
+    if img_width is None or img_height is None:
+        img_width, img_height = size_config.target_size
+    
     rng = np.random.RandomState(pic_index * 1000 + puzzle_size)
     
-    # 使用配置计算安全范围（考虑旋转）
+    # 使用DatasetConfig计算安全范围（考虑旋转）
     (slider_x_min, slider_x_max), (slider_y_min, slider_y_max) = DatasetConfig.calculate_safe_slider_range(
         puzzle_size, img_height
+    )
+    
+    gap_x_min, gap_x_max = DatasetConfig.calculate_safe_gap_range(
+        puzzle_size, img_width, img_height
     )
     
     # 如果考虑旋转，需要计算有效尺寸
@@ -192,10 +133,40 @@ def generate_positions_for_size(
     
     half_size = effective_size // 2
     
+    # 动态生成滑块x位置
     slider_x_positions = []
     for i in range(slider_x_count):
-        x = int(rng.randint(slider_x_min, slider_x_max))
+        x = int(rng.randint(slider_x_min, slider_x_max + 1))
         slider_x_positions.append(x)
+    
+    # 动态生成缺口x位置
+    gap_x_positions = []
+    if gap_x_max - gap_x_min >= gap_x_count:
+        # 有足够的范围，随机选择不重复的位置
+        gap_x_positions = sorted([int(x) for x in rng.choice(
+            range(gap_x_min, gap_x_max),
+            size=gap_x_count,
+            replace=False
+        )])
+    else:
+        # 范围太小，生成均匀分布的位置
+        gap_x_positions = np.linspace(gap_x_min, max(gap_x_min + 1, gap_x_max - 1), 
+                                     gap_x_count, dtype=int).tolist()
+    
+    # 动态生成缺口y位置
+    gap_y_min = half_size + 5
+    gap_y_max = img_height - half_size - 5
+    
+    gap_y_positions = []
+    if gap_y_max - gap_y_min >= gap_y_count:
+        gap_y_positions = sorted([int(y) for y in rng.choice(
+            range(gap_y_min, gap_y_max),
+            size=gap_y_count,
+            replace=False
+        )])
+    else:
+        gap_y_positions = np.linspace(gap_y_min, max(gap_y_min + 1, gap_y_max - 1), 
+                                     gap_y_count, dtype=int).tolist()
     
     # 生成所有组合，但过滤掉会重叠的位置
     positions = []
@@ -220,13 +191,17 @@ def generate_positions_for_size(
 
 
 def generate_continuous_positions(
-    puzzle_size: int
+    puzzle_size: int,
+    img_width: Optional[int] = None,
+    img_height: Optional[int] = None
 ) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     """
     生成连续分布的位置（保留用于兼容性）
     
     Args:
         puzzle_size: 拼图大小
+        img_width: 图像宽度（如果为None，使用配置中的目标尺寸）
+        img_height: 图像高度（如果为None，使用配置中的目标尺寸）
         
     Returns:
         (slider_pos, gap_pos)
@@ -235,19 +210,27 @@ def generate_continuous_positions(
     
     # 根据CaptchaGenerator的验证逻辑，滑块x必须在 [half_size, half_size + 10] 范围内
     slider_x_min = half_size
-    slider_x_max = 40
+    slider_x_max = half_size + 10
     slider_x = np.random.randint(slider_x_min, slider_x_max + 1)
     
+    # 使用传入的尺寸或配置中的目标尺寸
+    if img_width is None or img_height is None:
+        img_width, img_height = size_config.target_size
+    else:
+        # 确保尺寸有效
+        img_width = max(img_width, 100)  # 最小宽度
+        img_height = max(img_height, 50)   # 最小高度
+    
     # 滑块中心y坐标必须 >= half_size + 5（确保上边不超界且有安全边距）
-    # 滑块中心y坐标必须 <= 160 - half_size - 5（确保下边不超界且有安全边距）
-    slider_y_min = max(DatasetConfig.SLIDER_Y_RANGE[0], half_size + 5)
-    slider_y_max = min(DatasetConfig.SLIDER_Y_RANGE[1], 160 - half_size - 5)
+    # 滑块中心y坐标必须 <= img_height - half_size - 5（确保下边不超界且有安全边距）
+    slider_y_min = half_size + 5  # 5像素的安全边距
+    slider_y_max = img_height - half_size - 5  # 5像素的安全边距
     slider_y = np.random.randint(slider_y_min, slider_y_max + 1)
     
     # 生成缺口位置
     # 缺口必须在滑块右边界之后，且不能超出图像边界
     gap_x_min = slider_x + 2*half_size + 10  # 滑块右边界 + half_size + 10像素间隔
-    gap_x_max = 320 - half_size  # 确保不超出右边界
+    gap_x_max = img_width - half_size  # 确保不超出右边界
     
     gap_x = np.random.randint(gap_x_min, gap_x_max + 1)
     gap_y = slider_y  # 保持y坐标一致
@@ -392,14 +375,14 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
     # 读取图片
     img = cv2.imread(str(img_path))
     if img is None:
-        return [], {}, "", []
+        return [], {}, "", [], []
     
     # 创建尺寸配置和处理器 - 在设置种子之前生成随机尺寸
-    size_config = CaptchaSizeConfig()
-    size_processor = SizeVariation(size_config)
+    size_config_local = SizeConfusionConfig()
+    size_processor = SizeVariation(size_config_local)
     
     # 生成随机尺寸并调整图片（使用真正的随机性）
-    target_size = size_config.generate_random_size()
+    target_size = size_config_local.generate_random_size()
     img, size_info = size_processor.apply_size_variation(img, target_size)
     
     # 设置随机种子（基于图片路径和尺寸）- 用于形状和位置的可重现性
@@ -430,42 +413,24 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
     # 生成混淆计划
     confusion_plan = generate_confusion_plan(pic_index, confusion_counts)
     
-    # 为这张图片选择固定的puzzle_sizes（根据图像尺寸缩放）
-    # 使用高度作为缩放基准，确保滑块不会太大
-    scale_factor = size_info['height'] / 160
-    scaled_puzzle_sizes = []
-    for s in puzzle_sizes:
-        scaled_size = int(s * scale_factor)
-        # 确保是偶数（便于中心对齐）
-        if scaled_size % 2 != 0:
-            scaled_size += 1
-        # 确保不超过图像高度的合理范围（最大为高度的40%）
-        max_size = int(size_info['height'] * 0.4)
-        scaled_size = min(scaled_size, max_size)
-        # 额外限制：确保puzzle_size不超过60，以避免slider位置计算问题
-        # 当half_size > 30时，slider_x_min会大于slider_x_max(40)
-        scaled_size = min(scaled_size, 60)
-        scaled_puzzle_sizes.append(scaled_size)
-    
+    # 为这张图片选择固定的puzzle_sizes（不缩放，直接使用配置值）
     selected_sizes = select_puzzle_sizes_for_image(
         pic_index, 
-        scaled_puzzle_sizes,
+        puzzle_sizes,
         sizes_per_image
     )
     
-    # 为这张图片生成固定的gap位置（不依赖于size）
-    gap_x_positions, gap_y_positions = generate_fixed_gap_positions(
-        pic_index, 
-        img_width=size_info['width'],
-        img_height=size_info['height']
-    )
-    
-    # 为每个选中的size生成位置列表
+    # 为每个选中的size动态生成位置列表
     all_positions = {}
     for puzzle_size in selected_sizes:
         positions = generate_positions_for_size(
-            pic_index, puzzle_size, gap_x_positions, gap_y_positions,
-            img_width=size_info['width'], img_height=size_info['height']
+            pic_index, 
+            puzzle_size,
+            img_width=size_info['width'], 
+            img_height=size_info['height'],
+            gap_x_count=DatasetConfig.GAP_X_COUNT,
+            gap_y_count=DatasetConfig.GAP_Y_COUNT,
+            slider_x_count=DatasetConfig.SLIDER_X_COUNT
         )
         all_positions[puzzle_size] = positions
     
@@ -540,12 +505,12 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
             composite_path = captchas_dir / filename
             cv2.imwrite(str(composite_path), final_image)
             
+            # 使用统一的基础文件名（包含所有位置信息）- 移到外面，不管是否保存组件都需要
+            base_filename = f"Pic{pic_index:04d}_Bgx{gap_pos[0]}Bgy{gap_pos[1]}_Sdx{slider_pos[0]}Sdy{slider_pos[1]}_{file_hash}"
+            
             # 如果需要保存组件
             if save_components:
                 components_dir = Path(output_dir) / 'components'
-                
-                # 使用统一的基础文件名（包含所有位置信息）
-                base_filename = f"Pic{pic_index:04d}_Bgx{gap_pos[0]}Bgy{gap_pos[1]}_Sdx{slider_pos[0]}Sdy{slider_pos[1]}_{file_hash}"
                 
                 # 保存滑块（RGBA格式）
                 slider_filename = f"{base_filename}_slider.png"
@@ -574,25 +539,27 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 'metadata': result.metadata
             }
             
-            # 如果保存了组件，添加组件文件路径和生成训练标签
+            # 如果保存了组件，添加组件文件路径
             if save_components:
                 annotation['slider_file'] = f"components/sliders/{slider_filename}"
                 annotation['background_file'] = f"components/backgrounds/{bg_filename}"
-                
-                # 生成训练标签
-                label = create_label_from_captcha_result(
-                    pic_index=pic_index,
-                    sample_idx=sample_idx,
-                    gap_position=gap_pos,
-                    slider_position=slider_pos,
-                    puzzle_size=size,
-                    confusion_type=confusion_type,
-                    confusion_metadata=result.confusion_params if hasattr(result, 'confusion_params') else {},
-                    additional_gaps=result.additional_gaps if hasattr(result, 'additional_gaps') else None,
-                    file_hash=file_hash,
-                    base_filename=base_filename.replace('_slider', '').replace('_gap', '')  # 清理文件名
-                )
-                labels_list.append(label)
+            
+            # 始终生成训练标签（无论是否保存组件）
+            label = create_label_from_captcha_result(
+                pic_index=pic_index,
+                sample_idx=sample_idx,
+                gap_position=gap_pos,
+                slider_position=slider_pos,
+                puzzle_size=size,
+                confusion_type=confusion_type,
+                confusion_metadata=result.confusion_params if hasattr(result, 'confusion_params') else {},
+                additional_gaps=result.additional_gaps if hasattr(result, 'additional_gaps') else None,
+                file_hash=file_hash,
+                base_filename=base_filename.replace('_slider', '').replace('_gap', ''),  # 清理文件名
+                image_width=size_info['width'],
+                image_height=size_info['height']
+            )
+            labels_list.append(label)
             
             if result.additional_gaps:
                 # 转换 numpy 数组为列表以便 JSON 序列化
@@ -624,6 +591,8 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 'slider_pos': [int(slider_pos[0]), int(slider_pos[1])],
                 'gap_pos': [int(gap_pos[0]), int(gap_pos[1])],
                 'confusion_type': confusion_type,
+                'image_width': size_info['width'],
+                'image_height': size_info['height'],
                 'error_type': type(e).__name__,
                 'error_message': str(e),
                 'traceback': traceback.format_exc()
@@ -736,8 +705,8 @@ def generate_dataset_parallel(
     print(f"Puzzle Sizes: {DatasetConfig.ALL_PUZZLE_SIZES}")
     print(f"Sizes per Image: {DatasetConfig.SIZES_PER_IMAGE}")
     print(f"Samples per Background: {DatasetConfig.MAX_SAMPLES_PER_BG}")
-    print(f"Slider X Range: {DatasetConfig.SLIDER_X_RANGE}")
-    print(f"Slider Y Range: {DatasetConfig.SLIDER_Y_RANGE}")
+    print(f"Slider Position: Dynamically calculated based on puzzle size")
+    print(f"Gap Position: Dynamically calculated based on slider position")
     print(f"Save Components: {DatasetConfig.SAVE_COMPONENTS}")
     print(f"Save Full Images: {DatasetConfig.SAVE_FULL_IMAGE}")
     print("="*60 + "\n")
@@ -776,11 +745,9 @@ def generate_dataset_parallel(
     background_hashes = set()
     all_errors = []  # 收集所有错误
     
-    # 创建标签生成器（仅当save_components为True时）
-    label_generator = None
-    if save_components:
-        labels_dir = output_dir / 'labels'
-        label_generator = CaptchaLabelGenerator(labels_dir)
+    # 创建标签生成器（始终生成标签，与save_components无关）
+    labels_dir = output_dir / 'labels'
+    label_generator = CaptchaLabelGenerator(labels_dir)
     
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_img = {
@@ -796,10 +763,9 @@ def generate_dataset_parallel(
                 background_hashes.add(bg_hash)
                 all_errors.extend(errors)  # 收集错误
                 
-                # 如果有标签生成器，添加标签
-                if label_generator and labels:
-                    for label in labels:
-                        label_generator.add_label(label)
+                # 添加标签
+                for label in labels:
+                    label_generator.add_label(label)
                 
                 # 合并统计
                 for key, count in stats.items():
@@ -816,22 +782,20 @@ def generate_dataset_parallel(
     with open(all_annotations_path, 'w', encoding='utf-8') as f:
         json.dump(all_annotations, f, ensure_ascii=False, indent=2, cls=NumpyJSONEncoder)
     
-    # 保存训练标签（如果启用了组件保存）
-    saved_label_files = {}
-    if label_generator:
-        saved_label_files = label_generator.save_labels()
-        label_stats = label_generator.get_statistics()
-        print(f"\nLabel generation statistics:")
-        print(f"  - Total labels: {label_stats['total_labels']}")
-        print(f"  - Unique pics: {label_stats['unique_pics']}")
-        print(f"  - Labels saved to: {saved_label_files['all_labels']}")
+    # 保存训练标签
+    saved_label_files = label_generator.save_labels()
+    label_stats = label_generator.get_statistics()
+    print(f"\nLabel generation statistics:")
+    print(f"  - Total labels: {label_stats['total_labels']}")
+    print(f"  - Unique pics: {label_stats['unique_pics']}")
+    print(f"  - Labels saved to: {saved_label_files['all_labels']}")
     
     # 保存完整配置（用于复现）到metadata目录
     config_backup_path = metadata_dir / 'dataset_config_used.json'
     config_backup = {
         'dataset_config': {
-            'slider_x_range': DatasetConfig.SLIDER_X_RANGE,
-            'slider_y_range': DatasetConfig.SLIDER_Y_RANGE,
+            'slider_position': 'Dynamic calculation based on puzzle size',
+            'gap_position': 'Dynamic calculation based on slider position',
             'min_backgrounds': DatasetConfig.MIN_BACKGROUNDS,
             'max_samples_per_bg': DatasetConfig.MAX_SAMPLES_PER_BG,
             'confusion_counts': DatasetConfig.CONFUSION_COUNTS,
@@ -876,10 +840,10 @@ def generate_dataset_parallel(
         'total_errors': len(all_errors),
         'error_rate': f"{len(all_errors) / (len(tasks) * DatasetConfig.MAX_SAMPLES_PER_BG) * 100:.2f}%",
         'statistics': dict(total_stats),
-        'labels_generated': len(label_generator.labels) if label_generator else 0,
+        'labels_generated': len(label_generator.labels),
         'config': {
-            'slider_x_range': DatasetConfig.SLIDER_X_RANGE,
-            'slider_y_range': DatasetConfig.SLIDER_Y_RANGE,
+            'slider_position': 'Dynamic calculation based on puzzle size',
+            'gap_position': 'Dynamic calculation based on slider position',
             'puzzle_sizes': DatasetConfig.ALL_PUZZLE_SIZES,
             'sizes_per_image': DatasetConfig.SIZES_PER_IMAGE,
             'confusion_counts': DatasetConfig.CONFUSION_COUNTS,
@@ -915,8 +879,7 @@ def generate_dataset_parallel(
     # 验证数据质量
     print("\nData quality checks:")
     print(f"[OK] Background diversity: {len(background_hashes)} unique backgrounds")
-    print(f"[OK] Position sampling: Slider X{DatasetConfig.SLIDER_X_RANGE}, "
-          f"Y{DatasetConfig.SLIDER_Y_RANGE}")
+    print(f"[OK] Position sampling: Dynamic calculation based on puzzle size")
     print(f"[OK] Gap position: Dynamically calculated based on slider position")
 
 

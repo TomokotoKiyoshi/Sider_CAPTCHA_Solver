@@ -536,7 +536,6 @@ ider_CAPTCHA_Solver/
 │   │   └── annotate_captchas_web.py         # Web annotation UI
 │   │
 │   ├── data_generation/           # Data generation scripts
-│   │   ├── geometry_generator.py  # Geometry shape generator
 │   │   └── puzzle_background_generator.py   # Puzzle background generator
 │   │
 │   ├── training/                  # Training related

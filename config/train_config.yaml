@@ -1,0 +1,118 @@
+# PMN-R3-FP Training Configuration
+# Version: 1.1.0
+# ================================
+
+# Model Configuration
+model:
+  name: "PMN_R3_FP"
+  backbone_channels: [32, 64, 128, 256]
+  fpn_channels: 256
+  num_classes: 1
+  use_se2: true
+  use_sdf: true
+
+# Data Configuration
+data:
+  split_file: "data/splits/data_split.json"
+  annotations_file: "data/metadata/all_annotations.json"
+  data_dir: "."
+  batch_size: 256
+  num_workers: 12
+  pin_memory: true
+  
+  # Data split ratios (if auto-splitting)
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  
+  # Data augmentation
+  augmentation:
+    random_brightness: 0.1
+    random_contrast: 0.1
+    gaussian_noise: 0.1
+    color_jitter: true
+
+# Training Configuration
+training:
+  num_epochs: 25
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  gradient_clip: 1.0
+  
+  # Mixed precision training
+  use_amp: true
+  
+  # Gradient accumulation
+  accumulation_steps: 1
+  
+  # Device settings
+  device: "cuda"  # cuda, cpu, mps
+  multi_gpu: true
+
+# Loss Configuration
+loss:
+  weights:
+    region_obj: 1.0
+    region_ctr: 1.0
+    region_loc: 1.0
+    region_scale: 1.0
+    shape_mask: 1.0
+    shape_sdf: 0.5
+    matching: 2.0
+    geometry: 1.0
+
+# Optimizer Configuration
+optimizer:
+  name: "AdamW"
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+
+# Scheduler Configuration
+scheduler:
+  name: "CosineAnnealingLR"
+  T_max: 100
+  eta_min: 1.0e-6
+
+# Checkpoint Configuration
+checkpoint:
+  save_dir: "src/checkpoints/v1.1.0"
+  save_every: 1  # Save every N epochs
+  keep_last_n: 10  # Keep last N checkpoints
+  save_best: true  # Save best model based on validation metric
+  resume_from: null  # Path to checkpoint to resume from
+
+# Early Stopping
+early_stopping:
+  enabled: true
+  patience: 20
+  min_delta: 0.001
+  metric: "val_mae"  # Metric to monitor
+  mode: "min"  # min or max
+
+# Logging Configuration
+logging:
+  log_dir: "logs"
+  log_every_n_steps: 10
+  use_tensorboard: true
+  use_wandb: false
+  wandb_project: "pmn-r3-fp-captcha"
+  wandb_entity: null
+
+# Validation Configuration
+validation:
+  val_every_n_epochs: 1
+  metrics:
+    - "mae"
+    - "hit_at_2px"
+    - "hit_at_5px"
+
+# Testing Configuration
+testing:
+  run_test_after_training: true
+  test_batch_size: 32
+  save_predictions: true
+  save_visualizations: true
+
+# Random Seed
+seed: 42
+deterministic: true

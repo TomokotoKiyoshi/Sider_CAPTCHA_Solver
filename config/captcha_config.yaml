@@ -1,0 +1,170 @@
+# Complete CAPTCHA Configuration
+# 完整的验证码系统配置文件
+
+# ============================================================
+# Dataset Generation Configuration
+# 数据集生成配置
+# ============================================================
+dataset:
+  # Input/Output paths
+  paths:
+    input_dir: 'data/raw'
+    output_dir: 'data'
+  
+  # Parallel processing
+  processing:
+    max_workers: 24  # null for auto
+    max_images: null   # null for all
+    random_seed: null  # null for random
+  
+  # Dataset scale
+  scale:
+    min_backgrounds: 2000
+    max_samples_per_bg: 100
+  
+  # Confusion strategy distribution
+  confusion_counts:
+    none: 30
+    rotation: 10
+    perlin_noise: 10
+    highlight: 10
+    confusing_gap: 10
+    hollow_center: 10
+    combined: 20
+  
+  # Shape configuration
+  shapes:
+    special: ['circle', 'square', 'triangle', 'hexagon']
+    normal_count: 6
+  
+  # Puzzle sizes
+  puzzle_sizes:
+    all_sizes: [40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60]
+    sizes_per_image: 4
+  
+  # Gap position generation
+  gap_generation:
+    gap_x_count: 4
+    gap_y_count: 3
+    slider_x_count: 4
+  
+  # Save options
+  save:
+    full_image: false
+    components: false
+    component_format: 'png'
+    masks: false
+  
+  # Rotation
+  rotation:
+    enabled: true
+    max_angle: 1.8  # degrees
+
+# ============================================================
+# Size Confusion Configuration
+# 尺寸混淆配置
+# ============================================================
+size_confusion:
+  # Generation size range
+  generation:
+    min_size: [280, 140]  # [width, height]
+    max_size: [480, 240]
+    common_sizes:
+      - [320, 160]
+      - [360, 180]
+      - [400, 200]
+      - [384, 192]
+    common_size_probability: 0.3
+
+# ============================================================
+# Confusion Strategy Configuration
+# 混淆策略配置
+# ============================================================
+confusion_strategies:
+  # Perlin Noise
+  perlin_noise:
+    noise_strength:
+      min: 0.2
+      max: 0.5
+    noise_scale: 0.1
+  
+  # Rotation
+  rotation:
+    rotation_angle:
+      min: 0.5
+      max: 1.5
+  
+  # Highlight
+  highlight:
+    base_lightness:
+      min: 20
+      max: 40
+    edge_lightness:
+      min: 40
+      max: 60
+    directional_lightness:
+      min: 15
+      max: 30
+    outer_edge_lightness: 0
+  
+  # Confusing Gap
+  confusing_gap:
+    num_confusing_gaps: [1, 2]
+    confusing_type: 'mixed'  # same_y, different_y, mixed
+    rotation_range:
+      min: 10
+      max: 30
+    scale_range:
+      min: 0.8
+      max: 1.2
+  
+  # Hollow Center
+  hollow_center:
+    scale:
+      min: 0.3
+      max: 0.4
+  
+  # Combined
+  combined:
+    num_strategies: [2, 3]
+    available_strategies:
+      - 'perlin_noise'
+      - 'rotation'
+      - 'highlight'
+      - 'hollow_center'
+      - 'confusing_gap'
+
+# ============================================================
+# Lighting Effects Configuration
+# 光照效果配置
+# ============================================================
+lighting_effects:
+  gap_shadow:
+    base_darkness: 40
+    edge_darkness: 50
+    directional_darkness: 20
+  
+  gap_highlight:
+    base_lightness: 30
+    edge_lightness: 45
+    directional_lightness: 20
+    outer_edge_lightness: 0
+
+# ============================================================
+# Data Split Configuration
+# 数据集划分配置
+# ============================================================
+data_split:
+  split_ratio:
+    train: 0.9
+    test: 0.1
+  
+  paths:
+    input_dir: 'data/generated'
+    train_dir: 'data/train'
+    test_dir: 'data/test'
+  
+  options:
+    preserve_subdirs: true
+    use_symlinks: false
+    verbose: true

@@ -284,7 +284,9 @@ def create_label_from_captcha_result(
     confusion_metadata: Optional[Dict[str, Any]] = None,
     additional_gaps: Optional[List[Dict[str, Any]]] = None,
     file_hash: str = '',
-    base_filename: str = ''
+    base_filename: str = '',
+    image_width: Optional[int] = None,
+    image_height: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     从验证码生成结果创建训练标签（便捷函数）
@@ -340,6 +342,12 @@ def create_label_from_captcha_result(
         confusion_metadata=confusion_metadata,
         fake_gaps=fake_gaps
     )
+    
+    # 添加图片尺寸信息
+    label['image_size'] = {
+        'width': image_width,
+        'height': image_height
+    }
     
     return label
 
