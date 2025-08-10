@@ -25,13 +25,18 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
     Returns:
         应用光照效果后的背景
     """
-    # 边界检查断言
+    # 边界检查
     bg_h, bg_w = background.shape[:2]
-    assert x >= 0, f"缺口x坐标不能为负: x={x}"
-    assert y >= 0, f"缺口y坐标不能为负: y={y}"
-    assert x + mask_w <= bg_w, f"缺口超出右边界: x={x}, mask_w={mask_w}, bg_w={bg_w}"
-    assert y + mask_h <= bg_h, f"缺口超出下边界: y={y}, mask_h={mask_h}, bg_h={bg_h}"
-    assert mask_alpha.shape == (mask_h, mask_w), f"mask_alpha形状不匹配: expected ({mask_h}, {mask_w}), got {mask_alpha.shape}"
+    if x < 0:
+        raise ValueError(f"缺口x坐标不能为负: x={x}")
+    if y < 0:
+        raise ValueError(f"缺口y坐标不能为负: y={y}")
+    if x + mask_w > bg_w:
+        raise ValueError(f"缺口超出右边界: x={x}, mask_w={mask_w}, bg_w={bg_w}")
+    if y + mask_h > bg_h:
+        raise ValueError(f"缺口超出下边界: y={y}, mask_h={mask_h}, bg_h={bg_h}")
+    if mask_alpha.shape != (mask_h, mask_w):
+        raise ValueError(f"mask_alpha形状不匹配: expected ({mask_h}, {mask_w}), got {mask_alpha.shape}")
     
     # 创建工作副本
     result = background.copy()
@@ -163,13 +168,18 @@ def apply_gap_highlighting(background, x, y, mask_alpha, mask_h, mask_w,
     Returns:
         应用高光效果后的背景
     """
-    # 边界检查断言
+    # 边界检查
     bg_h, bg_w = background.shape[:2]
-    assert x >= 0, f"缺口x坐标不能为负: x={x}"
-    assert y >= 0, f"缺口y坐标不能为负: y={y}"
-    assert x + mask_w <= bg_w, f"缺口超出右边界: x={x}, mask_w={mask_w}, bg_w={bg_w}"
-    assert y + mask_h <= bg_h, f"缺口超出下边界: y={y}, mask_h={mask_h}, bg_h={bg_h}"
-    assert mask_alpha.shape == (mask_h, mask_w), f"mask_alpha形状不匹配: expected ({mask_h}, {mask_w}), got {mask_alpha.shape}"
+    if x < 0:
+        raise ValueError(f"缺口x坐标不能为负: x={x}")
+    if y < 0:
+        raise ValueError(f"缺口y坐标不能为负: y={y}")
+    if x + mask_w > bg_w:
+        raise ValueError(f"缺口超出右边界: x={x}, mask_w={mask_w}, bg_w={bg_w}")
+    if y + mask_h > bg_h:
+        raise ValueError(f"缺口超出下边界: y={y}, mask_h={mask_h}, bg_h={bg_h}")
+    if mask_alpha.shape != (mask_h, mask_w):
+        raise ValueError(f"mask_alpha形状不匹配: expected ({mask_h}, {mask_w}), got {mask_alpha.shape}")
     
     # 创建工作副本
     result = background.copy()

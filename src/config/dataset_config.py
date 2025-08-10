@@ -24,8 +24,10 @@ class DatasetConfig:
         # 路径配置
         input_dir = self.loader.get('captcha_config.dataset.paths.input_dir')
         output_dir = self.loader.get('captcha_config.dataset.paths.output_dir')
-        assert input_dir is not None, "Must configure dataset.paths.input_dir in captcha_config.yaml"
-        assert output_dir is not None, "Must configure dataset.paths.output_dir in captcha_config.yaml"
+        if input_dir is None:
+            raise ValueError("Must configure dataset.paths.input_dir in captcha_config.yaml")
+        if output_dir is None:
+            raise ValueError("Must configure dataset.paths.output_dir in captcha_config.yaml")
         self.INPUT_DIR = input_dir
         self.OUTPUT_DIR = output_dir
         
@@ -33,7 +35,8 @@ class DatasetConfig:
         max_workers = self.loader.get('captcha_config.dataset.processing.max_workers')
         max_images = self.loader.get('captcha_config.dataset.processing.max_images')
         random_seed = self.loader.get('captcha_config.dataset.processing.random_seed')
-        assert max_workers is not None, "Must configure dataset.processing.max_workers in captcha_config.yaml"
+        if max_workers is None:
+            raise ValueError("Must configure dataset.processing.max_workers in captcha_config.yaml")
         self.MAX_WORKERS = max_workers
         self.MAX_IMAGES = max_images  # This can be None
         self.RANDOM_SEED = random_seed  # This can be None
@@ -45,29 +48,36 @@ class DatasetConfig:
         # 数据集规模
         min_bg = self.loader.get('captcha_config.dataset.scale.min_backgrounds')
         captchas_per_img = self.loader.get('captcha_config.dataset.scale.captchas_per_image')
-        assert min_bg is not None, "Must configure dataset.scale.min_backgrounds in captcha_config.yaml"
-        assert captchas_per_img is not None, "Must configure dataset.scale.captchas_per_image in captcha_config.yaml"
+        if min_bg is None:
+            raise ValueError("Must configure dataset.scale.min_backgrounds in captcha_config.yaml")
+        if captchas_per_img is None:
+            raise ValueError("Must configure dataset.scale.captchas_per_image in captcha_config.yaml")
         self.MIN_BACKGROUNDS = min_bg
         self.CAPTCHAS_PER_IMAGE = captchas_per_img
         
         # 混淆策略数量控制
         confusion_counts = self.loader.get('captcha_config.dataset.confusion_counts')
-        assert confusion_counts is not None, "Must configure dataset.confusion_counts in captcha_config.yaml"
+        if confusion_counts is None:
+            raise ValueError("Must configure dataset.confusion_counts in captcha_config.yaml")
         self.CONFUSION_COUNTS = confusion_counts
         
         # 形状配置
         special_shapes = self.loader.get('captcha_config.dataset.shapes.special')
         normal_count = self.loader.get('captcha_config.dataset.shapes.normal_count')
-        assert special_shapes is not None, "Must configure dataset.shapes.special in captcha_config.yaml"
-        assert normal_count is not None, "Must configure dataset.shapes.normal_count in captcha_config.yaml"
+        if special_shapes is None:
+            raise ValueError("Must configure dataset.shapes.special in captcha_config.yaml")
+        if normal_count is None:
+            raise ValueError("Must configure dataset.shapes.normal_count in captcha_config.yaml")
         self.SPECIAL_SHAPES = special_shapes
         self.NORMAL_SHAPES_COUNT = normal_count
         
         # Puzzle尺寸配置
         all_sizes = self.loader.get('captcha_config.dataset.puzzle_sizes.all_sizes')
         sizes_per_image = self.loader.get('captcha_config.dataset.puzzle_sizes.sizes_per_image')
-        assert all_sizes is not None, "Must configure dataset.puzzle_sizes.all_sizes in captcha_config.yaml"
-        assert sizes_per_image is not None, "Must configure dataset.puzzle_sizes.sizes_per_image in captcha_config.yaml"
+        if all_sizes is None:
+            raise ValueError("Must configure dataset.puzzle_sizes.all_sizes in captcha_config.yaml")
+        if sizes_per_image is None:
+            raise ValueError("Must configure dataset.puzzle_sizes.sizes_per_image in captcha_config.yaml")
         self.ALL_PUZZLE_SIZES = all_sizes
         self.SIZES_PER_IMAGE = sizes_per_image
         
@@ -76,10 +86,14 @@ class DatasetConfig:
         save_comp = self.loader.get('captcha_config.dataset.save.components')
         comp_format = self.loader.get('captcha_config.dataset.save.component_format')
         save_masks = self.loader.get('captcha_config.dataset.save.masks')
-        assert save_full is not None, "Must configure dataset.save.full_image in captcha_config.yaml"
-        assert save_comp is not None, "Must configure dataset.save.components in captcha_config.yaml"
-        assert comp_format is not None, "Must configure dataset.save.component_format in captcha_config.yaml"
-        assert save_masks is not None, "Must configure dataset.save.masks in captcha_config.yaml"
+        if save_full is None:
+            raise ValueError("Must configure dataset.save.full_image in captcha_config.yaml")
+        if save_comp is None:
+            raise ValueError("Must configure dataset.save.components in captcha_config.yaml")
+        if comp_format is None:
+            raise ValueError("Must configure dataset.save.component_format in captcha_config.yaml")
+        if save_masks is None:
+            raise ValueError("Must configure dataset.save.masks in captcha_config.yaml")
         self.SAVE_FULL_IMAGE = save_full
         self.SAVE_COMPONENTS = save_comp
         self.COMPONENT_FORMAT = comp_format
@@ -91,9 +105,12 @@ class DatasetConfig:
         slider_x = self.loader.get('captcha_config.dataset.grid_positions.slider_x_positions')
         
         # 没有读到配置就直接报错
-        assert gap_x is not None, "必须在captcha_config.yaml中配置dataset.grid_positions.gap_x_positions"
-        assert gap_y is not None, "必须在captcha_config.yaml中配置dataset.grid_positions.gap_y_positions"
-        assert slider_x is not None, "必须在captcha_config.yaml中配置dataset.grid_positions.slider_x_positions"
+        if gap_x is None:
+            raise ValueError("必须在captcha_config.yaml中配置dataset.grid_positions.gap_x_positions")
+        if gap_y is None:
+            raise ValueError("必须在captcha_config.yaml中配置dataset.grid_positions.gap_y_positions")
+        if slider_x is None:
+            raise ValueError("必须在captcha_config.yaml中配置dataset.grid_positions.slider_x_positions")
         
         self.GAP_X_COUNT = gap_x
         self.GAP_Y_COUNT = gap_y
@@ -102,8 +119,10 @@ class DatasetConfig:
         # 旋转配置
         rotation_enabled = self.loader.get('captcha_config.dataset.rotation.enabled')
         max_angle = self.loader.get('captcha_config.dataset.rotation.max_angle')
-        assert rotation_enabled is not None, "Must configure dataset.rotation.enabled in captcha_config.yaml"
-        assert max_angle is not None, "Must configure dataset.rotation.max_angle in captcha_config.yaml"
+        if rotation_enabled is None:
+            raise ValueError("Must configure dataset.rotation.enabled in captcha_config.yaml")
+        if max_angle is None:
+            raise ValueError("Must configure dataset.rotation.max_angle in captcha_config.yaml")
         self.ROTATION_ENABLED = rotation_enabled
         self.MAX_ROTATION_ANGLE = max_angle
     

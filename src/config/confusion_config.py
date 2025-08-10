@@ -27,9 +27,12 @@ class ConfusionConfig:
         noise_min = self.loader.get(f'{base_path}.perlin_noise.noise_strength.min')
         noise_max = self.loader.get(f'{base_path}.perlin_noise.noise_strength.max')
         noise_scale = self.loader.get(f'{base_path}.perlin_noise.noise_scale')
-        assert noise_min is not None, f"Must configure {base_path}.perlin_noise.noise_strength.min in captcha_config.yaml"
-        assert noise_max is not None, f"Must configure {base_path}.perlin_noise.noise_strength.max in captcha_config.yaml"
-        assert noise_scale is not None, f"Must configure {base_path}.perlin_noise.noise_scale in captcha_config.yaml"
+        if noise_min is None:
+            raise ValueError(f"Must configure {base_path}.perlin_noise.noise_strength.min in captcha_config.yaml")
+        if noise_max is None:
+            raise ValueError(f"Must configure {base_path}.perlin_noise.noise_strength.max in captcha_config.yaml")
+        if noise_scale is None:
+            raise ValueError(f"Must configure {base_path}.perlin_noise.noise_scale in captcha_config.yaml")
         
         self.PERLIN_NOISE = {
             'noise_strength': {
@@ -46,8 +49,10 @@ class ConfusionConfig:
         # ========== 旋转 (Rotation) ==========
         rot_min = self.loader.get(f'{base_path}.rotation.rotation_angle.min')
         rot_max = self.loader.get(f'{base_path}.rotation.rotation_angle.max')
-        assert rot_min is not None, f"Must configure {base_path}.rotation.rotation_angle.min in captcha_config.yaml"
-        assert rot_max is not None, f"Must configure {base_path}.rotation.rotation_angle.max in captcha_config.yaml"
+        if rot_min is None:
+            raise ValueError(f"Must configure {base_path}.rotation.rotation_angle.min in captcha_config.yaml")
+        if rot_max is None:
+            raise ValueError(f"Must configure {base_path}.rotation.rotation_angle.max in captcha_config.yaml")
         
         self.ROTATION = {
             'rotation_angle': {
@@ -66,13 +71,20 @@ class ConfusionConfig:
         hl_dir_max = self.loader.get(f'{base_path}.highlight.directional_lightness.max')
         hl_outer = self.loader.get(f'{base_path}.highlight.outer_edge_lightness')
         
-        assert hl_base_min is not None, f"Must configure {base_path}.highlight.base_lightness.min in captcha_config.yaml"
-        assert hl_base_max is not None, f"Must configure {base_path}.highlight.base_lightness.max in captcha_config.yaml"
-        assert hl_edge_min is not None, f"Must configure {base_path}.highlight.edge_lightness.min in captcha_config.yaml"
-        assert hl_edge_max is not None, f"Must configure {base_path}.highlight.edge_lightness.max in captcha_config.yaml"
-        assert hl_dir_min is not None, f"Must configure {base_path}.highlight.directional_lightness.min in captcha_config.yaml"
-        assert hl_dir_max is not None, f"Must configure {base_path}.highlight.directional_lightness.max in captcha_config.yaml"
-        assert hl_outer is not None, f"Must configure {base_path}.highlight.outer_edge_lightness in captcha_config.yaml"
+        if hl_base_min is None:
+            raise ValueError(f"Must configure {base_path}.highlight.base_lightness.min in captcha_config.yaml")
+        if hl_base_max is None:
+            raise ValueError(f"Must configure {base_path}.highlight.base_lightness.max in captcha_config.yaml")
+        if hl_edge_min is None:
+            raise ValueError(f"Must configure {base_path}.highlight.edge_lightness.min in captcha_config.yaml")
+        if hl_edge_max is None:
+            raise ValueError(f"Must configure {base_path}.highlight.edge_lightness.max in captcha_config.yaml")
+        if hl_dir_min is None:
+            raise ValueError(f"Must configure {base_path}.highlight.directional_lightness.min in captcha_config.yaml")
+        if hl_dir_max is None:
+            raise ValueError(f"Must configure {base_path}.highlight.directional_lightness.max in captcha_config.yaml")
+        if hl_outer is None:
+            raise ValueError(f"Must configure {base_path}.highlight.outer_edge_lightness in captcha_config.yaml")
         
         self.HIGHLIGHT = {
             'base_lightness': {
@@ -104,12 +116,18 @@ class ConfusionConfig:
         cg_scale_min = self.loader.get(f'{base_path}.confusing_gap.scale_range.min')
         cg_scale_max = self.loader.get(f'{base_path}.confusing_gap.scale_range.max')
         
-        assert cg_num is not None, f"Must configure {base_path}.confusing_gap.num_confusing_gaps in captcha_config.yaml"
-        assert cg_type is not None, f"Must configure {base_path}.confusing_gap.confusing_type in captcha_config.yaml"
-        assert cg_rot_min is not None, f"Must configure {base_path}.confusing_gap.rotation_range.min in captcha_config.yaml"
-        assert cg_rot_max is not None, f"Must configure {base_path}.confusing_gap.rotation_range.max in captcha_config.yaml"
-        assert cg_scale_min is not None, f"Must configure {base_path}.confusing_gap.scale_range.min in captcha_config.yaml"
-        assert cg_scale_max is not None, f"Must configure {base_path}.confusing_gap.scale_range.max in captcha_config.yaml"
+        if cg_num is None:
+            raise ValueError(f"Must configure {base_path}.confusing_gap.num_confusing_gaps in captcha_config.yaml")
+        if cg_type is None:
+            raise ValueError(f"Must configure {base_path}.confusing_gap.confusing_type in captcha_config.yaml")
+        if cg_rot_min is None:
+            raise ValueError(f"Must configure {base_path}.confusing_gap.rotation_range.min in captcha_config.yaml")
+        if cg_rot_max is None:
+            raise ValueError(f"Must configure {base_path}.confusing_gap.rotation_range.max in captcha_config.yaml")
+        if cg_scale_min is None:
+            raise ValueError(f"Must configure {base_path}.confusing_gap.scale_range.min in captcha_config.yaml")
+        if cg_scale_max is None:
+            raise ValueError(f"Must configure {base_path}.confusing_gap.scale_range.max in captcha_config.yaml")
         
         self.CONFUSING_GAP = {
             'num_confusing_gaps': {
@@ -142,13 +160,20 @@ class ConfusionConfig:
         ccg_normal_scale_min = self.loader.get(f'{base_path}.circular_confusing_gap.normal_scale_range.min')
         ccg_normal_scale_max = self.loader.get(f'{base_path}.circular_confusing_gap.normal_scale_range.max')
         
-        assert ccg_num is not None, f"Must configure {base_path}.circular_confusing_gap.num_confusing_gaps in captcha_config.yaml"
-        assert ccg_type is not None, f"Must configure {base_path}.circular_confusing_gap.confusing_type in captcha_config.yaml"
-        assert ccg_enable_smart is not None, f"Must configure {base_path}.circular_confusing_gap.enable_smart_scaling in captcha_config.yaml"
-        assert ccg_y_threshold is not None, f"Must configure {base_path}.circular_confusing_gap.y_distance_threshold in captcha_config.yaml"
-        assert ccg_scale_ranges is not None, f"Must configure {base_path}.circular_confusing_gap.scale_ranges in captcha_config.yaml"
-        assert ccg_normal_scale_min is not None, f"Must configure {base_path}.circular_confusing_gap.normal_scale_range.min in captcha_config.yaml"
-        assert ccg_normal_scale_max is not None, f"Must configure {base_path}.circular_confusing_gap.normal_scale_range.max in captcha_config.yaml"
+        if ccg_num is None:
+            raise ValueError(f"Must configure {base_path}.circular_confusing_gap.num_confusing_gaps in captcha_config.yaml")
+        if ccg_type is None:
+            raise ValueError(f"Must configure {base_path}.circular_confusing_gap.confusing_type in captcha_config.yaml")
+        if ccg_enable_smart is None:
+            raise ValueError(f"Must configure {base_path}.circular_confusing_gap.enable_smart_scaling in captcha_config.yaml")
+        if ccg_y_threshold is None:
+            raise ValueError(f"Must configure {base_path}.circular_confusing_gap.y_distance_threshold in captcha_config.yaml")
+        if ccg_scale_ranges is None:
+            raise ValueError(f"Must configure {base_path}.circular_confusing_gap.scale_ranges in captcha_config.yaml")
+        if ccg_normal_scale_min is None:
+            raise ValueError(f"Must configure {base_path}.circular_confusing_gap.normal_scale_range.min in captcha_config.yaml")
+        if ccg_normal_scale_max is None:
+            raise ValueError(f"Must configure {base_path}.circular_confusing_gap.normal_scale_range.max in captcha_config.yaml")
         
         self.CIRCULAR_CONFUSING_GAP = {
             'num_confusing_gaps': {
@@ -182,8 +207,10 @@ class ConfusionConfig:
         # ========== 空心中心 (HollowCenter) ==========
         hc_min = self.loader.get(f'{base_path}.hollow_center.scale.min')
         hc_max = self.loader.get(f'{base_path}.hollow_center.scale.max')
-        assert hc_min is not None, f"Must configure {base_path}.hollow_center.scale.min in captcha_config.yaml"
-        assert hc_max is not None, f"Must configure {base_path}.hollow_center.scale.max in captcha_config.yaml"
+        if hc_min is None:
+            raise ValueError(f"Must configure {base_path}.hollow_center.scale.min in captcha_config.yaml")
+        if hc_max is None:
+            raise ValueError(f"Must configure {base_path}.hollow_center.scale.max in captcha_config.yaml")
         
         self.HOLLOW_CENTER = {
             'scale': {
@@ -196,8 +223,10 @@ class ConfusionConfig:
         # ========== 组合混淆 (Combined) ==========
         cb_num = self.loader.get(f'{base_path}.combined.num_strategies')
         cb_avail = self.loader.get(f'{base_path}.combined.available_strategies')
-        assert cb_num is not None, f"Must configure {base_path}.combined.num_strategies in captcha_config.yaml"
-        assert cb_avail is not None, f"Must configure {base_path}.combined.available_strategies in captcha_config.yaml"
+        if cb_num is None:
+            raise ValueError(f"Must configure {base_path}.combined.num_strategies in captcha_config.yaml")
+        if cb_avail is None:
+            raise ValueError(f"Must configure {base_path}.combined.available_strategies in captcha_config.yaml")
         
         self.COMBINED = {
             'num_strategies': {
@@ -217,19 +246,26 @@ class ConfusionConfig:
         sh_base = self.loader.get(f'{lighting_path}.gap_shadow.base_darkness')
         sh_edge = self.loader.get(f'{lighting_path}.gap_shadow.edge_darkness')
         sh_dir = self.loader.get(f'{lighting_path}.gap_shadow.directional_darkness')
-        assert sh_base is not None, f"Must configure {lighting_path}.gap_shadow.base_darkness in captcha_config.yaml"
-        assert sh_edge is not None, f"Must configure {lighting_path}.gap_shadow.edge_darkness in captcha_config.yaml"
-        assert sh_dir is not None, f"Must configure {lighting_path}.gap_shadow.directional_darkness in captcha_config.yaml"
+        if sh_base is None:
+            raise ValueError(f"Must configure {lighting_path}.gap_shadow.base_darkness in captcha_config.yaml")
+        if sh_edge is None:
+            raise ValueError(f"Must configure {lighting_path}.gap_shadow.edge_darkness in captcha_config.yaml")
+        if sh_dir is None:
+            raise ValueError(f"Must configure {lighting_path}.gap_shadow.directional_darkness in captcha_config.yaml")
         
         # Highlight params
         gh_base = self.loader.get(f'{lighting_path}.gap_highlight.base_lightness')
         gh_edge = self.loader.get(f'{lighting_path}.gap_highlight.edge_lightness')
         gh_dir = self.loader.get(f'{lighting_path}.gap_highlight.directional_lightness')
         gh_outer = self.loader.get(f'{lighting_path}.gap_highlight.outer_edge_lightness')
-        assert gh_base is not None, f"Must configure {lighting_path}.gap_highlight.base_lightness in captcha_config.yaml"
-        assert gh_edge is not None, f"Must configure {lighting_path}.gap_highlight.edge_lightness in captcha_config.yaml"
-        assert gh_dir is not None, f"Must configure {lighting_path}.gap_highlight.directional_lightness in captcha_config.yaml"
-        assert gh_outer is not None, f"Must configure {lighting_path}.gap_highlight.outer_edge_lightness in captcha_config.yaml"
+        if gh_base is None:
+            raise ValueError(f"Must configure {lighting_path}.gap_highlight.base_lightness in captcha_config.yaml")
+        if gh_edge is None:
+            raise ValueError(f"Must configure {lighting_path}.gap_highlight.edge_lightness in captcha_config.yaml")
+        if gh_dir is None:
+            raise ValueError(f"Must configure {lighting_path}.gap_highlight.directional_lightness in captcha_config.yaml")
+        if gh_outer is None:
+            raise ValueError(f"Must configure {lighting_path}.gap_highlight.outer_edge_lightness in captcha_config.yaml")
         
         self.GAP_LIGHTING = {
             'shadow': {

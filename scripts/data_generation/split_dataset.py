@@ -33,9 +33,12 @@ class DatasetSplitter:
         train_ratio = self.config_loader.get('data_split.split_ratio.train')
         val_ratio = self.config_loader.get('data_split.split_ratio.val')
         test_ratio = self.config_loader.get('data_split.split_ratio.test')
-        assert train_ratio is not None, "Must configure split_ratio.train in data_split.yaml"
-        assert val_ratio is not None, "Must configure split_ratio.val in data_split.yaml"
-        assert test_ratio is not None, "Must configure split_ratio.test in data_split.yaml"
+        if train_ratio is None:
+            raise ValueError("Must configure split_ratio.train in data_split.yaml")
+        if val_ratio is None:
+            raise ValueError("Must configure split_ratio.val in data_split.yaml")
+        if test_ratio is None:
+            raise ValueError("Must configure split_ratio.test in data_split.yaml")
         
         self.split_ratio = {
             'train': train_ratio,
@@ -52,9 +55,12 @@ class DatasetSplitter:
         input_dir = self.config_loader.get('data_split.paths.input_dir')
         output_dir = self.config_loader.get('data_split.paths.output_dir')
         metadata_dir = self.config_loader.get('data_split.paths.metadata_dir')
-        assert input_dir is not None, "Must configure paths.input_dir in data_split.yaml"
-        assert output_dir is not None, "Must configure paths.output_dir in data_split.yaml"
-        assert metadata_dir is not None, "Must configure paths.metadata_dir in data_split.yaml"
+        if input_dir is None:
+            raise ValueError("Must configure paths.input_dir in data_split.yaml")
+        if output_dir is None:
+            raise ValueError("Must configure paths.output_dir in data_split.yaml")
+        if metadata_dir is None:
+            raise ValueError("Must configure paths.metadata_dir in data_split.yaml")
         
         self.input_dir = Path(project_root) / input_dir
         self.output_dir = Path(project_root) / output_dir
@@ -64,9 +70,12 @@ class DatasetSplitter:
         random_seed = self.config_loader.get('data_split.options.random_seed')
         stratify = self.config_loader.get('data_split.options.stratify_by_image')
         shuffle = self.config_loader.get('data_split.options.shuffle')
-        assert random_seed is not None, "Must configure options.random_seed in data_split.yaml"
-        assert stratify is not None, "Must configure options.stratify_by_image in data_split.yaml"
-        assert shuffle is not None, "Must configure options.shuffle in data_split.yaml"
+        if random_seed is None:
+            raise ValueError("Must configure options.random_seed in data_split.yaml")
+        if stratify is None:
+            raise ValueError("Must configure options.stratify_by_image in data_split.yaml")
+        if shuffle is None:
+            raise ValueError("Must configure options.shuffle in data_split.yaml")
         
         self.random_seed = random_seed
         self.stratify_by_image = stratify
