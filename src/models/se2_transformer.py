@@ -8,19 +8,35 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from typing import Tuple, Optional
+import sys
+import os
+
+# 添加配置路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from src.config.model_config import get_model_config
+
+# 获取配置单例实例
+model_config = get_model_config()
 
 
 class PositionalEncoding(nn.Module):
     """位置编码"""
     
-    def __init__(self, d_model, max_len=10000):
+    def __init__(self, d_model, max_len=None):
         super().__init__()
+        
+        # 从配置文件读取max_len
+        if max_len is None:
+            max_len = model_config.se2_positional_max_len
+        
+        # 从配置文件读取base
+        base = model_config.se2_positional_base
         
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         
         div_term = torch.exp(torch.arange(0, d_model, 2).float() * 
-                           (-math.log(10000.0) / d_model))
+                           (-math.log(base) / d_model))
         
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
@@ -40,14 +56,30 @@ class PositionalEncoding(nn.Module):
 class SE2Attention(nn.Module):
     """SE(2)等变注意力机制"""
     
-    def __init__(self, d_model=256, n_heads=8, dropout=0.1):
+    def __init__(self, d_model=None, n_heads=None, dropout=None):
         """
         Args:
-            d_model: 模型维度
-            n_heads: 注意力头数
-            dropout: Dropout率
+            d_model: 模型维度 (None则从配置读取)
+            n_heads: 注意力头数 (None则从配置读取)
+            dropout: Dropout率 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if d_model is None:
+            if not hasattr(model_config, 'se2_d_model'):
+                raise ValueError("se2_d_model not found in model_config.yaml")
+            d_model = model_config.se2_d_model
+        
+        if n_heads is None:
+            if not hasattr(model_config, 'se2_n_heads'):
+                raise ValueError("se2_n_heads not found in model_config.yaml")
+            n_heads = model_config.se2_n_heads
+        
+        if dropout is None:
+            if not hasattr(model_config, 'se2_dropout'):
+                raise ValueError("se2_dropout not found in model_config.yaml")
+            dropout = model_config.se2_dropout
         
         assert d_model % n_heads == 0
         self.d_model = d_model
@@ -115,8 +147,24 @@ class SE2Attention(nn.Module):
 class SE2CrossAttention(nn.Module):
     """SE(2)交叉注意力层"""
     
-    def __init__(self, d_model=256, n_heads=8, dropout=0.1):
+    def __init__(self, d_model=None, n_heads=None, dropout=None):
         super().__init__()
+        
+        # 从配置文件读取参数
+        if d_model is None:
+            if not hasattr(model_config, 'se2_d_model'):
+                raise ValueError("se2_d_model not found in model_config.yaml")
+            d_model = model_config.se2_d_model
+        
+        if n_heads is None:
+            if not hasattr(model_config, 'se2_n_heads'):
+                raise ValueError("se2_n_heads not found in model_config.yaml")
+            n_heads = model_config.se2_n_heads
+        
+        if dropout is None:
+            if not hasattr(model_config, 'se2_dropout'):
+                raise ValueError("se2_dropout not found in model_config.yaml")
+            dropout = model_config.se2_dropout
         
         self.self_attn = SE2Attention(d_model, n_heads, dropout)
         self.cross_attn = SE2Attention(d_model, n_heads, dropout)
@@ -169,21 +217,46 @@ class SE2CrossAttention(nn.Module):
 class SE2Transformer(nn.Module):
     """SE(2)变换器 - 完整的滑块-缺口匹配模块"""
     
-    def __init__(self, d_model=256, n_heads=8, n_layers=3, dropout=0.1):
+    def __init__(self, d_model=None, n_heads=None, n_layers=None, dropout=None):
         """
         Args:
-            d_model: 模型维度
-            n_heads: 注意力头数
-            n_layers: 层数
-            dropout: Dropout率
+            d_model: 模型维度 (None则从配置读取)
+            n_heads: 注意力头数 (None则从配置读取)
+            n_layers: 层数 (None则从配置读取)
+            dropout: Dropout率 (None则从配置读取)
         """
         super().__init__()
         
+        # 从配置文件读取参数
+        if d_model is None:
+            if not hasattr(model_config, 'se2_d_model'):
+                raise ValueError("se2_d_model not found in model_config.yaml")
+            d_model = model_config.se2_d_model
+        
+        if n_heads is None:
+            if not hasattr(model_config, 'se2_n_heads'):
+                raise ValueError("se2_n_heads not found in model_config.yaml")
+            n_heads = model_config.se2_n_heads
+        
+        if n_layers is None:
+            if not hasattr(model_config, 'se2_n_layers'):
+                raise ValueError("se2_n_layers not found in model_config.yaml")
+            n_layers = model_config.se2_n_layers
+        
+        if dropout is None:
+            if not hasattr(model_config, 'se2_dropout'):
+                raise ValueError("se2_dropout not found in model_config.yaml")
+            dropout = model_config.se2_dropout
+        
         self.d_model = d_model
         
-        # 特征投影
-        self.piece_proj = nn.Linear(64*64, d_model)  # 滑块ROI特征投影
-        self.gap_proj = nn.Linear(64*64, d_model)     # 缺口ROI特征投影
+        # 特征投影 - 动态计算输入维度
+        # ROI特征尺寸：[B, N, C, H, W] 其中 C=256 (来自FPN), H=W=roi_region_size
+        roi_size = model_config.roi_region_size
+        fpn_channels = model_config.fpn_out_channels
+        roi_features_dim = fpn_channels * roi_size * roi_size
+        self.piece_proj = nn.Linear(roi_features_dim, d_model)  # 滑块ROI特征投影
+        self.gap_proj = nn.Linear(roi_features_dim, d_model)     # 缺口ROI特征投影
         
         # 位置编码
         self.pos_encoding = PositionalEncoding(d_model)
@@ -274,13 +347,19 @@ class SE2Transformer(nn.Module):
 class GeometricRefinement(nn.Module):
     """几何精修模块"""
     
-    def __init__(self, d_model=256):
+    def __init__(self, d_model=None):
         super().__init__()
+        
+        # 从配置文件读取参数
+        if d_model is None:
+            if not hasattr(model_config, 'se2_d_model'):
+                raise ValueError("se2_d_model not found in model_config.yaml")
+            d_model = model_config.se2_d_model
         
         self.refine_net = nn.Sequential(
             nn.Linear(d_model + 3, d_model),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.1),
+            nn.Dropout(model_config.se2_dropout if hasattr(model_config, 'se2_dropout') else 0.1),
             nn.Linear(d_model, d_model // 2),
             nn.ReLU(inplace=True),
             nn.Linear(d_model // 2, 3)  # 精修的(dx, dy, dθ)
@@ -300,17 +379,23 @@ class GeometricRefinement(nn.Module):
         # 预测残差
         residual = self.refine_net(combined)
         
-        # 添加残差
-        refined_geometry = initial_geometry + residual * 0.1  # 缩放残差
+        # 添加残差 - 使用配置中的缩放因子
+        residual_scale = model_config.se2_geometric_residual_scale
+        refined_geometry = initial_geometry + residual * residual_scale
         
         return refined_geometry
 
 
 if __name__ == "__main__":
-    # 测试代码
+    # 测试代码 - 使用配置文件的参数
+    print("Loading configuration from model_config.yaml...")
+    print(f"SE2 d_model: {model_config.se2_d_model}")
+    print(f"SE2 n_heads: {model_config.se2_n_heads}")
+    print(f"SE2 n_layers: {model_config.se2_n_layers}")
+    print(f"SE2 dropout: {model_config.se2_dropout}")
     
-    # 测试SE(2)注意力
-    se2_attn = SE2Attention(d_model=256, n_heads=8)
+    # 测试SE(2)注意力 - 使用配置文件的值
+    se2_attn = SE2Attention()  # 现在会自动使用配置文件的值
     query = torch.randn(2, 10, 256)
     key = torch.randn(2, 15, 256)
     value = torch.randn(2, 15, 256)
@@ -320,10 +405,13 @@ if __name__ == "__main__":
     print(f"  Output shape: {output.shape}")
     print(f"  Attention shape: {attention.shape}")
     
-    # 测试SE(2)变换器
-    transformer = SE2Transformer(d_model=256, n_heads=8, n_layers=3)
-    piece_features = torch.randn(2, 5, 32, 8, 8)  # 5个滑块
-    gap_features = torch.randn(2, 10, 32, 8, 8)   # 10个缺口
+    # 测试SE(2)变换器 - 使用配置文件的值
+    transformer = SE2Transformer()  # 现在会自动使用配置文件的值
+    roi_size = model_config.roi_region_size
+    fpn_channels = model_config.fpn_out_channels
+    # ROI特征的正确尺寸
+    piece_features = torch.randn(2, 5, fpn_channels, roi_size, roi_size)  # 5个滑块
+    gap_features = torch.randn(2, 10, fpn_channels, roi_size, roi_size)   # 10个缺口
     
     result = transformer(piece_features, gap_features)
     print("\nSE2 Transformer Output:")
@@ -331,8 +419,8 @@ if __name__ == "__main__":
     print(f"  Geometry shape: {result['geometry'].shape}")
     print(f"  Number of attention maps: {len(result['attention_maps'])}")
     
-    # 测试几何精修
-    refiner = GeometricRefinement(d_model=256)
+    # 测试几何精修 - 使用配置文件的值
+    refiner = GeometricRefinement()  # 现在会自动使用配置文件的值
     features = torch.randn(2, 5, 256)
     initial_geom = torch.randn(2, 5, 3)
     

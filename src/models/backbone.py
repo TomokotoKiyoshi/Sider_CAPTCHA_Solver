@@ -7,6 +7,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
+import sys
+import os
+
+# 添加配置路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from src.config.model_config import get_model_config
+
+# 获取配置单例实例
+model_config = get_model_config()
 
 
 class BasicBlock(nn.Module):
@@ -144,19 +153,33 @@ class HighResolutionModule(nn.Module):
 class SharedStem(nn.Module):
     """共享Stem层"""
     
-    def __init__(self, in_channels=6):
+    def __init__(self, in_channels=None):
         super().__init__()
+        
+        # 从配置文件读取输入通道数
+        if in_channels is None:
+            # 输入通道数 = RGB(3) + 坐标编码(2) + Padding掩码(1) = 6
+            if not hasattr(model_config, 'input_channels'):
+                raise ValueError("input_channels not found in model_config.yaml")
+            rgb_channels = model_config.input_channels
+            coord_channels = model_config.config['input']['channels']['coord']
+            padding_channels = model_config.config['input']['channels']['padding']
+            in_channels = rgb_channels + coord_channels + padding_channels
+        
+        # 从配置读取第一个stage的通道数
+        first_stage_channels = model_config.backbone_stages[0]['channels']
+        
         # Stage 0: 7x7 Conv
-        self.conv1 = nn.Conv2d(in_channels, 32, 7, 2, 3, bias=False)
-        self.bn1 = nn.BatchNorm2d(32)
+        self.conv1 = nn.Conv2d(in_channels, first_stage_channels // 2, 7, 2, 3, bias=False)
+        self.bn1 = nn.BatchNorm2d(first_stage_channels // 2)
         self.relu = nn.ReLU(inplace=True)
         
         # Stage 1: 两个3x3 Conv
-        self.conv2 = nn.Conv2d(32, 64, 3, 1, 1, bias=False)
-        self.bn2 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(first_stage_channels // 2, first_stage_channels, 3, 1, 1, bias=False)
+        self.bn2 = nn.BatchNorm2d(first_stage_channels)
         
-        self.conv3 = nn.Conv2d(64, 64, 3, 2, 1, bias=False)
-        self.bn3 = nn.BatchNorm2d(64)
+        self.conv3 = nn.Conv2d(first_stage_channels, first_stage_channels, 3, 2, 1, bias=False)
+        self.bn3 = nn.BatchNorm2d(first_stage_channels)
     
     def forward(self, x):
         """
@@ -186,38 +209,56 @@ class HRBackbone(nn.Module):
     def __init__(self):
         super().__init__()
         
-        # 配置参数
+        # 从配置文件读取backbone stages配置
+        if not hasattr(model_config, 'backbone_stages'):
+            raise ValueError("backbone_stages not found in model_config.yaml")
+        
+        stages = model_config.backbone_stages
+        
+        # 配置参数 - 从配置文件读取
         self.stage2_cfg = {
-            'num_branches': 2,
-            'num_blocks': [2, 2],
-            'num_channels': [64, 128]
+            'num_branches': model_config.hrnet_stage2_num_branches,
+            'num_blocks': model_config.hrnet_stage2_num_blocks,
+            'num_channels': [stages[0]['channels'], stages[1]['channels']]
         }
         
         self.stage3_cfg = {
-            'num_branches': 3,
-            'num_blocks': [2, 2, 2],
-            'num_channels': [64, 128, 256]
+            'num_branches': model_config.hrnet_stage3_num_branches,
+            'num_blocks': model_config.hrnet_stage3_num_blocks,
+            'num_channels': [stages[0]['channels'], stages[1]['channels'], stages[2]['channels']]
         }
         
         self.stage4_cfg = {
-            'num_branches': 4,
-            'num_blocks': [2, 2, 2, 2],
-            'num_channels': [64, 128, 256, 512]
+            'num_branches': model_config.hrnet_stage4_num_branches,
+            'num_blocks': model_config.hrnet_stage4_num_blocks,
+            'num_channels': [stages[0]['channels'], stages[1]['channels'], 
+                           stages[2]['channels'], stages[3]['channels']]
         }
         
-        # 共享Stem
-        self.stem = SharedStem(in_channels=6)
+        # 共享Stem - 让它自动从配置读取
+        self.stem = SharedStem()
         
         # Stage 2: 引入第二分支
         self.stage2 = self._make_stage(self.stage2_cfg)
-        self.transition1 = self._make_transition([64], [64, 128])
+        self.transition1 = self._make_transition(
+            [stages[0]['channels']], 
+            [stages[0]['channels'], stages[1]['channels']]
+        )
         
         # Stage 3: 引入第三分支
         self.stage3 = self._make_stage(self.stage3_cfg)
-        self.transition2 = self._make_transition([64, 128], [64, 128, 256])
+        self.transition2 = self._make_transition(
+            [stages[0]['channels'], stages[1]['channels']], 
+            [stages[0]['channels'], stages[1]['channels'], stages[2]['channels']]
+        )
         
         # Stage 4: 引入第四分支
         self.stage4 = self._make_stage(self.stage4_cfg)
+        # 添加transition3用于创建第4个分支
+        self.transition3 = self._make_transition(
+            [stages[0]['channels'], stages[1]['channels'], stages[2]['channels']], 
+            [stages[0]['channels'], stages[1]['channels'], stages[2]['channels'], stages[3]['channels']]
+        )
         
         # 初始化权重
         self._init_weights()
@@ -311,7 +352,18 @@ class HRBackbone(nn.Module):
         
         x_list = self.stage3(x_list)
         
-        # Stage 4
+        # Stage 4 - 使用transition3添加第4个分支
+        x_list_new = []
+        for i, layer in enumerate(self.transition3):
+            if layer is not None:
+                if i < len(x_list):
+                    x_list_new.append(layer(x_list[i]))
+                else:
+                    x_list_new.append(layer(x_list[-1]))
+            else:
+                x_list_new.append(x_list[i])
+        x_list = x_list_new
+        
         x_list = self.stage4(x_list)
         
         # 返回多尺度特征
@@ -325,8 +377,24 @@ class HRBackbone(nn.Module):
 
 if __name__ == "__main__":
     # 测试代码
+    print("Loading configuration from model_config.yaml...")
+    print(f"Backbone type: {model_config.backbone_type}")
+    print(f"Number of stages: {len(model_config.backbone_stages)}")
+    for i, stage in enumerate(model_config.backbone_stages):
+        print(f"  Stage {i+1}: channels={stage['channels']}, resolution={stage['resolution']}")
+    
     model = HRBackbone()
-    x = torch.randn(2, 6, 256, 512)
+    
+    # 从配置获取输入形状
+    batch_size = 2
+    input_shape = model_config.get_input_shape(batch_size)
+    # 但backbone期望6个通道（RGB + coord + padding）
+    total_channels = (model_config.input_channels + 
+                     model_config.config['input']['channels']['coord'] + 
+                     model_config.config['input']['channels']['padding'])
+    x = torch.randn(batch_size, total_channels, model_config.input_height, model_config.input_width)
+    
+    print(f"\nTesting with input shape: {x.shape}")
     features = model(x)
     
     print("HRBackbone Output Shapes:")

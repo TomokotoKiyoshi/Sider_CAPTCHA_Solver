@@ -8,6 +8,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from typing import Dict, Tuple, Optional
+import sys
+import os
+
+# 添加配置路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from src.config.model_config import get_model_config
+
+# 获取配置单例实例
+model_config = get_model_config()
 
 
 class CoordConv2d(nn.Module):
@@ -73,8 +82,9 @@ class EdgePriorExtractor(nn.Module):
         Returns:
             edges: Dict with 'full', 'half', 'quarter' resolutions
         """
-        # 转换为灰度图
-        gray = 0.299 * rgb_input[:, 0:1] + 0.587 * rgb_input[:, 1:2] + 0.114 * rgb_input[:, 2:3]
+        # 转换为灰度图 (使用配置的RGB权重)
+        r_weight, g_weight, b_weight = model_config.edge_rgb_weights
+        gray = r_weight * rgb_input[:, 0:1] + g_weight * rgb_input[:, 1:2] + b_weight * rgb_input[:, 2:3]
         
         # 计算Sobel边缘
         edge_x = F.conv2d(gray, self.sobel_x, padding=1)
@@ -107,41 +117,46 @@ class ShapeBranch(nn.Module):
         # 边缘提取器
         self.edge_extractor = EdgePriorExtractor()
         
+        # 从配置获取通道数
+        ch_quarter = model_config.shape_channels_quarter
+        ch_half = model_config.shape_channels_half
+        ch_full = model_config.shape_channels_full
+        
         # 1/4分辨率处理
         self.conv_quarter = nn.Sequential(
-            nn.Conv2d(64 + 3, 128, 3, 1, 1),  # s1特征 + 边缘
-            nn.BatchNorm2d(128),
+            nn.Conv2d(64 + 3, ch_quarter, 3, 1, 1),  # s1特征 + 边缘
+            nn.BatchNorm2d(ch_quarter),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, 3, 1, 1),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(ch_quarter, ch_quarter, 3, 1, 1),
+            nn.BatchNorm2d(ch_quarter),
             nn.ReLU(inplace=True)
         )
         
         # 1/2分辨率处理
         self.conv_half = nn.Sequential(
-            nn.Conv2d(128 + 3, 64, 3, 1, 1),  # 上采样特征 + 边缘
-            nn.BatchNorm2d(64),
+            nn.Conv2d(ch_quarter + 3, ch_half, 3, 1, 1),  # 上采样特征 + 边缘
+            nn.BatchNorm2d(ch_half),
             nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, 3, 1, 1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(ch_half, ch_half, 3, 1, 1),
+            nn.BatchNorm2d(ch_half),
             nn.ReLU(inplace=True)
         )
         
         # 全分辨率处理
         self.conv_full = nn.Sequential(
-            nn.Conv2d(64 + 3, 32, 3, 1, 1),   # 上采样特征 + 边缘
-            nn.BatchNorm2d(32),
+            nn.Conv2d(ch_half + 3, ch_full, 3, 1, 1),   # 上采样特征 + 边羘
+            nn.BatchNorm2d(ch_full),
             nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, 3, 1, 1),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(ch_full, ch_full, 3, 1, 1),
+            nn.BatchNorm2d(ch_full),
             nn.ReLU(inplace=True)
         )
         
         # 形状分类头
-        self.shape_head = nn.Conv2d(32, 1, 1, 1, 0)  # 二值掩码
+        self.shape_head = nn.Conv2d(ch_full, 1, 1, 1, 0)  # 二值掩码
         
         # SDF回归头
-        self.sdf_head = nn.Conv2d(32, 1, 1, 1, 0)    # 符号距离场
+        self.sdf_head = nn.Conv2d(ch_full, 1, 1, 1, 0)    # 符号距离场
     
     def forward(self, rgb_input, s1_feature):
         """
@@ -173,8 +188,8 @@ class ShapeBranch(nn.Module):
         # 预测形状掩码
         shape_mask = torch.sigmoid(self.shape_head(x_full))  # [B, 1, 256, 512]
         
-        # 预测SDF
-        sdf_map = torch.tanh(self.sdf_head(x_full)) * 10  # [B, 1, 256, 512], 范围[-10, 10]
+        # 预测SDF (使用配置的范围)
+        sdf_map = torch.tanh(self.sdf_head(x_full)) * model_config.sdf_range  # [B, 1, 256, 512]
         
         return {
             'shape_mask': shape_mask,
@@ -186,13 +201,25 @@ class ShapeBranch(nn.Module):
 class ROIAlignExtractor(nn.Module):
     """ROI对齐特征提取器"""
     
-    def __init__(self, output_size=64, spatial_scale=1.0):
+    def __init__(self, output_size=None, spatial_scale=None):
         """
         Args:
-            output_size: ROI输出尺寸
-            spatial_scale: 特征图相对于原图的缩放比例
+            output_size: ROI输出尺寸 (None则从配置读取)
+            spatial_scale: 特征图相对于原图的缩放比例 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if output_size is None:
+            if not hasattr(model_config, 'roi_shape_size'):
+                raise ValueError("roi_shape_size not found in model_config.yaml")
+            output_size = model_config.roi_shape_size
+        
+        if spatial_scale is None:
+            if not hasattr(model_config, 'roi_shape_scale'):
+                raise ValueError("roi_shape_scale not found in model_config.yaml")
+            spatial_scale = model_config.roi_shape_scale
+        
         self.output_size = output_size
         self.spatial_scale = spatial_scale
     
@@ -275,13 +302,24 @@ class ROIAlignExtractor(nn.Module):
 class SDFDecoder(nn.Module):
     """SDF解码器 - 从ROI特征解码SDF"""
     
-    def __init__(self, in_channels=35, hidden_dim=256):
+    def __init__(self, in_channels=None, hidden_dim=None):
         """
         Args:
-            in_channels: 输入通道数 (32 shape + 3 edge)
-            hidden_dim: 隐藏层维度
+            in_channels: 输入通道数 (None则从配置读取)
+            hidden_dim: 隐藏层维度 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if in_channels is None:
+            if not hasattr(model_config, 'sdf_decoder_in_channels'):
+                raise ValueError("sdf_decoder_in_channels not found in model_config.yaml")
+            in_channels = model_config.sdf_decoder_in_channels
+        
+        if hidden_dim is None:
+            if not hasattr(model_config, 'sdf_decoder_hidden_dim'):
+                raise ValueError("sdf_decoder_hidden_dim not found in model_config.yaml")
+            hidden_dim = model_config.sdf_decoder_hidden_dim
         
         self.encoder = nn.Sequential(
             nn.Conv2d(in_channels, hidden_dim, 3, 1, 1),
@@ -318,7 +356,7 @@ class SDFDecoder(nn.Module):
         """
         encoded = self.encoder(roi_features)
         sdf = self.decoder(encoded)
-        sdf = torch.tanh(sdf) * 10  # 范围 [-10, 10]
+        sdf = torch.tanh(sdf) * model_config.sdf_range  # 使用配置的范围
         
         return sdf
 
@@ -336,8 +374,14 @@ if __name__ == "__main__":
     print(f"  Shape mask: {shape_output['shape_mask'].shape}")
     print(f"  SDF map: {shape_output['sdf_map'].shape}")
     
-    # 测试ROI提取
-    roi_extractor = ROIAlignExtractor(output_size=64, spatial_scale=0.25)
+    # 测试ROI提取 - 使用配置文件的值
+    print("\nLoading configuration from model_config.yaml...")
+    print(f"ROI shape size: {model_config.roi_shape_size}")
+    print(f"ROI shape scale: {model_config.roi_shape_scale}")
+    print(f"SDF range: {model_config.sdf_range}")
+    print(f"SDF decoder channels: in={model_config.sdf_decoder_in_channels}, hidden={model_config.sdf_decoder_hidden_dim}")
+    
+    roi_extractor = ROIAlignExtractor()  # 现在会自动使用配置文件的值
     features = torch.randn(2, 32, 64, 128)
     proposals = torch.randn(2, 10, 5)  # 10个候选框
     proposals[..., :4] = proposals[..., :4].abs() * 100 + 50  # 确保正值
@@ -345,7 +389,8 @@ if __name__ == "__main__":
     roi_features = roi_extractor(features, proposals)
     print(f"\nROI Features shape: {roi_features.shape}")
     
-    # 测试SDF解码器
-    sdf_decoder = SDFDecoder(in_channels=32)
+    # 测试SDF解码器 - 使用配置文件的值
+    # 注意: 这里模拟的输入通道数为32，但实际配置中是35
+    sdf_decoder = SDFDecoder(in_channels=32)  # 测试时使用指定值
     sdf = sdf_decoder(roi_features)
     print(f"SDF output shape: {sdf.shape}")

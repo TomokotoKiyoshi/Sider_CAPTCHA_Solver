@@ -8,18 +8,35 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from typing import Dict, Tuple, Optional
+import sys
+import os
+
+# 添加配置路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from src.config.model_config import get_model_config
+
+# 获取配置单例实例
+model_config = get_model_config()
 
 
 class FocalLoss(nn.Module):
     """Focal Loss - 用于处理类别不平衡"""
     
-    def __init__(self, alpha=0.25, gamma=2.0):
+    def __init__(self, alpha=None, gamma=None):
         """
         Args:
-            alpha: 平衡因子
-            gamma: 聚焦参数
+            alpha: 平衡因子 (None则从配置读取)
+            gamma: 聚焦参数 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if alpha is None:
+            alpha = model_config.focal_alpha
+        
+        if gamma is None:
+            gamma = model_config.focal_gamma
+        
         self.alpha = alpha
         self.gamma = gamma
     
@@ -54,13 +71,21 @@ class FocalLoss(nn.Module):
 class CenterNetLoss(nn.Module):
     """CenterNet风格的损失函数"""
     
-    def __init__(self, alpha=2, beta=4):
+    def __init__(self, alpha=None, beta=None):
         """
         Args:
-            alpha: 正样本focal参数
-            beta: 负样本focal参数
+            alpha: 正样本focal参数 (None则从配置读取)
+            beta: 负样本focal参数 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if alpha is None:
+            alpha = model_config.centernet_alpha  # AttributeError: 'ModelConfig' object has no attribute 'centernet_alpha'
+        
+        if beta is None:
+            beta = model_config.centernet_beta  # AttributeError: 'ModelConfig' object has no attribute 'centernet_beta'
+        
         self.alpha = alpha
         self.beta = beta
     
@@ -94,12 +119,17 @@ class CenterNetLoss(nn.Module):
 class SDFLoss(nn.Module):
     """符号距离场损失"""
     
-    def __init__(self, truncation=10.0):
+    def __init__(self, truncation=None):
         """
         Args:
-            truncation: SDF截断距离
+            truncation: SDF截断距离 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if truncation is None:
+            truncation = model_config.sdf_truncation  # AttributeError: 'ModelConfig' object has no attribute 'sdf_truncation'
+        
         self.truncation = truncation
     
     def forward(self, pred_sdf, target_sdf, mask=None):
@@ -169,41 +199,34 @@ class PMN_R3_FP_Loss(nn.Module):
     def __init__(self, loss_weights=None):
         """
         Args:
-            loss_weights: 各项损失的权重
+            loss_weights: 各项损失的权重 (None则从配置读取)
         """
         super().__init__()
         
-        # 默认权重
+        # 从配置文件读取权重
         if loss_weights is None:
-            loss_weights = {
-                'region_obj': 1.0,      # Region objectness损失
-                'region_ctr': 1.0,      # Region centerness损失
-                'region_loc': 1.0,      # Region location损失
-                'region_scale': 1.0,    # Region scale损失
-                'shape_mask': 1.0,      # Shape掩码损失
-                'shape_sdf': 0.5,       # Shape SDF损失
-                'matching': 2.0,        # 匹配损失
-                'geometry': 1.0         # 几何参数损失
-            }
+            loss_weights = model_config.loss_weights  # AttributeError: 'ModelConfig' object has no attribute 'loss_weights'
         self.loss_weights = loss_weights
         
-        # 损失函数
-        self.focal_loss = FocalLoss(alpha=0.25, gamma=2.0)
-        self.centernet_loss = CenterNetLoss(alpha=2, beta=4)
-        self.sdf_loss = SDFLoss(truncation=10.0)
+        # 损失函数 - 全部使用配置文件的值
+        self.focal_loss = FocalLoss()  # 自动从配置读取
+        self.centernet_loss = CenterNetLoss()  # 自动从配置读取
+        self.sdf_loss = SDFLoss()  # 自动从配置读取
         self.matching_loss = MatchingLoss()
         self.l1_loss = nn.L1Loss()
     
-    def generate_gaussian_heatmap(self, centers, shape, sigma=2):
+    def generate_gaussian_heatmap(self, centers, shape, sigma=None):
         """
         生成高斯热力图
         Args:
             centers: [N, 2] - 中心点坐标
             shape: (H, W) - 热力图尺寸
-            sigma: 高斯标准差
+            sigma: 高斯标准差 (None则从配置读取)
         Returns:
             heatmap: [1, H, W] - 热力图
         """
+        if sigma is None:
+            sigma = model_config.gaussian_sigma  # AttributeError: 'ModelConfig' object has no attribute 'gaussian_sigma'
         H, W = shape
         heatmap = torch.zeros(1, H, W, device=centers.device)
         
@@ -325,18 +348,23 @@ class PMN_R3_FP_Loss(nn.Module):
 
 if __name__ == "__main__":
     # 测试代码
+    print("Loading configuration from model_config.yaml...")
+    print(f"Focal Loss - alpha: {model_config.focal_alpha}, gamma: {model_config.focal_gamma}")
+    print(f"CenterNet Loss - alpha: {model_config.centernet_alpha}, beta: {model_config.centernet_beta}")
+    print(f"SDF Loss - truncation: {model_config.sdf_truncation}")
+    print(f"Gaussian sigma: {model_config.gaussian_sigma}")
     
-    # 测试Focal Loss
-    focal_loss = FocalLoss()
+    # 测试Focal Loss - 使用配置文件的值
+    focal_loss = FocalLoss()  # 自动从配置读取
     pred = torch.sigmoid(torch.randn(2, 1, 64, 64))
     target = torch.zeros(2, 1, 64, 64)
     target[:, :, 30:35, 30:35] = 1
     
     loss = focal_loss(pred, target)
-    print(f"Focal Loss: {loss.item():.4f}")
+    print(f"\nFocal Loss: {loss.item():.4f}")
     
-    # 测试CenterNet Loss
-    centernet_loss = CenterNetLoss()
+    # 测试CenterNet Loss - 使用配置文件的值
+    centernet_loss = CenterNetLoss()  # 自动从配置读取
     pred = torch.sigmoid(torch.randn(2, 1, 64, 64))
     target = torch.zeros(2, 1, 64, 64)
     # 模拟高斯热力图
@@ -345,8 +373,8 @@ if __name__ == "__main__":
     loss = centernet_loss(pred, target)
     print(f"CenterNet Loss: {loss.item():.4f}")
     
-    # 测试SDF Loss
-    sdf_loss = SDFLoss()
+    # 测试SDF Loss - 使用配置文件的值
+    sdf_loss = SDFLoss()  # 自动从配置读取
     pred_sdf = torch.randn(2, 1, 64, 64) * 5
     target_sdf = torch.randn(2, 1, 64, 64) * 5
     
@@ -365,6 +393,6 @@ if __name__ == "__main__":
     print(f"Matching Loss: {losses['match_loss'].item():.4f}")
     print(f"Geometry Loss: {losses['geometry_loss'].item():.4f}")
     
-    # 测试完整损失
-    pmn_loss = PMN_R3_FP_Loss()
-    print(f"\nLoss weights: {pmn_loss.loss_weights}")
+    # 测试完整损失 - 使用配置文件的权重
+    pmn_loss = PMN_R3_FP_Loss()  # 自动从配置读取权重
+    print(f"\nLoss weights from config: {pmn_loss.loss_weights}")

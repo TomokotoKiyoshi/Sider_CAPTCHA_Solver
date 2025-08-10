@@ -13,7 +13,10 @@ import os
 
 # 添加配置路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
-from config.model_config import model_config
+from src.config.model_config import get_model_config
+
+# 获取配置单例实例
+model_config = get_model_config()
 
 # 导入各个模块
 from .backbone import HRBackbone, SharedStem
@@ -116,16 +119,18 @@ class PMN_R3_FP(nn.Module):
         )
         
         # 几何精修器
-        self.geometric_refiner = GeometricRefinement(d_model=256)
+        self.geometric_refiner = GeometricRefinement(d_model=model_config.se2_d_model)
         
         # 排序判别器
+        hidden_dims = model_config.ranking_hidden_dims
+        dropout = model_config.ranking_dropout
         self.ranking_discriminator = nn.Sequential(
-            nn.Linear(256 + 3, 128),
+            nn.Linear(model_config.se2_d_model + 3, hidden_dims[0]),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.1),
-            nn.Linear(128, 64),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dims[0], hidden_dims[1]),
             nn.ReLU(inplace=True),
-            nn.Linear(64, 1)
+            nn.Linear(hidden_dims[1], 1)
         )
         
         # 初始化权重

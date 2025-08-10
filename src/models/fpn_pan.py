@@ -7,18 +7,38 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List
+import sys
+import os
+
+# 添加配置路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from src.config.model_config import get_model_config
+
+# 获取配置单例实例
+model_config = get_model_config()
 
 
 class FPN(nn.Module):
     """特征金字塔网络 (自顶向下)"""
     
-    def __init__(self, in_channels_list, out_channels=256):
+    def __init__(self, in_channels_list=None, out_channels=None):
         """
         Args:
-            in_channels_list: 各层输入通道数 [64, 128, 256, 512]
-            out_channels: 统一输出通道数
+            in_channels_list: 各层输入通道数 (None则从配置读取)
+            out_channels: 统一输出通道数 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if in_channels_list is None:
+            if not hasattr(model_config, 'fpn_in_channels'):
+                raise ValueError("fpn_in_channels not found in model_config.yaml")
+            in_channels_list = model_config.fpn_in_channels
+        
+        if out_channels is None:
+            if not hasattr(model_config, 'fpn_out_channels'):
+                raise ValueError("fpn_out_channels not found in model_config.yaml")
+            out_channels = model_config.fpn_out_channels
         
         # 横向连接 (1x1卷积调整通道数)
         self.lateral_convs = nn.ModuleList()
@@ -88,13 +108,24 @@ class FPN(nn.Module):
 class PAN(nn.Module):
     """路径聚合网络 (自底向上)"""
     
-    def __init__(self, in_channels=256, out_channels=256):
+    def __init__(self, in_channels=None, out_channels=None):
         """
         Args:
-            in_channels: 输入通道数 (来自FPN)
-            out_channels: 输出通道数
+            in_channels: 输入通道数 (None则从配置读取)
+            out_channels: 输出通道数 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if in_channels is None:
+            if not hasattr(model_config, 'fpn_out_channels'):
+                raise ValueError("fpn_out_channels not found in model_config.yaml")
+            in_channels = model_config.fpn_out_channels
+        
+        if out_channels is None:
+            if not hasattr(model_config, 'fpn_out_channels'):
+                raise ValueError("fpn_out_channels not found in model_config.yaml")
+            out_channels = model_config.fpn_out_channels
         
         # 下采样卷积
         self.downsample_convs = nn.ModuleList()
@@ -154,13 +185,24 @@ class PAN(nn.Module):
 class FPN_PAN(nn.Module):
     """FPN+PAN双向特征金字塔"""
     
-    def __init__(self, in_channels_list=[64, 128, 256, 512], out_channels=256):
+    def __init__(self, in_channels_list=None, out_channels=None):
         """
         Args:
-            in_channels_list: 骨干网络输出通道数列表
-            out_channels: 统一输出通道数
+            in_channels_list: 骨干网络输出通道数列表 (None则从配置读取)
+            out_channels: 统一输出通道数 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if in_channels_list is None:
+            if not hasattr(model_config, 'fpn_in_channels'):
+                raise ValueError("fpn_in_channels not found in model_config.yaml")
+            in_channels_list = model_config.fpn_in_channels
+        
+        if out_channels is None:
+            if not hasattr(model_config, 'fpn_out_channels'):
+                raise ValueError("fpn_out_channels not found in model_config.yaml")
+            out_channels = model_config.fpn_out_channels
         
         # FPN (自顶向下)
         self.fpn = FPN(in_channels_list, out_channels)
@@ -240,13 +282,25 @@ class FPN_PAN(nn.Module):
 class ProposalGenerator(nn.Module):
     """候选区域生成器"""
     
-    def __init__(self, strides=[4, 8, 16, 32], top_k=100):
+    def __init__(self, strides=None, top_k=None):
         """
         Args:
-            strides: 各层特征图步长
-            top_k: 保留的候选框数量
+            strides: 各层特征图步长 (None则从配置读取)
+            top_k: 保留的候选框数量 (None则从配置读取)
         """
         super().__init__()
+        
+        # 从配置文件读取参数
+        if strides is None:
+            if not hasattr(model_config, 'proposal_strides'):
+                raise ValueError("proposal_strides not found in model_config.yaml")
+            strides = model_config.proposal_strides
+        
+        if top_k is None:
+            if not hasattr(model_config, 'proposal_top_k'):
+                raise ValueError("proposal_top_k not found in model_config.yaml")
+            top_k = model_config.proposal_top_k
+        
         self.strides = strides
         self.top_k = top_k
     
@@ -325,8 +379,14 @@ class ProposalGenerator(nn.Module):
 
 
 if __name__ == "__main__":
-    # 测试代码
-    fpn_pan = FPN_PAN()
+    # 测试代码 - 使用配置文件的参数
+    print("Loading configuration from model_config.yaml...")
+    print(f"FPN in_channels: {model_config.fpn_in_channels}")
+    print(f"FPN out_channels: {model_config.fpn_out_channels}")
+    print(f"Proposal strides: {model_config.proposal_strides}")
+    print(f"Proposal top_k: {model_config.proposal_top_k}")
+    
+    fpn_pan = FPN_PAN()  # 现在会自动使用配置文件的值
     
     # 模拟骨干网络输出
     features = {
@@ -347,7 +407,8 @@ if __name__ == "__main__":
     for key, preds in output['predictions'].items():
         print(f"    {key}: {len(preds)} levels")
     
-    # 测试Proposal生成器
-    generator = ProposalGenerator()
+    # 测试Proposal生成器 - 使用配置文件的参数
+    generator = ProposalGenerator()  # 现在会自动使用配置文件的值
     proposals = generator(output['predictions'])
     print(f"\nProposals shape: {proposals.shape}")
+    print(f"Using top_k={generator.top_k}, strides={generator.strides}")

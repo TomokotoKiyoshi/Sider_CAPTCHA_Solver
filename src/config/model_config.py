@@ -66,6 +66,41 @@ class ModelConfig:
         self.se2_n_layers = self.config['se2_transformer']['n_layers']
         self.se2_dropout = self.config['se2_transformer']['dropout']
         
+        # Shape/SDF模块配置
+        self.shape_channels_quarter = self.config['shape_sdf']['channels']['quarter']
+        self.shape_channels_half = self.config['shape_sdf']['channels']['half']
+        self.shape_channels_full = self.config['shape_sdf']['channels']['full']
+        self.sdf_range = self.config['shape_sdf']['sdf_range']
+        self.sdf_decoder_in_channels = self.config['shape_sdf']['decoder']['in_channels']
+        self.sdf_decoder_hidden_dim = self.config['shape_sdf']['decoder']['hidden_dim']
+        self.edge_rgb_weights = self.config['shape_sdf']['edge_detection']['rgb_weights']
+        
+        # 损失函数配置
+        self.focal_alpha = self.config['loss']['focal']['alpha']
+        self.focal_gamma = self.config['loss']['focal']['gamma']
+        self.centernet_alpha = self.config['loss']['centernet']['alpha']
+        self.centernet_beta = self.config['loss']['centernet']['beta']
+        self.sdf_truncation = self.config['loss']['sdf']['truncation']
+        self.gaussian_sigma = self.config['loss']['gaussian']['sigma']
+        self.loss_weights = self.config['loss']['weights']
+        
+        # SE2变换器扩展配置
+        self.se2_positional_max_len = self.config['se2_transformer']['positional_encoding']['max_len']
+        self.se2_positional_base = self.config['se2_transformer']['positional_encoding']['base']
+        self.se2_geometric_residual_scale = self.config['se2_transformer']['geometric_refinement']['residual_scale']
+        
+        # HRNet配置
+        self.hrnet_stage2_num_branches = self.config['backbone']['hrnet']['stage2']['num_branches']
+        self.hrnet_stage2_num_blocks = self.config['backbone']['hrnet']['stage2']['num_blocks']
+        self.hrnet_stage3_num_branches = self.config['backbone']['hrnet']['stage3']['num_branches']
+        self.hrnet_stage3_num_blocks = self.config['backbone']['hrnet']['stage3']['num_blocks']
+        self.hrnet_stage4_num_branches = self.config['backbone']['hrnet']['stage4']['num_branches']
+        self.hrnet_stage4_num_blocks = self.config['backbone']['hrnet']['stage4']['num_blocks']
+        
+        # 排序判别器配置
+        self.ranking_hidden_dims = self.config['inference']['ranking_discriminator']['hidden_dims']
+        self.ranking_dropout = self.config['inference']['ranking_discriminator']['dropout']
+        
         # 推理配置
         self.coord_scale = self.config['inference']['coord_scale']
         self.confidence_threshold = self.config['inference']['confidence_threshold']
