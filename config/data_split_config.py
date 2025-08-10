@@ -174,51 +174,101 @@ class DataSplitConfig:
     
     def save_split_result(self, split_result: Dict, output_path: str):
         """保存分割结果到JSON文件"""
-        output = {
-            "config": {
-                "train_ratio": self.train_ratio,
-                "val_ratio": self.val_ratio,
-                "test_ratio": self.test_ratio,
-                "seed": self.seed,
-                "labels_file": "data/labels/all_labels.json"  # 标签文件路径
-            },
-            "splits": {
-                "train": split_result["train"],
-                "val": split_result["val"],
-                "test": split_result["test"]
-            },
-            "pic_ids": split_result["pic_ids"],
-            "sample_ids": split_result.get("sample_ids", {}),  # 样本ID映射
-            "statistics": {
-                "train": {
-                    "pic_count": len(split_result["pic_ids"]["train"]),
-                    "captcha_count": len(split_result["train"]["captchas"]),
-                    "slider_count": len(split_result["train"]["sliders"]),
-                    "background_count": len(split_result["train"]["backgrounds"])
+        # 兼容新旧格式
+        if "annotations" in split_result.get("train", {}):
+            # 新格式（包含完整的标注信息）
+            output = {
+                "config": {
+                    "train_ratio": self.train_ratio,
+                    "val_ratio": self.val_ratio,
+                    "test_ratio": self.test_ratio,
+                    "seed": self.seed,
+                    "annotations_file": "data/metadata/all_annotations.json"
                 },
-                "val": {
-                    "pic_count": len(split_result["pic_ids"]["val"]),
-                    "captcha_count": len(split_result["val"]["captchas"]),
-                    "slider_count": len(split_result["val"]["sliders"]),
-                    "background_count": len(split_result["val"]["backgrounds"])
+                "splits": {
+                    "train": {
+                        "annotations": split_result["train"]["annotations"],
+                        "filenames": split_result["train"]["captchas"],
+                        "count": split_result["train"]["count"]
+                    },
+                    "val": {
+                        "annotations": split_result["val"]["annotations"],
+                        "filenames": split_result["val"]["captchas"],
+                        "count": split_result["val"]["count"]
+                    },
+                    "test": {
+                        "annotations": split_result["test"]["annotations"],
+                        "filenames": split_result["test"]["captchas"],
+                        "count": split_result["test"]["count"]
+                    }
                 },
-                "test": {
-                    "pic_count": len(split_result["pic_ids"]["test"]),
-                    "captcha_count": len(split_result["test"]["captchas"]),
-                    "slider_count": len(split_result["test"]["sliders"]),
-                    "background_count": len(split_result["test"]["backgrounds"])
-                },
-                "total": {
-                    "pic_count": sum(len(split_result["pic_ids"][k]) for k in ["train", "val", "test"]),
-                    "sample_count": sum(len(split_result[k]["captchas"]) for k in ["train", "val", "test"])
+                "pic_ids": split_result["pic_ids"],
+                "statistics": {
+                    "train": {
+                        "pic_count": len(split_result["pic_ids"]["train"]),
+                        "sample_count": split_result["train"]["count"]
+                    },
+                    "val": {
+                        "pic_count": len(split_result["pic_ids"]["val"]),
+                        "sample_count": split_result["val"]["count"]
+                    },
+                    "test": {
+                        "pic_count": len(split_result["pic_ids"]["test"]),
+                        "sample_count": split_result["test"]["count"]
+                    },
+                    "total": {
+                        "pic_count": sum(len(split_result["pic_ids"][k]) for k in ["train", "val", "test"]),
+                        "sample_count": sum(split_result[k]["count"] for k in ["train", "val", "test"])
+                    }
                 }
             }
-        }
+        else:
+            # 旧格式（向后兼容）
+            output = {
+                "config": {
+                    "train_ratio": self.train_ratio,
+                    "val_ratio": self.val_ratio,
+                    "test_ratio": self.test_ratio,
+                    "seed": self.seed,
+                    "labels_file": "data/labels/all_labels.json"  # 标签文件路径
+                },
+                "splits": {
+                    "train": split_result["train"],
+                    "val": split_result["val"],
+                    "test": split_result["test"]
+                },
+                "pic_ids": split_result["pic_ids"],
+                "sample_ids": split_result.get("sample_ids", {}),  # 样本ID映射
+                "statistics": {
+                    "train": {
+                        "pic_count": len(split_result["pic_ids"]["train"]),
+                        "captcha_count": len(split_result["train"]["captchas"]),
+                        "slider_count": len(split_result["train"].get("sliders", [])),
+                        "background_count": len(split_result["train"].get("backgrounds", []))
+                    },
+                    "val": {
+                        "pic_count": len(split_result["pic_ids"]["val"]),
+                        "captcha_count": len(split_result["val"]["captchas"]),
+                        "slider_count": len(split_result["val"].get("sliders", [])),
+                        "background_count": len(split_result["val"].get("backgrounds", []))
+                    },
+                    "test": {
+                        "pic_count": len(split_result["pic_ids"]["test"]),
+                        "captcha_count": len(split_result["test"]["captchas"]),
+                        "slider_count": len(split_result["test"].get("sliders", [])),
+                        "background_count": len(split_result["test"].get("backgrounds", []))
+                    },
+                    "total": {
+                        "pic_count": sum(len(split_result["pic_ids"][k]) for k in ["train", "val", "test"]),
+                        "sample_count": sum(len(split_result[k]["captchas"]) for k in ["train", "val", "test"])
+                    }
+                }
+            }
         
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(output, f, indent=2, ensure_ascii=False)
         
-        print(f"\n分割结果已保存到: {output_path}")
+        print(f"\nSplit results saved to: {output_path}")
 
 

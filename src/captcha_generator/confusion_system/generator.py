@@ -94,6 +94,9 @@ class CaptchaGenerator:
                     # 空心策略：同时应用到滑块和背景缺口
                     slider_image = strategy.apply_to_gap(slider_image)
                     background_piece = strategy.apply_to_gap(background_piece)
+                    # 如果存在旋转版本，也要应用hollow效果
+                    if has_rotation and rotated_piece_for_background:
+                        rotated_piece_for_background = strategy.apply_to_gap(rotated_piece_for_background)
                     confusion_metadata[strategy.name] = strategy.get_metadata()
                 else:
                     # 检查是否是已知的策略
@@ -121,15 +124,19 @@ class CaptchaGenerator:
         slider = apply_slider_lighting(slider)
         
         # 7. 提取用于背景的mask（如果有旋转，使用旋转版本；否则使用背景版本）
+        # 注意：这里使用的是已经应用了hollow效果的background_piece
         if has_rotation and rotated_piece_for_background:
             background_mask = self._extract_mask_from_gap_image(rotated_piece_for_background)
         else:
             background_mask = self._extract_mask_from_gap_image(background_piece)
         
         # 8. 创建带缺口的背景（使用混淆后的mask）
+        # 传递已应用hollow效果的piece（优先使用旋转版本）
+        piece_for_background = rotated_piece_for_background if (has_rotation and rotated_piece_for_background) else background_piece
         background = self._create_gap_background(
             img, background_mask, gap_position, all_additional_gaps,
-            has_highlight=has_highlight, highlight_params=highlight_params
+            has_highlight=has_highlight, highlight_params=highlight_params,
+            rotated_piece_for_background=piece_for_background
         )
         
         # 确定混淆类型
@@ -312,32 +319,51 @@ class CaptchaGenerator:
                               gap_position: Tuple[int, int],
                               additional_gaps: List[Dict[str, Any]] = None,
                               has_highlight: bool = False,
-                              highlight_params: Dict[str, Any] = None) -> np.ndarray:
+                              highlight_params: Dict[str, Any] = None,
+                              rotated_piece_for_background: Optional['GapImage'] = None) -> np.ndarray:
         """创建带缺口的背景"""
         background = img.copy()
         
         # 1. 创建主缺口
         x, y = gap_position
-        h, w = gap_mask.shape[:2]
         
-        # 计算缺口位置
-        x1 = x - w // 2
-        y1 = y - h // 2
-        x2 = x1 + w
-        y2 = y1 + h
-        
-        # 提取alpha通道
-        if gap_mask.shape[2] == 4:
-            alpha_channel = gap_mask[:h, :w, 3]
+        # 动态获取实际的掩码尺寸（可能是旋转后的非正方形）
+        if rotated_piece_for_background is not None:
+            actual_h, actual_w = rotated_piece_for_background.image.shape[:2]
+            gap_mask_to_use = rotated_piece_for_background.original_mask
         else:
-            alpha_channel = np.ones((h, w), dtype=np.uint8) * 255
+            actual_h, actual_w = gap_mask.shape[:2]
+            gap_mask_to_use = gap_mask
         
-        # 应用阴影或高光效果
+        # 计算缺口位置（使用实际尺寸）
+        x1 = x - actual_w // 2
+        y1 = y - actual_h // 2
+        x2 = x1 + actual_w
+        y2 = y1 + actual_h
+        
+        # 验证不超出边界
+        if x1 < 0 or y1 < 0 or x2 > img.shape[1] or y2 > img.shape[0]:
+            raise ValueError(f"Gap position causes out of bounds: ({x1},{y1}) to ({x2},{y2}), image size: {img.shape[:2]}")
+        
+        # 提取alpha通道（使用实际尺寸）
+        # 优先使用rotated_piece_for_background的alpha通道（包含hollow效果）
+        if rotated_piece_for_background is not None and hasattr(rotated_piece_for_background, 'image'):
+            # 使用带hollow效果的piece的alpha通道
+            if rotated_piece_for_background.image.shape[2] == 4:
+                alpha_channel = rotated_piece_for_background.image[:actual_h, :actual_w, 3]
+            else:
+                alpha_channel = np.ones((actual_h, actual_w), dtype=np.uint8) * 255
+        elif gap_mask_to_use.shape[2] == 4:
+            alpha_channel = gap_mask_to_use[:actual_h, :actual_w, 3]
+        else:
+            alpha_channel = np.ones((actual_h, actual_w), dtype=np.uint8) * 255
+        
+        # 应用阴影或高光效果（使用实际尺寸）
         if has_highlight and highlight_params:
             # 应用高光效果（不使用外边缘效果）
             background = apply_gap_highlighting(
                 background, x1, y1, 
-                alpha_channel, h, w,
+                alpha_channel, actual_h, actual_w,
                 base_lightness=highlight_params.get('base_lightness', 30),
                 edge_lightness=highlight_params.get('edge_lightness', 45),
                 directional_lightness=highlight_params.get('directional_lightness', 20),
@@ -347,7 +373,7 @@ class CaptchaGenerator:
             # 应用阴影效果
             background = apply_gap_lighting(
                 background, x1, y1, 
-                alpha_channel, h, w,
+                alpha_channel, actual_h, actual_w,
                 base_darkness=40,
                 edge_darkness=50,
                 directional_darkness=20

@@ -78,8 +78,8 @@ class ConfusionConfig:
     # ========== 空心中心 (HollowCenter) ==========
     HOLLOW_CENTER = {
         'scale': {
-            'min': 0.2,
-            'max': 0.35,
+            'min': 0.3,
+            'max': 0.4,
             'description': '空心部分占整个拼图的比例'
         }
     }

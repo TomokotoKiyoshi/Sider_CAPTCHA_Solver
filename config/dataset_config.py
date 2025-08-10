@@ -4,6 +4,7 @@
 集中管理验证码数据集生成的所有参数
 """
 from typing import List, Dict, Tuple
+import numpy as np
 
 class DatasetConfig:
     """数据集生成配置"""
@@ -58,6 +59,10 @@ class DatasetConfig:
     GAP_X_COUNT: int = 4  # 每张图片的缺口x轴位置数量
     GAP_Y_COUNT: int = 3  # 每张图片的缺口y轴位置数量
     SLIDER_X_COUNT: int = 4  # 滑块x轴位置数量
+    
+    # ========== 旋转配置 ==========
+    ROTATION_ENABLED: bool = True  # 是否启用旋转混淆
+    MAX_ROTATION_ANGLE: float = 1.8  # 最大旋转角度（度）
     
     @classmethod
     def validate(cls) -> bool:
@@ -178,6 +183,87 @@ class DatasetConfig:
         else:
             # 单个值
             return [int(size_str)]
+    
+    @classmethod
+    def calculate_safe_gap_range(cls, puzzle_size: int, img_width: int = 320, 
+                                 img_height: int = 160, with_rotation: bool = None) -> Tuple[int, int]:
+        """
+        计算考虑旋转的安全gap范围
+        
+        Args:
+            puzzle_size: 拼图大小
+            img_width: 图像宽度
+            img_height: 图像高度  
+            with_rotation: 是否考虑旋转（None则使用配置）
+            
+        Returns:
+            (gap_x_min, gap_x_max): 安全的gap x坐标范围
+        """
+        if with_rotation is None:
+            with_rotation = cls.ROTATION_ENABLED
+            
+        if with_rotation:
+            # 考虑旋转后的尺寸增大
+            angle_rad = np.radians(cls.MAX_ROTATION_ANGLE)
+            cos_a = np.cos(angle_rad)
+            sin_a = np.sin(angle_rad)
+            # 计算旋转后的边界框
+            effective_size = int(puzzle_size * (cos_a + sin_a))
+        else:
+            effective_size = puzzle_size
+            
+        half_size = effective_size // 2
+        
+        # 计算滑块的最大位置
+        slider_x_max = min(effective_size // 2 + 10, 40)
+        
+        # 缺口必须在滑块右边，并留有间隔
+        gap_x_min = slider_x_max + effective_size + 10
+        gap_x_max = img_width - half_size
+        
+        # 确保范围有效
+        if gap_x_min > gap_x_max:
+            # 对于大尺寸，可能没有有效范围
+            return gap_x_min, gap_x_min  # 返回相同值表示无效
+            
+        return gap_x_min, gap_x_max
+    
+    @classmethod
+    def calculate_safe_slider_range(cls, puzzle_size: int, img_height: int = 160,
+                                   with_rotation: bool = None) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+        """
+        计算考虑旋转的安全滑块范围
+        
+        Args:
+            puzzle_size: 拼图大小
+            img_height: 图像高度
+            with_rotation: 是否考虑旋转
+            
+        Returns:
+            ((x_min, x_max), (y_min, y_max)): 滑块的安全范围
+        """
+        if with_rotation is None:
+            with_rotation = cls.ROTATION_ENABLED
+            
+        if with_rotation:
+            angle_rad = np.radians(cls.MAX_ROTATION_ANGLE)
+            cos_a = np.cos(angle_rad)
+            sin_a = np.sin(angle_rad)
+            effective_size = int(puzzle_size * (cos_a + sin_a))
+        else:
+            effective_size = puzzle_size
+            
+        half_size = effective_size // 2
+        
+        # X范围
+        x_min = half_size
+        x_max = min(half_size + 10, 40)
+        
+        # Y范围
+        y_min = max(cls.SLIDER_Y_RANGE[0], half_size + 5)
+        y_max = min(cls.SLIDER_Y_RANGE[1], img_height - half_size - 5)
+        
+        return (x_min, x_max), (y_min, y_max)
     
     @classmethod
     def print_config(cls) -> None:

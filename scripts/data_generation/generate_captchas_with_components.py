@@ -86,7 +86,7 @@ def generate_fixed_gap_positions(
 ) -> Tuple[List[int], List[int]]:
     """
     为每张图片生成固定的gap位置（不依赖于puzzle_size）
-    使用最大可能的puzzle_size来确保安全范围
+    使用最大可能的puzzle_size来确保安全范围，并考虑旋转
     
     Args:
         pic_index: 图片索引（用作随机种子）
@@ -103,24 +103,51 @@ def generate_fixed_gap_positions(
     # 使用最大puzzle_size(60)来确定安全范围，根据图像尺寸缩放
     scale_factor = min(img_width / 320, img_height / 160)
     max_puzzle_size = int(60 * scale_factor)
-    gap_x_min = max_puzzle_size + 20  
-    gap_x_max = img_width - max_puzzle_size // 2  
+    
+    # 使用DatasetConfig的安全范围计算（考虑旋转）
+    gap_x_min, gap_x_max = DatasetConfig.calculate_safe_gap_range(
+        max_puzzle_size, img_width, img_height, with_rotation=True
+    )
+    
+    # 检查是否有有效的范围
+    if gap_x_min >= gap_x_max:
+        # 对于很大的puzzle尺寸，可能没有有效范围，使用较小的尺寸
+        fallback_size = int(max_puzzle_size * 0.8)  # 使用80%的大小
+        gap_x_min, gap_x_max = DatasetConfig.calculate_safe_gap_range(
+            fallback_size, img_width, img_height, with_rotation=True
+        )
     
     # 为这张图片生成固定的gap x坐标
-    gap_x_positions = sorted([int(x) for x in rng.choice(
-        range(gap_x_min, gap_x_max),
-        size=gap_x_count,
-        replace=False
-    )])
+    if gap_x_max - gap_x_min >= gap_x_count:
+        gap_x_positions = sorted([int(x) for x in rng.choice(
+            range(gap_x_min, gap_x_max),
+            size=gap_x_count,
+            replace=False
+        )])
+    else:
+        # 范围太小，生成均匀分布的位置
+        gap_x_positions = np.linspace(gap_x_min, gap_x_max - 1, gap_x_count, dtype=int).tolist()
     
-    # 生成gap y位置（使用最大size的安全边距）
-    gap_y_min = max_puzzle_size // 2 + 5  
-    gap_y_max = img_height - max_puzzle_size // 2 - 5
-    gap_y_positions = sorted([int(y) for y in rng.choice(
-        range(gap_y_min, gap_y_max),
-        size=gap_y_count,
-        replace=False
-    )])
+    # 生成gap y位置（考虑旋转后的尺寸）
+    if DatasetConfig.ROTATION_ENABLED:
+        angle_rad = np.radians(DatasetConfig.MAX_ROTATION_ANGLE)
+        effective_size = int(max_puzzle_size * (np.cos(angle_rad) + np.sin(angle_rad)))
+    else:
+        effective_size = max_puzzle_size
+    
+    half_size = effective_size // 2
+    gap_y_min = half_size + 5  
+    gap_y_max = img_height - half_size - 5
+    
+    if gap_y_max - gap_y_min >= gap_y_count:
+        gap_y_positions = sorted([int(y) for y in rng.choice(
+            range(gap_y_min, gap_y_max),
+            size=gap_y_count,
+            replace=False
+        )])
+    else:
+        # 范围太小，生成均匀分布的位置
+        gap_y_positions = np.linspace(gap_y_min, gap_y_max - 1, gap_y_count, dtype=int).tolist()
     
     return gap_x_positions, gap_y_positions
 
@@ -135,7 +162,7 @@ def generate_positions_for_size(
     img_height: int = 160
 ) -> List[Tuple[Tuple[int, int], Tuple[int, int]]]:
     """
-    基于固定的gap位置和特定的puzzle_size，生成有效的位置组合
+    基于固定的gap位置和特定的puzzle_size，生成有效的位置组合（考虑旋转）
     
     Args:
         pic_index: 图片索引（用作随机种子）
@@ -150,11 +177,20 @@ def generate_positions_for_size(
         位置列表 [(slider_pos, gap_pos), ...]
     """
     rng = np.random.RandomState(pic_index * 1000 + puzzle_size)
-    half_size = puzzle_size // 2
     
-    # 生成滑块x位置
-    slider_x_min = max(half_size, 15)
-    slider_x_max = min(half_size + 10, 40)
+    # 使用配置计算安全范围（考虑旋转）
+    (slider_x_min, slider_x_max), (slider_y_min, slider_y_max) = DatasetConfig.calculate_safe_slider_range(
+        puzzle_size, img_height
+    )
+    
+    # 如果考虑旋转，需要计算有效尺寸
+    if DatasetConfig.ROTATION_ENABLED:
+        angle_rad = np.radians(DatasetConfig.MAX_ROTATION_ANGLE)
+        effective_size = int(puzzle_size * (np.cos(angle_rad) + np.sin(angle_rad)))
+    else:
+        effective_size = puzzle_size
+    
+    half_size = effective_size // 2
     
     slider_x_positions = []
     for i in range(slider_x_count):
@@ -667,6 +703,11 @@ def generate_dataset_parallel(
     labels_dir.mkdir(parents=True, exist_ok=True)
     print(f"  - Labels: {labels_dir}")
     
+    # 4. 元数据目录（用于存储JSON文件）
+    metadata_dir = output_dir / 'metadata'
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  - Metadata: {metadata_dir}")
+    
     # 获取所有图片
     image_files = []
     for ext in ['*.png', '*.jpg', '*.jpeg']:
@@ -768,8 +809,10 @@ def generate_dataset_parallel(
                 img_path = future_to_img[future]
                 print(f"\nError processing {img_path}: {e}")
     
-    # 保存标注
-    all_annotations_path = output_dir / 'all_annotations.json'
+    # 保存标注到metadata目录
+    metadata_dir = output_dir / 'metadata'
+    metadata_dir.mkdir(parents=True, exist_ok=True)  # 确保目录存在
+    all_annotations_path = metadata_dir / 'all_annotations.json'
     with open(all_annotations_path, 'w', encoding='utf-8') as f:
         json.dump(all_annotations, f, ensure_ascii=False, indent=2, cls=NumpyJSONEncoder)
     
@@ -783,8 +826,8 @@ def generate_dataset_parallel(
         print(f"  - Unique pics: {label_stats['unique_pics']}")
         print(f"  - Labels saved to: {saved_label_files['all_labels']}")
     
-    # 保存完整配置（用于复现）
-    config_backup_path = output_dir / 'dataset_config_used.json'
+    # 保存完整配置（用于复现）到metadata目录
+    config_backup_path = metadata_dir / 'dataset_config_used.json'
     config_backup = {
         'dataset_config': {
             'slider_x_range': DatasetConfig.SLIDER_X_RANGE,
@@ -849,13 +892,13 @@ def generate_dataset_parallel(
         }
     }
     
-    report_path = output_dir / 'generation_report.json'
+    report_path = metadata_dir / 'generation_report.json'
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, ensure_ascii=False, indent=2, cls=NumpyJSONEncoder)
     
-    # 保存错误日志
+    # 保存错误日志到metadata目录
     if all_errors:
-        error_log_path = output_dir / 'generation_errors.json'
+        error_log_path = metadata_dir / 'generation_errors.json'
         with open(error_log_path, 'w', encoding='utf-8') as f:
             json.dump({
                 'total_errors': len(all_errors),
