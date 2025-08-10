@@ -125,6 +125,19 @@ confusion_strategies:
       min: 0.8
       max: 1.2
   
+  # Circular Confusing Gap (圆形专用混淆缺口)
+  circular_confusing_gap:
+    num_confusing_gaps: [1, 2]
+    confusing_type: 'mixed'  # same_y, different_y, mixed
+    enable_smart_scaling: true
+    y_distance_threshold: 7  # Y轴距离阈值（像素）
+    scale_ranges:  # 智能缩放范围（当Y轴距离≤7px时使用）
+      - [0.8, 0.9]  # 缩小范围
+      - [1.1, 1.2]  # 放大范围
+    normal_scale_range:  # 常规缩放范围（当Y轴距离>7px时使用）
+      min: 0.8
+      max: 1.2
+  
   # Hollow Center
   hollow_center:
     scale:
@@ -158,20 +171,3 @@ lighting_effects:
     outer_edge_lightness: 0
 
 # ============================================================
-# Data Split Configuration
-# 数据集划分配置
-# ============================================================
-data_split:
-  split_ratio:
-    train: 0.9
-    test: 0.1
-  
-  paths:
-    input_dir: 'data/generated'
-    train_dir: 'data/train'
-    test_dir: 'data/test'
-  
-  options:
-    preserve_subdirs: true
-    use_symlinks: false
-    verbose: true

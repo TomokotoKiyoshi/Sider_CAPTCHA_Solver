@@ -7,6 +7,7 @@ from .rotation import RotationConfusion
 from .perlin_noise import PerlinNoiseConfusion
 from .confusing_gap import ConfusingGapConfusion
 from .hollow_center import HollowCenterConfusion
+from .circular_confusing_gap import CircularConfusingGapConfusion
 
 __all__ = [
     'HighlightConfusion',
@@ -14,4 +15,5 @@ __all__ = [
     'PerlinNoiseConfusion',
     'ConfusingGapConfusion',
     'HollowCenterConfusion',
+    'CircularConfusingGapConfusion',
 ]

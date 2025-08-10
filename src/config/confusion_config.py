@@ -133,6 +133,52 @@ class ConfusionConfig:
             }
         }
         
+        # ========== 圆形混淆缺口 (CircularConfusingGap) ==========
+        ccg_num = self.loader.get(f'{base_path}.circular_confusing_gap.num_confusing_gaps')
+        ccg_type = self.loader.get(f'{base_path}.circular_confusing_gap.confusing_type')
+        ccg_enable_smart = self.loader.get(f'{base_path}.circular_confusing_gap.enable_smart_scaling')
+        ccg_y_threshold = self.loader.get(f'{base_path}.circular_confusing_gap.y_distance_threshold')
+        ccg_scale_ranges = self.loader.get(f'{base_path}.circular_confusing_gap.scale_ranges')
+        ccg_normal_scale_min = self.loader.get(f'{base_path}.circular_confusing_gap.normal_scale_range.min')
+        ccg_normal_scale_max = self.loader.get(f'{base_path}.circular_confusing_gap.normal_scale_range.max')
+        
+        assert ccg_num is not None, f"Must configure {base_path}.circular_confusing_gap.num_confusing_gaps in captcha_config.yaml"
+        assert ccg_type is not None, f"Must configure {base_path}.circular_confusing_gap.confusing_type in captcha_config.yaml"
+        assert ccg_enable_smart is not None, f"Must configure {base_path}.circular_confusing_gap.enable_smart_scaling in captcha_config.yaml"
+        assert ccg_y_threshold is not None, f"Must configure {base_path}.circular_confusing_gap.y_distance_threshold in captcha_config.yaml"
+        assert ccg_scale_ranges is not None, f"Must configure {base_path}.circular_confusing_gap.scale_ranges in captcha_config.yaml"
+        assert ccg_normal_scale_min is not None, f"Must configure {base_path}.circular_confusing_gap.normal_scale_range.min in captcha_config.yaml"
+        assert ccg_normal_scale_max is not None, f"Must configure {base_path}.circular_confusing_gap.normal_scale_range.max in captcha_config.yaml"
+        
+        self.CIRCULAR_CONFUSING_GAP = {
+            'num_confusing_gaps': {
+                'choices': ccg_num,
+                'description': '圆形混淆缺口数量'
+            },
+            'confusing_type': {
+                'value': ccg_type,
+                'choices': ['same_y', 'different_y', 'mixed'],
+                'description': '圆形混淆缺口类型'
+            },
+            'enable_smart_scaling': {
+                'value': ccg_enable_smart,
+                'description': '是否启用智能缩放'
+            },
+            'y_distance_threshold': {
+                'value': ccg_y_threshold,
+                'description': 'Y轴距离阈值（像素）'
+            },
+            'scale_ranges': {
+                'value': [tuple(r) for r in ccg_scale_ranges],
+                'description': '智能缩放范围列表'
+            },
+            'normal_scale_range': {
+                'min': ccg_normal_scale_min,
+                'max': ccg_normal_scale_max,
+                'description': '常规缩放范围（Y轴距离>阈值时使用）'
+            }
+        }
+        
         # ========== 空心中心 (HollowCenter) ==========
         hc_min = self.loader.get(f'{base_path}.hollow_center.scale.min')
         hc_max = self.loader.get(f'{base_path}.hollow_center.scale.max')
@@ -272,6 +318,20 @@ class ConfusionConfig:
             )
         }
     
+    def get_circular_confusing_gap_params(self, rng):
+        """获取圆形混淆缺口参数"""
+        return {
+            'num_confusing_gaps': int(rng.choice(self.CIRCULAR_CONFUSING_GAP['num_confusing_gaps']['choices'])),
+            'confusing_type': self.CIRCULAR_CONFUSING_GAP['confusing_type']['value'],
+            'enable_smart_scaling': self.CIRCULAR_CONFUSING_GAP['enable_smart_scaling']['value'],
+            'y_distance_threshold': self.CIRCULAR_CONFUSING_GAP['y_distance_threshold']['value'],
+            'scale_ranges': self.CIRCULAR_CONFUSING_GAP['scale_ranges']['value'],
+            'normal_scale_range': (
+                self.CIRCULAR_CONFUSING_GAP['normal_scale_range']['min'],
+                self.CIRCULAR_CONFUSING_GAP['normal_scale_range']['max']
+            )
+        }
+    
     def get_hollow_center_params(self, rng):
         """获取空心中心参数"""
         return {
@@ -310,6 +370,14 @@ class ConfusionConfig:
         print(f"  Gap type: {self.CONFUSING_GAP['confusing_type']['value']}")
         print(f"  Rotation range: {self.CONFUSING_GAP['rotation_range']['min']} ~ {self.CONFUSING_GAP['rotation_range']['max']} degrees")
         print(f"  Scale range: {self.CONFUSING_GAP['scale_range']['min']} ~ {self.CONFUSING_GAP['scale_range']['max']}")
+        
+        print("\n[Circular Confusing Gap]")
+        print(f"  Gap count: {self.CIRCULAR_CONFUSING_GAP['num_confusing_gaps']['choices']}")
+        print(f"  Gap type: {self.CIRCULAR_CONFUSING_GAP['confusing_type']['value']}")
+        print(f"  Smart scaling: {self.CIRCULAR_CONFUSING_GAP['enable_smart_scaling']['value']}")
+        print(f"  Y-distance threshold: {self.CIRCULAR_CONFUSING_GAP['y_distance_threshold']['value']}px")
+        print(f"  Smart scale ranges (Y≤7px): {self.CIRCULAR_CONFUSING_GAP['scale_ranges']['value']}")
+        print(f"  Normal scale range (Y>7px): {self.CIRCULAR_CONFUSING_GAP['normal_scale_range']['min']} ~ {self.CIRCULAR_CONFUSING_GAP['normal_scale_range']['max']}")
         
         print("\n[Hollow Center]")
         print(f"  Hollow ratio: {self.HOLLOW_CENTER['scale']['min']} ~ {self.HOLLOW_CENTER['scale']['max']}")
