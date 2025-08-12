@@ -49,7 +49,7 @@ fpn_pan:
 # Proposal生成配置
 proposal:
   strides: [4, 8, 16, 32]
-  top_k: 100
+  top_k: 10    # 优化显存：100->10 (减少85%ROI内存)
   
 # ROI配置
 roi:

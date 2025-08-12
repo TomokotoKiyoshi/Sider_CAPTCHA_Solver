@@ -53,9 +53,9 @@ class InputPreprocessor(nn.Module):
         # 坐标编码
         X_coord = self.coord_conv(X_rgb)  # [B, 2, H, W]
         
-        # Padding掩码 (检测黑色边缘)
+        # Padding掩码 (检测黑色和白色边缘，更稳健)
         gray = 0.299 * X_rgb[:, 0] + 0.587 * X_rgb[:, 1] + 0.114 * X_rgb[:, 2]
-        X_pad = (gray < 0.1).float().unsqueeze(1)  # [B, 1, H, W]
+        X_pad = ((gray < 0.1) | (gray > 0.9)).float().unsqueeze(1)  # [B, 1, H, W]
         
         # 通道拼接
         X0 = torch.cat([X_rgb, X_coord, X_pad], dim=1)  # [B, 6, H, W]
@@ -110,6 +110,17 @@ class PMN_R3_FP(nn.Module):
             spatial_scale=model_config.roi_shape_scale
         )
         
+        # 轻量纹理门控（用于抑制高频噪声）
+        # 使用固定的输入通道数：fpn_out_channels + shape_channels_full
+        texture_gate_in_channels = model_config.fpn_out_channels + model_config.shape_channels_full
+        self.texture_gate = nn.Sequential(
+            nn.Conv2d(texture_gate_in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 1, kernel_size=1),
+            nn.Sigmoid()
+        )
+        
         # SE(2)变换器匹配
         self.se2_transformer = SE2Transformer(
             d_model=model_config.se2_d_model,
@@ -140,14 +151,160 @@ class PMN_R3_FP(nn.Module):
         """初始化权重"""
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                # 跳过 LazyConv2d，它会在第一次前向传播时自动初始化
+                if not isinstance(m, nn.LazyConv2d):
+                    nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
             elif isinstance(m, nn.Linear):
-                nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+                # 跳过 LazyLinear
+                if not isinstance(m, nn.LazyLinear):
+                    nn.init.xavier_uniform_(m.weight)
+                    if m.bias is not None:
+                        nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
+    
+    def _smart_grouping(self, region_features, proposals, shape_features):
+        """
+        智能候选分组：使用特征和位置信息自动区分gap和piece
+        
+        Args:
+            region_features: [B, N, C, H, W] - Region特征
+            proposals: [B, N, 5] - 候选框 (cx, cy, w, h, score)
+            shape_features: [B, N, C_shape, H, W] - Shape特征
+        
+        Returns:
+            gap_features: [B, n_gap, C, H, W] - 缺口候选特征
+            piece_features: [B, n_piece, C, H, W] - 滑块候选特征
+            gap_indices: [B, n_gap] - 缺口候选索引
+            piece_indices: [B, n_piece] - 滑块候选索引
+        """
+        B, N, C, H, W = region_features.shape
+        device = region_features.device
+        
+        # 特征聚合：使用全局平均池化获得紧凑表示
+        region_pooled = region_features.mean(dim=(3, 4))  # [B, N, C]
+        shape_pooled = shape_features.mean(dim=(3, 4))    # [B, N, C_shape]
+        
+        # 位置和尺寸特征
+        positions = proposals[:, :, :2]  # [B, N, 2] - (cx, cy)
+        sizes = proposals[:, :, 2:4]     # [B, N, 2] - (w, h)
+        
+        # 组合特征用于聚类
+        # 归一化位置特征（相对于图像尺寸）
+        norm_positions = positions / torch.tensor([model_config.input_width, model_config.input_height], 
+                                                 device=device).view(1, 1, 2)
+        
+        # 归一化尺寸特征
+        norm_sizes = sizes / torch.tensor([model_config.input_width, model_config.input_height], 
+                                         device=device).view(1, 1, 2)
+        
+        # 构建聚类特征 [B, N, feat_dim]
+        cluster_features = torch.cat([
+            norm_positions,           # 位置信息 (2)
+            norm_sizes,              # 尺寸信息 (2)
+            region_pooled.mean(dim=2, keepdim=True),  # Region特征均值 (1)
+            shape_pooled.mean(dim=2, keepdim=True)    # Shape特征均值 (1)
+        ], dim=2)  # [B, N, 6]
+        
+        # 对每个batch样本进行K-Means聚类
+        gap_features_list = []
+        piece_features_list = []
+        gap_indices_list = []
+        piece_indices_list = []
+        
+        for b in range(B):
+            features = cluster_features[b]  # [N, 6]
+            
+            # 简单的K-Means (K=2)
+            # 初始化：选择距离最远的两个点作为初始中心
+            distances = torch.cdist(features, features)  # [N, N]
+            max_dist_idx = distances.argmax()
+            idx1 = max_dist_idx // N
+            idx2 = max_dist_idx % N
+            
+            centers = torch.stack([features[idx1], features[idx2]], dim=0)  # [2, 6]
+            
+            # 迭代聚类（最多10次）
+            for _ in range(10):
+                # 分配到最近的中心
+                dists = torch.cdist(features, centers)  # [N, 2]
+                assignments = dists.argmin(dim=1)  # [N]
+                
+                # 更新中心
+                new_centers = []
+                for k in range(2):
+                    mask = (assignments == k)
+                    if mask.sum() > 0:
+                        new_centers.append(features[mask].mean(dim=0))
+                    else:
+                        new_centers.append(centers[k])
+                
+                new_centers = torch.stack(new_centers, dim=0)
+                
+                # 检查收敛
+                if torch.allclose(centers, new_centers, atol=1e-4):
+                    break
+                centers = new_centers
+            
+            # 基于聚类结果分组
+            # 通常gap在图像右侧，piece在左侧
+            # 使用x坐标的均值来判断
+            cluster0_mask = (assignments == 0)
+            cluster1_mask = (assignments == 1)
+            
+            cluster0_x = positions[b, cluster0_mask, 0].mean() if cluster0_mask.sum() > 0 else 0
+            cluster1_x = positions[b, cluster1_mask, 0].mean() if cluster1_mask.sum() > 0 else 0
+            
+            # gap通常在右侧（x坐标较大）
+            if cluster0_x > cluster1_x:
+                gap_mask = cluster0_mask
+                piece_mask = cluster1_mask
+            else:
+                gap_mask = cluster1_mask
+                piece_mask = cluster0_mask
+            
+            # 提取特征和索引
+            gap_indices = torch.where(gap_mask)[0]
+            piece_indices = torch.where(piece_mask)[0]
+            
+            # 确保至少有一个gap和一个piece
+            if len(gap_indices) == 0:
+                gap_indices = torch.tensor([0], device=device)
+            if len(piece_indices) == 0:
+                piece_indices = torch.tensor([1] if len(gap_indices) == 0 else [0], device=device)
+            
+            gap_features_list.append(region_features[b, gap_indices])
+            piece_features_list.append(region_features[b, piece_indices])
+            gap_indices_list.append(gap_indices)
+            piece_indices_list.append(piece_indices)
+        
+        # 填充到相同大小
+        max_gap = max(f.shape[0] for f in gap_features_list)
+        max_piece = max(f.shape[0] for f in piece_features_list)
+        
+        gap_features = []
+        piece_features = []
+        
+        for b in range(B):
+            # 填充gap特征
+            gap_f = gap_features_list[b]
+            if gap_f.shape[0] < max_gap:
+                padding = gap_f[-1:].expand(max_gap - gap_f.shape[0], -1, -1, -1)
+                gap_f = torch.cat([gap_f, padding], dim=0)
+            gap_features.append(gap_f)
+            
+            # 填充piece特征
+            piece_f = piece_features_list[b]
+            if piece_f.shape[0] < max_piece:
+                padding = piece_f[-1:].expand(max_piece - piece_f.shape[0], -1, -1, -1)
+                piece_f = torch.cat([piece_f, padding], dim=0)
+            piece_features.append(piece_f)
+        
+        gap_features = torch.stack(gap_features, dim=0)      # [B, max_gap, C, H, W]
+        piece_features = torch.stack(piece_features, dim=0)  # [B, max_piece, C, H, W]
+        
+        return gap_features, piece_features, gap_indices_list, piece_indices_list
     
     def forward(self, images, return_features=False):
         """
@@ -187,6 +344,19 @@ class PMN_R3_FP(nn.Module):
         sdf_map = shape_output['sdf_map']        # [B, 1, 256, 512]
         shape_features = shape_output['features']  # [B, 32, 256, 512]
         
+        # 轻量 Gate：融合 Region 和 Shape 特征来调节 objectness
+        # 上采样 Region 特征到全分辨率，与 Shape 特征拼接
+        r_up = F.interpolate(region_features[0], size=shape_features.shape[-2:], 
+                           mode='bilinear', align_corners=False)
+        alpha = self.texture_gate(torch.cat([r_up, shape_features], dim=1))  # [B, 1, H, W]
+        
+        # 下采样 alpha 到 objectness 的分辨率并应用
+        alpha_down = F.interpolate(alpha, size=region_predictions['objectness'][0].shape[-2:], 
+                                  mode='bilinear', align_corners=False)
+        region_predictions['objectness'][0] = torch.clamp(
+            region_predictions['objectness'][0] * (0.5 + 0.5 * alpha_down), 0.0, 1.0
+        )
+        
         # 生成候选区域
         proposals = self.proposal_generator(region_predictions)  # [B, top_k, 5]
         
@@ -203,18 +373,22 @@ class PMN_R3_FP(nn.Module):
             proposals
         )  # [B*top_k, 32, 64, 64]
         
-        # 重塑为批次格式
-        region_roi_features = region_roi_features.view(B, -1, 256, 64, 64)
-        shape_roi_features = shape_roi_features.view(B, -1, 32, 64, 64)
-        
-        # 分离滑块和缺口候选
-        # 假设前半部分是缺口候选，后半部分是滑块候选
+        # 动态获取通道数和空间尺寸（避免硬编码）
+        # region_roi_features: [B*top_k, C_region, H_roi, W_roi]
+        _, C_region, H_roi, W_roi = region_roi_features.shape
         n_proposals = proposals.shape[1]
-        n_gap = n_proposals // 2
-        n_piece = n_proposals - n_gap
         
-        gap_features = region_roi_features[:, :n_gap]
-        piece_features = region_roi_features[:, n_gap:]
+        # shape_roi_features: [B*top_k, C_shape, H_roi, W_roi]  
+        _, C_shape, _, _ = shape_roi_features.shape
+        
+        # 重塑为批次格式
+        region_roi_features = region_roi_features.view(B, n_proposals, C_region, H_roi, W_roi)
+        shape_roi_features = shape_roi_features.view(B, n_proposals, C_shape, H_roi, W_roi)
+        
+        # 智能候选分组：使用K-Means自动分离gap和piece
+        gap_features, piece_features, gap_indices, piece_indices = self._smart_grouping(
+            region_roi_features, proposals, shape_roi_features
+        )
         
         # SE(2)变换器匹配
         matching_output = self.se2_transformer(piece_features, gap_features)
@@ -228,16 +402,23 @@ class PMN_R3_FP(nn.Module):
         for b in range(B):
             # 找到最高匹配得分
             scores = match_scores[b]  # [n_piece, n_gap]
+            n_gap_b = scores.shape[1]
+            n_piece_b = scores.shape[0]
+            
             max_score, max_idx = scores.view(-1).max(0)
-            piece_idx = max_idx // n_gap
-            gap_idx = max_idx % n_gap
+            piece_local_idx = max_idx // n_gap_b
+            gap_local_idx = max_idx % n_gap_b
+            
+            # 获取原始proposals中的索引
+            gap_global_idx = gap_indices[b][min(gap_local_idx, len(gap_indices[b])-1)]
+            piece_global_idx = piece_indices[b][min(piece_local_idx, len(piece_indices[b])-1)]
             
             # 获取对应的中心坐标
-            gap_center = proposals[b, gap_idx, :2]
-            piece_center = proposals[b, n_gap + piece_idx, :2]
+            gap_center = proposals[b, gap_global_idx, :2]
+            piece_center = proposals[b, piece_global_idx, :2]
             
             # 获取几何参数
-            geom = geometry[b, piece_idx, gap_idx]
+            geom = geometry[b, piece_local_idx, gap_local_idx]
             
             best_matches.append({
                 'gap_center': gap_center,

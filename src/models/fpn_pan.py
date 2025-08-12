@@ -364,12 +364,17 @@ class ProposalGenerator(nn.Module):
             level_proposals = torch.stack([cx, cy, w, h, scores], dim=-1)  # [B, H*W, 5]
             all_proposals.append(level_proposals)
         
-        # 合并所有层的proposals
+        # 合并所有层的 proposals
         all_proposals = torch.cat(all_proposals, dim=1)  # [B, total, 5]
         
-        # 按得分排序并选择top_k
+        # 过滤非正宽高（避免无效框参与排序）
+        valid = (all_proposals[..., 2] > 1.0) & (all_proposals[..., 3] > 1.0)
+        
+        # 按得分排序并选择 top_k
         scores = all_proposals[..., 4]  # [B, total]
-        _, indices = torch.topk(scores, min(self.top_k, scores.shape[1]), dim=1)
+        scores = scores.masked_fill(~valid, float('-inf'))
+        topk = min(self.top_k, scores.shape[1])
+        _, indices = torch.topk(scores, topk, dim=1)
         
         # 选择top_k proposals
         batch_indices = torch.arange(batch_size, device=device).unsqueeze(1)
