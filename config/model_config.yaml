@@ -1,162 +1,101 @@
 # Model Configuration
-# 模型配置文件 - 集中管理神经网络的所有参数
+# 模型配置文件 - 集中管理神经网络和预处理的所有参数
 
-# 输入配置
-input:
-  # 目标输入尺寸 (width, height) - 与size_confusion_config.py保持一致
-  target_size: [512, 256]
-  
-  # PyTorch张量格式 (channels, height, width)
-  tensor_shape: [3, 256, 512]
-  
-  # 输入通道配置
-  channels:
-    rgb: 3          # RGB通道数
-    coord: 2        # 坐标编码通道
-    padding: 1      # Padding掩码通道
-    total: 6        # 总输入通道数
-
-# 骨干网络配置
-backbone:
-  type: "HRNet"
-  # HRNet配置
-  hrnet:
-    # 每个stage的块数配置
-    stage2:
-      num_branches: 2
-      num_blocks: [2, 2]
-    stage3:
-      num_branches: 3
-      num_blocks: [2, 2, 2]
-    stage4:
-      num_branches: 4
-      num_blocks: [2, 2, 2, 2]
-  stages:
-    - channels: 64
-      resolution: [64, 128]   # (H, W)
-    - channels: 128
-      resolution: [32, 64]
-    - channels: 256
-      resolution: [16, 32]
-    - channels: 512
-      resolution: [8, 16]
-
-# FPN-PAN配置
-fpn_pan:
-  in_channels: [64, 128, 256, 512]
-  out_channels: 256
-  
-# Proposal生成配置
-proposal:
-  strides: [4, 8, 16, 32]
-  top_k: 10    # 优化显存：100->10 (减少85%ROI内存)
-  
-# ROI配置
-roi:
-  region:
-    output_size: 64
-    spatial_scale: 0.25   # 对应1/4分辨率
-  shape:
-    output_size: 64
-    spatial_scale: 1.0    # 对应全分辨率
-
-# Shape/SDF模块配置
-shape_sdf:
-  # ShapeBranch通道配置
-  channels:
-    quarter: 128        # 1/4分辨率通道数
-    half: 64           # 1/2分辨率通道数
-    full: 32           # 全分辨率通道数
-  
-  # SDF配置
-  sdf_range: 10        # SDF值范围 [-10, 10]
-  
-  # SDFDecoder配置
-  decoder:
-    in_channels: 35    # 输入通道数 (32 shape + 3 edge)
-    hidden_dim: 256    # 隐藏层维度
-  
-  # 边缘检测配置
-  edge_detection:
-    # RGB转灰度权重 (ITU-R BT.601标准)
-    rgb_weights: [0.299, 0.587, 0.114]
-
-# SE2变换器配置
-se2_transformer:
-  d_model: 256
-  n_heads: 8
-  n_layers: 3
-  dropout: 0.1
-  # 位置编码配置
-  positional_encoding:
-    max_len: 10000
-    base: 10000.0
-  # 几何精修配置
-  geometric_refinement:
-    residual_scale: 0.1  # 残差缩放因子
-
-# 损失函数配置
-loss:
-  # Focal Loss参数
-  focal:
-    alpha: 0.25        # 平衡因子
-    gamma: 2.0         # 聚焦参数
-  
-  # CenterNet Loss参数
-  centernet:
-    alpha: 2           # 正样本focal参数
-    beta: 4            # 负样本focal参数
-  
-  # SDF Loss参数
-  sdf:
-    truncation: 10.0   # SDF截断距离（与sdf_range保持一致）
-  
-  # 高斯热力图参数
-  gaussian:
-    sigma: 2           # 高斯标准差
-  
-  # 损失权重
-  weights:
-    region_obj: 1.0    # Region objectness损失权重
-    region_ctr: 1.0    # Region centerness损失权重
-    region_loc: 1.0    # Region location损失权重
-    region_scale: 1.0  # Region scale损失权重
-    shape_mask: 1.0    # Shape掩码损失权重
-    shape_sdf: 0.5     # Shape SDF损失权重
-    matching: 2.0      # 匹配损失权重
-    geometry: 1.0      # 几何参数损失权重
-
-# 训练配置
-training:
-  batch_size: 256
-  learning_rate: 0.0001
-  weight_decay: 0.0001
-  epochs: 25
-  
-# 推理配置
-inference:
-  # 坐标缩放因子 (从特征图到原始图像)
-  coord_scale: 4
-  
-  # 置信度阈值
-  confidence_threshold: 0.5
-  
-  # NMS阈值
-  nms_threshold: 0.3
-  
-  # 排序判别器配置
-  ranking_discriminator:
-    hidden_dims: [128, 64]  # 隐藏层维度
-    dropout: 0.1
-
-# 数据预处理配置 (训练/推理前的图像处理)
+# ============== 预处理配置 ==============
 preprocessing:
-  # Padding配置 (将不同尺寸图像统一到目标尺寸)
-  padding:
-    mode: 'letterbox'         # letterbox模式保持宽高比
-    color: [0, 0, 0]          # RGB黑色填充
+  # Letterbox变换配置
+  letterbox:
+    # 目标尺寸 (width, height) - 网络输入尺寸
+    target_size: [512, 256]
+    # padding填充值 (0-255)
+    fill_value: 255
+    # 插值方法: linear, cubic, nearest, area
+    interpolation: 'linear'
+    
+  # 坐标系统配置
+  coordinate:
+    # 下采样率 (用于生成1/4分辨率特征图)
+    downsample: 4
+    # 原始输入尺寸将从实际图像动态获取
+    # 栅格尺寸会自动计算: (target_height/downsample, target_width/downsample)
+    
+  # 热图生成配置
+  heatmap:
+    # 高斯标准差 (栅格单位)
+    sigma: 1.5
+    # 正样本阈值 (用于确定监督区域)
+    threshold: 0.7
+    # 高斯半径因子 (radius = sigma * radius_factor)
+    radius_factor: 3
+    
+  # Padding mask配置
+  padding_mask:
+    # padding区域的值
+    padding_value: 1
+    # 有效区域的值
+    valid_value: 0
+    # 下采样方法: avg (软屏蔽) 或 max (硬屏蔽)
+    pooling_method: 'avg'
+    
+  # 角度处理配置
+  angle:
+    # 是否启用角度处理
+    enabled: true
+    # 最大旋转角度 (度)
+    max_rotation: 1.8
+    # 角度监督的热图阈值
+    supervision_threshold: 0.7
     
   # 归一化配置
   normalization:
-    mean: [0.485, 0.456, 0.406]  # ImageNet均值
-    std: [0.229, 0.224, 0.225]   # ImageNet标准差
+    # 是否启用归一化
+    enabled: true
+    # RGB均值 (ImageNet标准)
+    mean: [0.485, 0.456, 0.406]
+    # RGB标准差 (ImageNet标准)
+    std: [0.229, 0.224, 0.225]
+
+# ============== 输入配置 ==============
+input:
+  # 网络输入通道配置
+  channels:
+    rgb: 3          # RGB通道数
+    padding: 1      # Padding掩码通道
+    total: 4        # 总输入通道数 (RGB + padding_mask)
+  
+  # PyTorch张量格式 [channels, height, width]
+  # 会根据preprocessing.letterbox.target_size自动计算
+  tensor_shape: [4, 256, 512]  # [C, H, W]
+
+# ============== 网络架构配置 ==============
+backbone:
+  type: "Lite-HRNet-18"
+  
+  # Lite-HRNet配置
+  lite_hrnet:
+    # Stem (Stage1) - 特征提取阶段
+    stem:
+      in_channels: 4        # 输入通道数 (RGB + padding_mask)
+      out_channels: 32      # 输出通道数
+      expansion: 2          # LiteBlock扩张倍率
+      
+    # Stage2配置
+    stage2:
+      num_branches: 2
+      num_blocks: [2, 2]
+      channels: [32, 64]  # 1/4分辨率: 32, 1/8分辨率: 64
+      
+    # Stage3配置
+    stage3:
+      num_branches: 3
+      num_blocks: [3, 3, 3]
+      channels: [32, 64, 128]  # 1/4: 32, 1/8: 64, 1/16: 128
+      
+    # Stage4配置
+    stage4:
+      num_branches: 4
+      num_blocks: [2, 2, 2, 2]
+      channels: [32, 64, 128, 256]  # 1/4: 32, 1/8: 64, 1/16: 128, 1/32: 256
+      
+  # 输出分辨率 (相对于输入)
+  output_scales: [1/4, 1/8, 1/16, 1/32]

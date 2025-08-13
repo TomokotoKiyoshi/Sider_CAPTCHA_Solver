@@ -1,0 +1,37 @@
+# 预处理配置文件
+# 用于验证码数据集的预处理和标准化
+
+preprocessing:
+  # Letterbox变换配置
+  letterbox:
+    target_size: [512, 256]  # [宽, 高] - 网络输入的固定尺寸
+    fill_value: 255          # 填充值（白色）
+    
+  # 坐标映射配置  
+  coordinate:
+    downsample: 4            # 下采样率（特征图是输入的1/4）
+    
+  # 热图生成配置
+  heatmap:
+    sigma: 2.0               # 高斯分布标准差（栅格单位）
+    threshold: 0.5           # 正样本阈值
+      
+# 数据集生成配置
+dataset:
+  batch_size: 128            # 每个NPY文件的样本数
+  cache_batches: 2           # 数据加载器缓存批次数
+  num_workers: 24            # 数据加载器工作线程数
+
+# 路径配置
+paths:
+  data_root: "D:\\Hacker\\Sider_CAPTCHA_Solver\\data"
+  output_dir: "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\processed"
+  labels_file: "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\labels\\all_labels.json"
+  
+# 输入输出维度（自动计算，无需修改）
+dimensions:
+  input_channels: 4          # RGB(3) + padding_mask(1)
+  input_shape: [4, 256, 512] # [C, H, W]
+  grid_size: [64, 128]       # [H/4, W/4] - 特征图尺寸
+  heatmap_channels: 2        # gap + slider
+  offset_channels: 4         # gap_x, gap_y, slider_x, slider_y
