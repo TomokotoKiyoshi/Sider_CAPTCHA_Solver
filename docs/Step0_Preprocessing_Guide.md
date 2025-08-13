@@ -195,45 +195,53 @@ def pixel_to_grid(x_prime, y_prime, downsample=4):
     """
     像素坐标 → 1/4分辨率栅格坐标
     用于生成标签
+    
+    约定：返回格式为 ((grid_x, grid_y), (offset_x, offset_y))
+         其中 grid_x 是列索引，grid_y 是行索引
     """
-    u = x_prime / downsample  # 列（浮点）
-    v = y_prime / downsample  # 行（浮点）
+    # 计算浮点栅格坐标
+    grid_x_float = x_prime / downsample  # 列（浮点）
+    grid_y_float = y_prime / downsample  # 行（浮点）
     
     # 分离整数部分和小数部分
-    u_int = int(u)
-    v_int = int(v)
+    grid_x = int(grid_x_float)  # 列索引
+    grid_y = int(grid_y_float)  # 行索引
     
     # 子像素偏移
-    delta_u = u - u_int  # ∈[0,1)
-    delta_v = v - v_int  # ∈[0,1)
+    delta_x = grid_x_float - grid_x  # ∈[0,1)
+    delta_y = grid_y_float - grid_y  # ∈[0,1)
     
     # 中心化到[-0.5, 0.5]用于训练
-    offset_u = delta_u - 0.5
-    offset_v = delta_v - 0.5
+    offset_x = delta_x - 0.5
+    offset_y = delta_y - 0.5
     
-    return (u_int, v_int), (offset_u, offset_v)
+    return (grid_x, grid_y), (offset_x, offset_y)
 
 def grid_to_pixel(grid_coords, offsets=None, downsample=4, method='argmax'):
     """
     栅格坐标 → 像素坐标
     用于推理恢复
+    
+    约定：输入格式为 ((grid_x, grid_y), (offset_x, offset_y))
+         其中 grid_x 是列索引，grid_y 是行索引
     """
     if method == 'argmax':
         # 方法A: Argmax解码
-        j_star, i_star = grid_coords  # 峰值格
+        grid_x, grid_y = grid_coords  # grid_x=列索引, grid_y=行索引
         if offsets is not None:
-            du, dv = offsets  # ∈[-0.5, 0.5]
-            x_prime = 4 * (j_star + 0.5 + du)
-            y_prime = 4 * (i_star + 0.5 + dv)
+            offset_x, offset_y = offsets  # ∈[-0.5, 0.5]
+            # 恢复公式：pixel = downsample * (grid + 0.5 + offset)
+            x_prime = downsample * (grid_x + 0.5 + offset_x)
+            y_prime = downsample * (grid_y + 0.5 + offset_y)
         else:
-            x_prime = 4 * (j_star + 0.5)
-            y_prime = 4 * (i_star + 0.5)
+            x_prime = downsample * (grid_x + 0.5)
+            y_prime = downsample * (grid_y + 0.5)
     
     elif method == 'soft_argmax':
         # 方法B: Soft-argmax/DSNT
-        u_star, v_star = grid_coords  # 连续坐标
-        x_prime = 4 * u_star
-        y_prime = 4 * v_star
+        x_star, y_star = grid_coords  # 连续坐标
+        x_prime = downsample * x_star
+        y_prime = downsample * y_star
     
     return x_prime, y_prime
 ```
@@ -348,16 +356,20 @@ class TrainingPreprocessor:
         
         # 生成偏移标签（已中心化到[-0.5, 0.5]）
         offset_map = np.zeros((4, 64, 128), dtype=np.float32)
-        gy, gx = gap_grid
-        py, px = piece_grid
         
-        if 0 <= gx < 128 and 0 <= gy < 64:
-            offset_map[0, gy, gx] = gap_offset[0]   # gap_u
-            offset_map[1, gy, gx] = gap_offset[1]   # gap_v
+        # 注意：gap_grid 和 piece_grid 的格式为 (grid_x, grid_y)
+        # 其中 grid_x 是列索引，grid_y 是行索引
+        gap_x, gap_y = gap_grid      # gap_x=列, gap_y=行
+        piece_x, piece_y = piece_grid  # piece_x=列, piece_y=行
         
-        if 0 <= px < 128 and 0 <= py < 64:
-            offset_map[2, py, px] = piece_offset[0]  # piece_u
-            offset_map[3, py, px] = piece_offset[1]  # piece_v
+        # 在 offset_map[channel, row, col] 中设置偏移值
+        if 0 <= gap_x < 128 and 0 <= gap_y < 64:
+            offset_map[0, gap_y, gap_x] = gap_offset[0]   # gap x方向偏移
+            offset_map[1, gap_y, gap_x] = gap_offset[1]   # gap y方向偏移
+        
+        if 0 <= piece_x < 128 and 0 <= piece_y < 64:
+            offset_map[2, piece_y, piece_x] = piece_offset[0]  # piece x方向偏移
+            offset_map[3, piece_y, piece_x] = piece_offset[1]  # piece y方向偏移
         
         # 处理混淆缺口
         confusing_coords = []
@@ -376,15 +388,24 @@ class TrainingPreprocessor:
         }
     
     def generate_gaussian_heatmap(self, center, size=(64, 128), sigma=1.5):
-        """生成高斯热图"""
+        """生成高斯热图
+        
+        Args:
+            center: 中心栅格坐标 (grid_x, grid_y)，其中grid_x是列，grid_y是行
+            size: 热图尺寸 (H, W)
+            sigma: 高斯标准差
+        """
         H, W = size
         heatmap = np.zeros((H, W), dtype=np.float32)
         
-        cy, cx = center
-        for i in range(max(0, cy-3*int(sigma)), min(H, cy+3*int(sigma)+1)):
-            for j in range(max(0, cx-3*int(sigma)), min(W, cx+3*int(sigma)+1)):
-                dist_sq = (i - cy)**2 + (j - cx)**2
-                heatmap[i, j] = np.exp(-dist_sq / (2 * sigma**2))
+        center_x, center_y = center  # center_x=列, center_y=行
+        radius = int(3 * sigma)
+        
+        # 遍历周围的栅格点
+        for row in range(max(0, center_y - radius), min(H, center_y + radius + 1)):
+            for col in range(max(0, center_x - radius), min(W, center_x + radius + 1)):
+                dist_sq = (row - center_y)**2 + (col - center_x)**2
+                heatmap[row, col] = np.exp(-dist_sq / (2 * sigma**2))
         
         return heatmap
 ```

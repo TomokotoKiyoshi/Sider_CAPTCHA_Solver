@@ -25,6 +25,9 @@ class InteractiveVisualizer:
             data_dir = Path(__file__).parents[1] / "data" / "processed"
         self.data_dir = Path(data_dir)
         
+        # 加载原始标签数据用于对比
+        self.load_original_labels()
+        
         # 加载数据
         self.load_data()
         
@@ -44,6 +47,17 @@ class InteractiveVisualizer:
         
         # 显示第一个样本
         self.update_display()
+    
+    def load_original_labels(self):
+        """加载原始标签数据用于对比"""
+        labels_path = Path(__file__).parents[1] / "data" / "labels" / "labels_by_pic.json"
+        if labels_path.exists():
+            with open(labels_path, 'r', encoding='utf-8') as f:
+                self.original_labels = json.load(f)
+            print(f"Loaded original labels for {len(self.original_labels)} pictures")
+        else:
+            self.original_labels = {}
+            print("Warning: Original labels file not found")
         
     def load_data(self):
         """加载所有批次的数据"""
@@ -86,7 +100,32 @@ class InteractiveVisualizer:
             'slider_offset': batch['meta']['offsets_meta'][self.current_sample]['slider']
         }
         
+        # 添加原始标签数据和图像尺寸用于对比
+        original_data = self.get_original_data(sample['sample_id'])
+        if original_data:
+            sample['original_labels'] = original_data['labels']
+            sample['original_size'] = original_data['image_size']
+        else:
+            sample['original_labels'] = None
+            sample['original_size'] = None
+        
         return sample
+    
+    def get_original_data(self, sample_id: str):
+        """获取原始标签数据和图像尺寸"""
+        # 从sample_id提取pic_id (如: Pic0003_Bgx95Bgy35_Sdx25Sdy35_b77f03f9 -> Pic0003)
+        if '_' in sample_id:
+            pic_id = sample_id.split('_')[0]
+        else:
+            return None
+        
+        # 查找对应的原始标签
+        if pic_id in self.original_labels:
+            for sample in self.original_labels[pic_id]:
+                if sample['sample_id'] == sample_id:
+                    return sample
+        
+        return None
     
     def update_display(self):
         """更新显示内容"""
@@ -95,37 +134,22 @@ class InteractiveVisualizer:
         # 获取当前样本
         sample = self.get_current_sample()
         
-        # 创建子图
-        gs = self.fig.add_gridspec(2, 3, hspace=0.3, wspace=0.3)
+        # 创建子图 - 简化布局
+        gs = self.fig.add_gridspec(1, 2, hspace=0.3, wspace=0.2)
         
         # 1. 原始图像 + 热图叠加
-        ax1 = self.fig.add_subplot(gs[0, :2])
+        ax1 = self.fig.add_subplot(gs[0, 0])
         self.visualize_image_with_heatmap(ax1, sample)
         
-        # 2. Weight Mask
-        ax2 = self.fig.add_subplot(gs[0, 2])
-        self.visualize_weight_mask(ax2, sample)
-        
-        # 3. Gap热图 + Offset
-        ax3 = self.fig.add_subplot(gs[1, 0])
-        self.visualize_heatmap_with_offset(ax3, sample, 'gap')
-        
-        # 4. Slider热图 + Offset
-        ax4 = self.fig.add_subplot(gs[1, 1])
-        self.visualize_heatmap_with_offset(ax4, sample, 'slider')
-        
-        # 5. 信息面板
-        ax5 = self.fig.add_subplot(gs[1, 2])
-        self.show_info_panel(ax5, sample)
+        # 2. 信息面板（更大的空间）
+        ax2 = self.fig.add_subplot(gs[0, 1])
+        self.show_info_panel(ax2, sample)
         
         # 更新标题
         total_samples = len(self.batches) * self.total_samples_in_batch
         current_global = self.current_batch * self.total_samples_in_batch + self.current_sample + 1
         self.fig.suptitle(
-            f'Sample {current_global}/{total_samples} | '
-            f'Batch {self.current_batch+1}/{len(self.batches)} | '
-            f'ID: {sample["sample_id"]} | '
-            f'(Use ← → to navigate, ESC to exit)',
+            f'Sample {current_global}/{total_samples} | {sample["sample_id"]} | (Use ← → to navigate, ESC to exit)',
             fontsize=12,
             color='white'
         )
@@ -162,11 +186,12 @@ class InteractiveVisualizer:
         slider_overlay[:, :, 3] = slider_heatmap * 0.5  # Alpha通道
         ax.imshow(slider_overlay)
         
-        # 标记中心点
-        gap_x = sample['gap_grid'][0] * 4  # 从1/4分辨率恢复（第一个是列x）
-        gap_y = sample['gap_grid'][1] * 4  # 第二个是行y
-        slider_x = sample['slider_grid'][0] * 4
-        slider_y = sample['slider_grid'][1] * 4
+        # 标记中心点 - 正确的计算方式（包含中心偏移和子像素偏移）
+        # 公式: coord = downsample * (grid + 0.5 + offset)
+        gap_x = 4 * (sample['gap_grid'][0] + 0.5 + sample['gap_offset'][0])
+        gap_y = 4 * (sample['gap_grid'][1] + 0.5 + sample['gap_offset'][1])
+        slider_x = 4 * (sample['slider_grid'][0] + 0.5 + sample['slider_offset'][0])
+        slider_y = 4 * (sample['slider_grid'][1] + 0.5 + sample['slider_offset'][1])
         
         ax.plot(gap_x, gap_y, 'r+', markersize=15, markeredgewidth=2, label='Gap')
         ax.plot(slider_x, slider_y, 'g+', markersize=15, markeredgewidth=2, label='Slider')
@@ -256,38 +281,104 @@ class InteractiveVisualizer:
         """显示信息面板"""
         ax.axis('off')
         
-        info_text = f"""
-Sample Information
-==================
-ID: {sample['sample_id']}
-Batch: {self.current_batch + 1}
-Index: {self.current_sample + 1}
+        # 步骤1: 计算letterbox空间(512×256)中的坐标
+        gap_letterbox_x = 4 * (sample['gap_grid'][0] + 0.5 + sample['gap_offset'][0])
+        gap_letterbox_y = 4 * (sample['gap_grid'][1] + 0.5 + sample['gap_offset'][1])
+        slider_letterbox_x = 4 * (sample['slider_grid'][0] + 0.5 + sample['slider_offset'][0])
+        slider_letterbox_y = 4 * (sample['slider_grid'][1] + 0.5 + sample['slider_offset'][1])
+        
+        # 准备对比信息
+        comparison_text = ""
+        if sample.get('original_labels') and sample.get('original_size'):
+            orig_gap = sample['original_labels']['bg_gap_center']
+            orig_slider = sample['original_labels']['comp_piece_center']
+            
+            # 步骤2: 计算letterbox变换参数
+            # 原始图像尺寸从labels_by_pic.json读取
+            orig_width = sample['original_size']['width']
+            orig_height = sample['original_size']['height']
+            
+            # 计算letterbox padding (保持2:1宽高比)
+            current_ratio = orig_width / orig_height
+            target_ratio = 2.0  # 512/256 = 2
+            
+            if current_ratio > target_ratio:
+                # 图像太宽，需要上下padding
+                padded_width = orig_width
+                padded_height = orig_width / target_ratio
+                pad_left = 0
+                pad_top = (padded_height - orig_height) / 2
+            else:
+                # 图像太高，需要左右padding
+                padded_height = orig_height
+                padded_width = orig_height * target_ratio
+                pad_left = (padded_width - orig_width) / 2
+                pad_top = 0
+            
+            # 计算缩放比例 (padded -> 512×256)
+            scale = 512 / padded_width  # 或 256 / padded_height
+            
+            # 步骤3: 从letterbox空间转换回原始空间
+            # 公式: orig = (letterbox - pad*scale) / scale
+            gap_final_x = (gap_letterbox_x - pad_left * scale) / scale
+            gap_final_y = (gap_letterbox_y - pad_top * scale) / scale
+            slider_final_x = (slider_letterbox_x - pad_left * scale) / scale
+            slider_final_y = (slider_letterbox_y - pad_top * scale) / scale
+            
+            # 计算像素差距
+            gap_diff_x = abs(gap_final_x - orig_gap[0])
+            gap_diff_y = abs(gap_final_y - orig_gap[1])
+            gap_dist = (gap_diff_x**2 + gap_diff_y**2)**0.5
+            
+            slider_diff_x = abs(slider_final_x - orig_slider[0])
+            slider_diff_y = abs(slider_final_y - orig_slider[1])
+            slider_dist = (slider_diff_x**2 + slider_diff_y**2)**0.5
+            
+            comparison_text = f"""
+╔══════════════════════════════════════════════════════════════╗
+║              Coordinate Recovery Formula                     ║
+╚══════════════════════════════════════════════════════════════╝
 
-Gap Position:
-  Grid: {sample['gap_grid']}
-  Offset: ({sample['gap_offset'][0]:.3f}, {sample['gap_offset'][1]:.3f})
-  Final: ({sample['gap_grid'][0]*4 + sample['gap_offset'][0]*4:.1f}, 
-          {sample['gap_grid'][1]*4 + sample['gap_offset'][1]*4:.1f})
-
-Slider Position:
-  Grid: {sample['slider_grid']}
-  Offset: ({sample['slider_offset'][0]:.3f}, {sample['slider_offset'][1]:.3f})
-  Final: ({sample['slider_grid'][0]*4 + sample['slider_offset'][0]*4:.1f},
-          {sample['slider_grid'][1]*4 + sample['slider_offset'][1]*4:.1f})
-
-Statistics:
-  Heatmap Max: Gap={sample['heatmap'][0].max():.3f}, 
-               Slider={sample['heatmap'][1].max():.3f}
-  Valid Area: {sample['weight_mask'].mean():.1%}
+[Step 1] Grid → Letterbox (512×256)
+  letterbox = 4 × (grid + 0.5 + offset)
   
-Controls:
-  ← / →        : Previous/Next sample
-  Page Up/Down : Jump 10 samples backward/forward
-  Home/End     : Jump 100 samples backward/forward
-  ESC          : Exit
+  Gap:   {gap_letterbox_x:.1f} = 4×({sample['gap_grid'][0]}+0.5+{sample['gap_offset'][0]:.3f})
+  Slider: {slider_letterbox_x:.1f} = 4×({sample['slider_grid'][0]}+0.5+{sample['slider_offset'][0]:.3f})
+
+[Step 2] Letterbox → Original ({orig_width}×{orig_height})
+  original = (letterbox - pad×scale) / scale
+  
+  Padding: left={pad_left:.1f}, top={pad_top:.1f}
+  Scale: {scale:.4f}
+  
+  Gap X:   {gap_final_x:.1f} = ({gap_letterbox_x:.1f} - {pad_left:.1f}×{scale:.4f}) / {scale:.4f}
+  Gap Y:   {gap_final_y:.1f} = ({gap_letterbox_y:.1f} - {pad_top:.1f}×{scale:.4f}) / {scale:.4f}
+
+[Validation Results]
+┌─────────────┬──────────────┬──────────────┬────────┐
+│   Target    │  Original    │  Recovered   │ Error  │
+├─────────────┼──────────────┼──────────────┼────────┤
+│ Gap Center  │ ({orig_gap[0]:6.1f}, {orig_gap[1]:6.1f}) │ ({gap_final_x:6.1f}, {gap_final_y:6.1f}) │ {gap_dist:5.2f}px │
+│ Slider      │ ({orig_slider[0]:6.1f}, {orig_slider[1]:6.1f}) │ ({slider_final_x:6.1f}, {slider_final_y:6.1f}) │ {slider_dist:5.2f}px │
+└─────────────┴──────────────┴──────────────┴────────┘
 """
-        ax.text(0.05, 0.95, info_text, transform=ax.transAxes,
-               fontsize=9, verticalalignment='top', fontfamily='monospace', color='white')
+        else:
+            comparison_text = """
+Coordinate Comparison
+==========================================
+Original labels not found for this sample
+"""
+        
+        info_text = f"""Sample ID: {sample['sample_id']}
+
+[Grid Coordinates (128×64)]
+  Gap:    grid=({sample['gap_grid'][0]:3d}, {sample['gap_grid'][1]:3d})  offset=({sample['gap_offset'][0]:+.3f}, {sample['gap_offset'][1]:+.3f})
+  Slider: grid=({sample['slider_grid'][0]:3d}, {sample['slider_grid'][1]:3d})  offset=({sample['slider_offset'][0]:+.3f}, {sample['slider_offset'][1]:+.3f})
+{comparison_text}
+Controls: ← → (Navigate) | PageUp/Down (±10) | Home/End (±100) | ESC (Exit)
+"""
+        ax.text(0.02, 0.98, info_text, transform=ax.transAxes,
+               fontsize=7, verticalalignment='top', fontfamily='monospace', color='white')
     
     def on_key_press(self, event):
         """处理键盘事件"""
