@@ -13,20 +13,35 @@ preprocessing:
     
   # 热图生成配置
   heatmap:
-    sigma: 2.0               # 高斯分布标准差（栅格单位）
-    threshold: 0.5           # 正样本阈值
+    sigma: 1.5               # 高斯分布标准差（栅格单位）
       
 # 数据集生成配置
 dataset:
-  batch_size: 128            # 每个NPY文件的样本数
-  cache_batches: 2           # 数据加载器缓存批次数
-  num_workers: 24            # 数据加载器工作线程数
+  batch_size: 64             # 批次大小，每批保存一个文件
+  num_workers: 12            # 并行处理进程数（建议：CPU核心数的一半）
+  chunk_size: 1             # 每个进程任务块大小，避免序列化开销
+  maxtasksperchild: 10       # 每个进程处理任务数上限，防止内存累积
+  gc_interval: 2             # 垃圾回收频率，每N批强制回收一次
 
-# 路径配置
+# 路径配置（使用相对路径，相对于项目根目录）
 paths:
-  data_root: "D:\\Hacker\\Sider_CAPTCHA_Solver\\data"
-  output_dir: "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\processed"
-  labels_file: "D:\\Hacker\\Sider_CAPTCHA_Solver\\data\\labels\\all_labels.json"
+  data_root: "./data"                      # 数据根目录
+  output_dir: "./data/processed"           # 处理后数据输出目录
+  labels_file: "./data/labels/all_labels.json"  # 标签文件路径
+
+# 输出结构配置
+output_structure:
+  image_subdir: "images"     # 图像数据子目录
+  label_subdir: "labels"     # 标签数据子目录
+
+# 文件命名模板配置
+file_naming:
+  image_pattern: "{split}_{batch_id:04d}.npy"
+  heatmap_pattern: "{split}_{batch_id:04d}_heatmaps.npy"
+  offset_pattern: "{split}_{batch_id:04d}_offsets.npy"
+  weight_pattern: "{split}_{batch_id:04d}_weights.npy"
+  meta_pattern: "{split}_{batch_id:04d}_meta.json"
+  index_pattern: "{split}_index.json"
   
 # 输入输出维度（自动计算，无需修改）
 dimensions:

@@ -162,15 +162,20 @@ class SingleCaptchaVisualizer:
         # 显示gap_pose信息
         if 'gap_pose' in sample_data['labels']:
             gap_pose = sample_data['labels']['gap_pose']
-            info += f"Gap Rotation: {gap_pose.get('delta_theta_deg', 0)}°\n"
+            info += f"Gap Rotation: {gap_pose.get('delta_theta_deg', 0):.2f}°\n"
         
-        # 检查混淆缺口（fake_gaps）
+        # 检查混淆缺口（fake_gaps）- 更详细的显示
+        info += "\n=== Confusion Gaps (混淆缺口) ===\n"
         if 'augmented_labels' in sample_data and 'fake_gaps' in sample_data['augmented_labels']:
             fake_gaps = sample_data['augmented_labels']['fake_gaps']
-            info += f"Fake Gaps: {len(fake_gaps)} positions - "
-            info += ", ".join([f"({fg['center'][0]}, {fg['center'][1]})" for fg in fake_gaps])
+            info += f"Total: {len(fake_gaps)} confusion gaps\n"
+            for i, fg in enumerate(fake_gaps, 1):
+                center_x, center_y = fg['center']
+                rotation = fg.get('delta_theta_deg', 0)
+                scale = fg.get('scale', 1.0)
+                info += f"  Gap #{i}: Center=({center_x}, {center_y}), Rotation={rotation:.1f}°, Scale={scale:.2f}\n"
         else:
-            info += "Fake Gaps: None"
+            info += "  None\n"
         
         self.info_text.insert(1.0, info)
     
@@ -224,8 +229,15 @@ class SingleCaptchaVisualizer:
         if 'augmented_labels' in sample_data and 'fake_gaps' in sample_data['augmented_labels']:
             for i, fake_gap in enumerate(sample_data['augmented_labels']['fake_gaps']):
                 fake_x, fake_y = fake_gap['center']
+                
+                # 画混淆缺口中心点（蓝色大X）
                 ax.plot(fake_x, fake_y, 'bx', markersize=20, markeredgewidth=3,
-                       alpha=0.8, label=f'Fake Gap {i+1} ({fake_x}, {fake_y})', zorder=4)
+                       alpha=0.8, label=f'Confusion Gap {i+1} ({fake_x}, {fake_y})', zorder=4)
+                
+                # 画中心点的圆圈标记（增强可视化）
+                circle = plt.Circle((fake_x, fake_y), radius=5, fill=False, 
+                                   edgecolor='blue', linewidth=2, alpha=0.8)
+                ax.add_patch(circle)
                 
                 # 画混淆缺口边界框（蓝色虚线框）
                 # 检查是否有scale信息
@@ -238,12 +250,30 @@ class SingleCaptchaVisualizer:
                                         linestyle='--', alpha=0.5)
                 ax.add_patch(fake_rect)
                 
+                # 显示坐标文本（在混淆缺口上方）
+                ax.text(fake_x, fake_y - fake_size/2 - 10, 
+                       f'Confusion #{i+1}\n({fake_x}, {fake_y})',
+                       color='blue', fontsize=9, ha='center', va='bottom',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='lightblue', 
+                                edgecolor='blue', alpha=0.8))
+                
                 # 如果有旋转角度，显示
                 fake_rotation = fake_gap.get('delta_theta_deg', 0)
                 if abs(fake_rotation) > 0.01:
-                    ax.text(fake_x, fake_y + fake_size/2 + 5, f'Rot: {fake_rotation:.1f}°',
+                    ax.text(fake_x, fake_y + fake_size/2 + 5, 
+                           f'Rot: {fake_rotation:.1f}°, Scale: {fake_scale:.2f}',
                            color='blue', fontsize=8, ha='center', va='top',
                            bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.6))
+                
+                # 画从真实缺口到混淆缺口的连接线（帮助理解距离）
+                ax.plot([gap_x, fake_x], [gap_y, fake_y], 'b:', linewidth=1, alpha=0.3)
+                
+                # 显示距离
+                distance = int(((fake_x - gap_x)**2 + (fake_y - gap_y)**2)**0.5)
+                mid_x, mid_y = (gap_x + fake_x) / 2, (gap_y + fake_y) / 2
+                ax.text(mid_x, mid_y, f'{distance}px', 
+                       color='blue', fontsize=7, ha='center', va='center',
+                       bbox=dict(boxstyle='round,pad=0.1', facecolor='white', alpha=0.5))
         
         # 画连接线（从滑块到缺口）
         ax.plot([slider_x, gap_x], [slider_y, gap_y], 'y--', linewidth=1, alpha=0.5,
@@ -279,7 +309,7 @@ def main():
     app = SingleCaptchaVisualizer(root)
     
     print("=" * 60)
-    print("Single CAPTCHA Visualizer")
+    print("Single CAPTCHA Visualizer - Enhanced Confusion Gap Display")
     print("=" * 60)
     print("Controls:")
     print("  Left/Right Arrow    : Previous/Next image")
@@ -287,12 +317,22 @@ def main():
     print("  Ctrl+Page Up/Down   : Jump 100 images")
     print("  ESC                 : Exit")
     print("=" * 60)
-    print("\nMarkers:")
-    print("  Green +  : Slider center position (with dashed box)")
-    print("  Red +    : Gap center position (with dashed box)")
-    print("  Blue x   : Fake gap position (with dashed box)")
-    print("  Yellow line : Distance from slider to gap")
-    print("  Text     : Rotation angles for gaps")
+    print("\nMarkers and Visualizations:")
+    print("  Green +     : Slider center position (with dashed box)")
+    print("  Red +       : Real gap center position (with dashed box)")
+    print("  Blue X + ○  : Confusion gap center position")
+    print("              - Blue circle highlights the center point")
+    print("              - Blue text box shows coordinates")
+    print("              - Dashed box shows gap boundary")
+    print("  Yellow line : Distance from slider to real gap")
+    print("  Blue dotted : Distance from real gap to confusion gaps")
+    print("  Text boxes  : Coordinates, rotation angles, and scale factors")
+    print("=" * 60)
+    print("\nConfusion Gap Information:")
+    print("  - Center coordinates displayed above each confusion gap")
+    print("  - Distance from real gap shown on connecting line")
+    print("  - Rotation and scale parameters shown below gap")
+    print("  - Info panel shows detailed list of all confusion gaps")
     print("=" * 60)
     
     root.mainloop()

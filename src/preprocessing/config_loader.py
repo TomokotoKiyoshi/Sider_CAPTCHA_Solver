@@ -44,7 +44,7 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         'preprocessing': {
             'letterbox': ['target_size', 'fill_value'],
             'coordinate': ['downsample'],
-            'heatmap': ['sigma', 'threshold']
+            'heatmap': ['sigma']  # 删除 'threshold'，预处理不使用它
         }
     }
     
@@ -126,8 +126,7 @@ def validate_preprocessing_config(config: Dict[str, Any]) -> bool:
     if not sigma or sigma <= 0:
         raise ValueError(f"sigma must be positive: {sigma}")
     
-    threshold = heatmap.get('threshold')
-    if not (0 < threshold < 1):
-        raise ValueError(f"threshold must be in range (0,1): {threshold}")
+    # threshold 已移除，预处理不使用它
+    # 如果配置中有 threshold，忽略它即可
     
     return True

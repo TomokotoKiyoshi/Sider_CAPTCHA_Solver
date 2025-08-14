@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-优化的多进程数据集生成器
-解决性能问题：预处理器重复初始化、数据序列化开销等
+流式数据集生成器
+使用可复用批缓冲区，避免内存累积
 """
 import json
 import numpy as np
@@ -9,12 +9,9 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
 from tqdm import tqdm
 from datetime import datetime
-import hashlib
-from multiprocessing import Pool, Manager
-from functools import partial
+from multiprocessing import Pool
 import warnings
-import cv2
-from PIL import Image
+import gc
 
 # 抑制警告
 warnings.filterwarnings('ignore')
@@ -30,7 +27,6 @@ def init_worker(config: Dict):
     global _global_preprocessor
     from .preprocessor import TrainingPreprocessor
     _global_preprocessor = TrainingPreprocessor(config)
-    # 不要在工作进程中打印，会干扰进度条
 
 def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
     """
@@ -71,12 +67,13 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
         )
         
         # 只返回必要的数据，减少序列化开销
+        # 注意：result中的数据已经是NumPy数组，不需要再调用.numpy()
         return {
             'sample_id': label.get('sample_id', 'unknown'),
-            'input': result['input'].numpy(),  # 转为numpy减少序列化开销
-            'heatmaps': result['heatmaps'].numpy(),
-            'offsets': result['offsets'].numpy(),
-            'weight_mask': result['weight_mask'].numpy(),
+            'input': result['input'],  # 已经是numpy数组
+            'heatmaps': result['heatmaps'],  # 已经是numpy数组
+            'offsets': result['offsets'],  # 已经是numpy数组
+            'weight_mask': result['weight_mask'],  # 已经是numpy数组
             'transform_params': result['transform_params'],
             'gap_grid': result['gap_grid'],
             'gap_offset': result['gap_offset'],
@@ -90,25 +87,14 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
         return None
 
 
-def process_batch_optimized(batch_labels: List[Dict]) -> List[Optional[Dict]]:
+class StreamingDatasetGenerator:
     """
-    批量处理样本，减少函数调用开销
-    """
-    results = []
-    for label in batch_labels:
-        result = process_single_sample_optimized(label)
-        results.append(result)
-    return results
-
-
-class DatasetGeneratorMPOptimized:
-    """
-    优化的多进程数据集生成器
-    主要优化：
-    1. 每个进程只初始化一次预处理器
-    2. 批量处理减少函数调用开销
-    3. 优化数据序列化
-    4. 动态调整chunksize
+    流式数据集生成器
+    核心优化：
+    1. 使用可复用的批缓冲区，避免内存累积
+    2. 批满即写盘，没有中间列表
+    3. 分文件保存避免临时zip缓冲
+    4. 内存使用稳定且可预测
     """
     
     def __init__(self,
@@ -118,7 +104,7 @@ class DatasetGeneratorMPOptimized:
                  batch_size: int = None,
                  num_workers: Optional[int] = None):
         """
-        初始化优化的多进程数据集生成器
+        初始化流式数据集生成器
         """
         from .config_loader import load_config
         from multiprocessing import cpu_count
@@ -136,7 +122,7 @@ class DatasetGeneratorMPOptimized:
         elif 'dataset' in self.config and 'batch_size' in self.config['dataset']:
             self.batch_size = self.config['dataset']['batch_size']
         else:
-            self.batch_size = 128
+            self.batch_size = 64
         
         # 设置工作进程数
         if num_workers is not None:
@@ -148,10 +134,24 @@ class DatasetGeneratorMPOptimized:
             self.num_workers = max(1, cpu_count() - 1)
             print(f"Using default num_workers: {self.num_workers} (CPU cores - 1)")
         
+        # 从配置读取输出结构
+        self.output_structure = self.config.get('output_structure', {
+            'image_subdir': 'images',
+            'label_subdir': 'labels'
+        })
+        self.file_naming = self.config.get('file_naming', {
+            'image_pattern': '{split}_{batch_id:04d}.npy',
+            'heatmap_pattern': '{split}_{batch_id:04d}_heatmaps.npy',
+            'offset_pattern': '{split}_{batch_id:04d}_offsets.npy',
+            'weight_pattern': '{split}_{batch_id:04d}_weights.npy',
+            'meta_pattern': '{split}_{batch_id:04d}_meta.json',
+            'index_pattern': '{split}_index.json'
+        })
+        
         # 创建输出目录
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        (self.output_dir / 'images').mkdir(exist_ok=True)
-        (self.output_dir / 'labels').mkdir(exist_ok=True)
+        (self.output_dir / self.output_structure['image_subdir']).mkdir(exist_ok=True)
+        (self.output_dir / self.output_structure['label_subdir']).mkdir(exist_ok=True)
         
         # 记录配置信息
         self.target_size = preprocessing_config['letterbox']['target_size']
@@ -164,13 +164,123 @@ class DatasetGeneratorMPOptimized:
             self.target_size[0] // self.downsample
         )
         
-        print(f"Optimized Multi-process dataset generator initialized")
+        # 初始化可复用的批缓冲区
+        self._init_batch_buffers()
+        
+        print(f"Streaming dataset generator initialized")
         print(f"  Data root: {self.data_root}")
         print(f"  Output dir: {self.output_dir}")
         print(f"  Batch size: {self.batch_size}")
         print(f"  Worker processes: {self.num_workers}")
         print(f"  Target size: {self.target_size}")
         print(f"  Grid size: {self.grid_size}")
+        print(f"  ✅ Using streaming write with reusable buffers")
+    
+    def _init_batch_buffers(self):
+        """初始化可复用的批缓冲区"""
+        # 预分配批缓冲区，避免重复分配
+        self._buf_images = np.empty((self.batch_size, *self.input_shape), dtype=np.float32)
+        self._buf_heatmaps = np.empty((self.batch_size, 2, *self.grid_size), dtype=np.float32)
+        self._buf_offsets = np.empty((self.batch_size, 4, *self.grid_size), dtype=np.float32)
+        self._buf_weight_masks = np.empty((self.batch_size, *self.grid_size), dtype=np.float32)
+        
+        # 元数据缓冲（这些比较小，可以用列表）
+        self._buf_metadata = {
+            'sample_ids': [],
+            'transform_params': [],
+            'grid_coords': [],
+            'offsets_meta': [],
+            'confusing_gaps': [],
+            'gap_angles': []
+        }
+        
+        # 写入指针
+        self._buf_ptr = 0
+        self._batch_counter = 0
+    
+    def _reset_metadata_buffer(self):
+        """重置元数据缓冲"""
+        self._buf_metadata = {
+            'sample_ids': [],
+            'transform_params': [],
+            'grid_coords': [],
+            'offsets_meta': [],
+            'confusing_gaps': [],
+            'gap_angles': []
+        }
+    
+    def _write_sample_to_buffer(self, sample: Dict[str, Any]) -> bool:
+        """
+        将样本写入缓冲区
+        
+        Returns:
+            True if buffer is full and needs to be flushed
+        """
+        idx = self._buf_ptr
+        
+        # 直接写入预分配的数组缓冲区
+        self._buf_images[idx] = sample['input']
+        self._buf_heatmaps[idx] = sample['heatmaps']
+        self._buf_offsets[idx] = sample['offsets']
+        self._buf_weight_masks[idx] = sample['weight_mask']
+        
+        # 元数据添加到列表
+        self._buf_metadata['sample_ids'].append(sample['sample_id'])
+        self._buf_metadata['transform_params'].append(sample['transform_params'])
+        self._buf_metadata['grid_coords'].append({
+            'gap': sample['gap_grid'],
+            'slider': sample['slider_grid']
+        })
+        self._buf_metadata['offsets_meta'].append({
+            'gap': sample['gap_offset'],
+            'slider': sample['slider_offset']
+        })
+        self._buf_metadata['confusing_gaps'].append(sample.get('confusing_gaps', []))
+        self._buf_metadata['gap_angles'].append(sample.get('gap_angle', 0.0))
+        
+        # 移动指针
+        self._buf_ptr += 1
+        
+        # 检查是否需要刷新缓冲区
+        return self._buf_ptr >= self.batch_size
+    
+    def _flush_buffer_to_disk(self, split: str):
+        """将当前缓冲区写入磁盘"""
+        if self._buf_ptr == 0:
+            return  # 空缓冲区，无需写入
+        
+        batch_size = self._buf_ptr
+        batch_id = self._batch_counter
+        
+        # 使用配置的文件命名模式准备文件路径
+        image_path = self.output_dir / self.output_structure['image_subdir'] / self.file_naming['image_pattern'].format(split=split, batch_id=batch_id)
+        heatmap_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['heatmap_pattern'].format(split=split, batch_id=batch_id)
+        offset_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['offset_pattern'].format(split=split, batch_id=batch_id)
+        weight_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['weight_pattern'].format(split=split, batch_id=batch_id)
+        meta_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['meta_pattern'].format(split=split, batch_id=batch_id)
+        
+        # 分文件保存，避免np.savez的临时zip缓冲
+        # 只保存实际使用的部分（0:batch_size）
+        np.save(image_path, self._buf_images[:batch_size])
+        np.save(heatmap_path, self._buf_heatmaps[:batch_size])
+        np.save(offset_path, self._buf_offsets[:batch_size])
+        np.save(weight_path, self._buf_weight_masks[:batch_size])
+        
+        # 保存元数据
+        metadata = {
+            'batch_id': batch_id,
+            'batch_size': batch_size,
+            **self._buf_metadata
+        }
+        with open(meta_path, 'w', encoding='utf-8') as f:
+            json.dump(metadata, f, indent=2)
+        
+        print(f"  ✅ Batch {batch_id} saved: {batch_size} samples")
+        
+        # 重置缓冲区指针和元数据
+        self._buf_ptr = 0
+        self._reset_metadata_buffer()
+        self._batch_counter += 1
     
     def load_labels(self, labels_path: str) -> List[Dict]:
         """加载标签文件"""
@@ -186,9 +296,11 @@ class DatasetGeneratorMPOptimized:
     
     def generate_dataset(self, labels_path: str, split: str = 'train', max_samples: Optional[int] = None):
         """
-        使用优化的多进程生成数据集
+        使用流式写入生成数据集
         """
-        print(f"\nGenerating {split} dataset (Optimized Version)...")
+        print(f"\n{'='*60}")
+        print(f"Generating {split} dataset (Streaming Version)")
+        print(f"{'='*60}")
         print(f"Using {self.num_workers} parallel processes")
         
         # 加载标签
@@ -199,159 +311,71 @@ class DatasetGeneratorMPOptimized:
             labels = labels[:max_samples]
             print(f"Limiting to {max_samples} samples for testing")
         
-        # 准备批量处理
-        processed_samples = []
+        # 重置缓冲区
+        self._buf_ptr = 0
+        self._batch_counter = 0
+        self._reset_metadata_buffer()
+        
         failed_count = 0
         
-        # 动态计算最优chunksize
-        # 对于I/O密集型任务，较小的chunksize更好
-        samples_per_worker = len(labels) // self.num_workers
-        chunksize = min(10, max(1, samples_per_worker // 10))
-        print(f"Using chunksize: {chunksize}")
+        # 从配置读取参数
+        chunk_size_config = self.config.get('dataset', {}).get('chunk_size', 20)
+        maxtasksperchild = self.config.get('dataset', {}).get('maxtasksperchild', 10)
+        gc_interval = self.config.get('dataset', {}).get('gc_interval', 2)
         
-        # 创建进程池，使用初始化函数
+        print(f"Configuration:")
+        print(f"  Chunk size: {chunk_size_config}")
+        print(f"  Max tasks per child: {maxtasksperchild}")
+        print(f"  GC interval: every {gc_interval} batches")
+        print(f"  💡 Streaming write enabled - no memory accumulation")
+        
+        # 创建进程池
         with Pool(
             processes=self.num_workers,
             initializer=init_worker,
-            initargs=(self.config,)
+            initargs=(self.config,),
+            maxtasksperchild=maxtasksperchild
         ) as pool:
             
-            # 使用imap_unordered获得更好的性能
-            batch_counter = 0
             with tqdm(total=len(labels), desc=f"Processing {split} samples") as pbar:
-                # 批量处理模式
-                if chunksize > 1:
-                    # 将标签分组
-                    label_batches = [labels[i:i+chunksize] 
-                                   for i in range(0, len(labels), chunksize)]
+                # 使用imap_unordered流式处理
+                for processed in pool.imap_unordered(
+                    process_single_sample_optimized,
+                    labels,
+                    chunksize=chunk_size_config
+                ):
+                    if processed is not None:
+                        # 直接写入缓冲区
+                        if self._write_sample_to_buffer(processed):
+                            # 缓冲区满，立即写盘
+                            self._flush_buffer_to_disk(split)
+                            
+                            # 定期强制垃圾回收
+                            if self._batch_counter % gc_interval == 0:
+                                gc.collect(2)  # 完整垃圾回收
+                    else:
+                        failed_count += 1
                     
-                    for batch_results in pool.imap_unordered(
-                        process_batch_optimized, 
-                        label_batches
-                    ):
-                        for processed in batch_results:
-                            if processed is not None:
-                                processed_samples.append(processed)
-                            else:
-                                failed_count += 1
-                        pbar.update(len(batch_results))
-                        
-                        # 当积累够一个批次时，立即保存
-                        if len(processed_samples) >= self.batch_size:
-                            self._save_single_batch(processed_samples[:self.batch_size], split, batch_counter)
-                            processed_samples = processed_samples[self.batch_size:]
-                            batch_counter += 1
-                else:
-                    # 单个处理模式
-                    for processed in pool.imap_unordered(
-                        process_single_sample_optimized, 
-                        labels,
-                        chunksize=1
-                    ):
-                        if processed is not None:
-                            processed_samples.append(processed)
-                        else:
-                            failed_count += 1
-                        pbar.update(1)
-                        
-                        # 当积累够一个批次时，立即保存
-                        if len(processed_samples) >= self.batch_size:
-                            self._save_single_batch(processed_samples[:self.batch_size], split, batch_counter)
-                            processed_samples = processed_samples[self.batch_size:]
-                            batch_counter += 1
+                    pbar.update(1)
         
-        # 保存剩余的样本
-        if processed_samples:
-            self._save_single_batch(processed_samples, split, batch_counter)
-            
-        print(f"\nDataset generation completed:")
-        print(f"  Success: {len(labels) - failed_count}")
-        print(f"  Failed: {failed_count}")
+        # 保存剩余的样本（未满一批的）
+        if self._buf_ptr > 0:
+            self._flush_buffer_to_disk(split)
+        
+        print(f"\n{'='*60}")
+        print(f"Dataset generation completed:")
+        print(f"  ✅ Success: {len(labels) - failed_count}")
+        print(f"  ❌ Failed: {failed_count}")
+        print(f"  📦 Total batches: {self._batch_counter}")
+        print(f"{'='*60}")
         
         # 生成索引文件
         if len(labels) - failed_count > 0:
             self._generate_index(split)
     
-    def _save_batches(self, samples: List[Dict], split: str):
-        """保存处理后的样本为批量文件"""
-        num_batches = (len(samples) + self.batch_size - 1) // self.batch_size
-        
-        for batch_id in range(num_batches):
-            start_idx = batch_id * self.batch_size
-            end_idx = min(start_idx + self.batch_size, len(samples))
-            batch_samples = samples[start_idx:end_idx]
-            
-            self._save_single_batch(batch_samples, split, batch_id)
-    
-    def _save_single_batch(self, batch_samples: List[Dict], split: str, batch_id: int):
-        """保存单个批次"""
-        batch_size = len(batch_samples)
-        
-        # 准备批量数组
-        images = np.zeros((batch_size, *self.input_shape), dtype=np.float32)
-        heatmaps = np.zeros((batch_size, 2, *self.grid_size), dtype=np.float32)
-        offsets = np.zeros((batch_size, 4, *self.grid_size), dtype=np.float32)
-        weight_masks = np.zeros((batch_size, *self.grid_size), dtype=np.float32)
-        
-        # 元数据
-        metadata = {
-            'batch_id': batch_id,
-            'batch_size': batch_size,
-            'sample_ids': [],
-            'transform_params': [],
-            'grid_coords': [],
-            'offsets_meta': [],
-            'confusing_gaps': [],
-            'gap_angles': []
-        }
-        
-        # 填充数组
-        for i, sample in enumerate(batch_samples):
-            images[i] = sample['input']
-            heatmaps[i] = sample['heatmaps']
-            offsets[i] = sample['offsets']
-            weight_masks[i] = sample['weight_mask']
-            
-            metadata['sample_ids'].append(sample['sample_id'])
-            metadata['transform_params'].append(sample['transform_params'])
-            metadata['grid_coords'].append({
-                'gap': sample['gap_grid'],
-                'slider': sample['slider_grid']
-            })
-            metadata['offsets_meta'].append({
-                'gap': sample['gap_offset'],
-                'slider': sample['slider_offset']
-            })
-            metadata['confusing_gaps'].append(sample.get('confusing_gaps', []))
-            metadata['gap_angles'].append(sample.get('gap_angle', 0.0))
-        
-        # 保存文件
-        image_path = self.output_dir / 'images' / f'{split}_{batch_id:04d}.npy'
-        labels_path = self.output_dir / 'labels' / f'{split}_{batch_id:04d}.npz'
-        meta_path = self.output_dir / 'labels' / f'{split}_{batch_id:04d}_meta.json'
-        
-        # 保存图像
-        np.save(image_path, images)
-        
-        # 保存标签（压缩）
-        np.savez_compressed(
-            labels_path,
-            heatmaps=heatmaps,
-            offsets=offsets,
-            weight_masks=weight_masks
-        )
-        
-        # 保存元数据
-        with open(meta_path, 'w', encoding='utf-8') as f:
-            json.dump(metadata, f, indent=2)
-        
-        print(f"  Saved batch {batch_id}: {batch_size} samples")
-    
     def _generate_index(self, split: str):
         """生成数据集索引文件"""
-        image_files = sorted((self.output_dir / 'images').glob(f'{split}_*.npy'))
-        label_files = sorted((self.output_dir / 'labels').glob(f'{split}_*.npz'))
-        meta_files = sorted((self.output_dir / 'labels').glob(f'{split}_*_meta.json'))
+        image_files = sorted((self.output_dir / self.output_structure['image_subdir']).glob(f'{split}_*.npy'))
         
         index = {
             'split': split,
@@ -363,25 +387,30 @@ class DatasetGeneratorMPOptimized:
             'batches': []
         }
         
-        for img_file, label_file, meta_file in zip(image_files, label_files, meta_files):
+        for img_file in image_files:
+            batch_id = int(img_file.stem.split('_')[-1])
+            meta_file = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['meta_pattern'].format(split=split, batch_id=batch_id)
+            
             with open(meta_file, 'r', encoding='utf-8') as f:
                 meta = json.load(f)
             
             batch_info = {
-                'batch_id': meta['batch_id'],
+                'batch_id': batch_id,
                 'batch_size': meta['batch_size'],
                 'image_file': img_file.name,
-                'label_file': label_file.name,
+                'heatmap_file': self.file_naming['heatmap_pattern'].format(split=split, batch_id=batch_id),
+                'offset_file': self.file_naming['offset_pattern'].format(split=split, batch_id=batch_id),
+                'weight_file': self.file_naming['weight_pattern'].format(split=split, batch_id=batch_id),
                 'meta_file': meta_file.name
             }
             index['batches'].append(batch_info)
             index['total_samples'] += meta['batch_size']
         
         # 保存索引
-        index_path = self.output_dir / f"{split}_index.json"
+        index_path = self.output_dir / self.file_naming['index_pattern'].format(split=split)
         with open(index_path, 'w', encoding='utf-8') as f:
             json.dump(index, f, indent=2)
         
-        print(f"\nGenerated index file: {index_path}")
+        print(f"\n📋 Generated index file: {index_path}")
         print(f"  Total batches: {len(image_files)}")
         print(f"  Total samples: {index['total_samples']}")

@@ -1,32 +1,16 @@
 # -*- coding: utf-8 -*-
 """
 模型模块
-包含Lite-HRNet-18的所有组件
+Lite-HRNet-18+LiteFPN 滑块验证码识别模型
 """
-from .modules import LiteBlock
-from .stem import Stem, create_stem
-from .utils import init_weights, count_parameters, get_model_size
-from .config_loader import (
-    load_model_config,
-    get_stem_config,
-    get_input_config
-)
+
+# 主模型接口
+from .lite_hrnet_18_fpn import LiteHRNet18FPN, create_lite_hrnet_18_fpn
 
 __all__ = [
-    # 基础组件
-    'LiteBlock',
+    # 主模型类
+    'LiteHRNet18FPN',
     
-    # Stem阶段
-    'Stem',
-    'create_stem',
-    
-    # 工具函数
-    'init_weights',
-    'count_parameters', 
-    'get_model_size',
-    
-    # 配置加载
-    'load_model_config',
-    'get_stem_config',
-    'get_input_config'
+    # 模型创建函数
+    'create_lite_hrnet_18_fpn',
 ]

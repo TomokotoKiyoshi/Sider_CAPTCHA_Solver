@@ -53,17 +53,15 @@ class DatasetSplitter:
         
         # 路径配置
         input_dir = self.config_loader.get('data_split.paths.input_dir')
-        output_dir = self.config_loader.get('data_split.paths.output_dir')
         metadata_dir = self.config_loader.get('data_split.paths.metadata_dir')
         if input_dir is None:
             raise ValueError("Must configure paths.input_dir in data_split.yaml")
-        if output_dir is None:
-            raise ValueError("Must configure paths.output_dir in data_split.yaml")
         if metadata_dir is None:
             raise ValueError("Must configure paths.metadata_dir in data_split.yaml")
         
         self.input_dir = Path(project_root) / input_dir
-        self.output_dir = Path(project_root) / output_dir
+        # 固定输出到split_for_training目录
+        self.output_dir = Path(project_root) / 'data' / 'split_for_training'
         self.metadata_dir = Path(project_root) / metadata_dir
         
         # 选项配置
@@ -139,66 +137,16 @@ class DatasetSplitter:
     def create_dataset_json(self, 
                           dataset_type: str,
                           image_ids: List[str],
-                          image_groups: Dict[str, List[Dict]]) -> Dict:
-        """创建数据集JSON内容"""
-        samples = []
+                          image_groups: Dict[str, List[Dict]]) -> List[str]:
+        """创建简化的数据集JSON内容 - 只包含文件名列表"""
+        filenames = []
         
         for pic_id in image_ids:
             for ann in image_groups[pic_id]:
-                # 构建样本信息
-                # 从bg_center和sd_center提取坐标
-                bg_center = ann.get('bg_center', [0, 0])
-                sd_center = ann.get('sd_center', [0, 0])
-                
-                # 解析confusion_type和confusion_details
-                confusion_type = ann.get('confusion_type', 'none')
-                confusion_details_str = ann.get('confusion_details', '')
-                
-                # 根据confusion_type推断策略
-                confusion_strategies = {
-                    'confusion_type': confusion_type,
-                    'confusion_details': confusion_details_str,
-                    'rotated_gap': 'rotated_gap' in confusion_type,
-                    'perlin_noise': 'perlin_noise' in confusion_type,
-                    'confusing_gap': 'confusing_gap' in confusion_type,
-                    'gap_highlight': 'gap_highlight' in confusion_type
-                }
-                
-                sample = {
-                    'filename': ann['filename'],
-                    'relative_path': f"../generated/{ann['filename']}",
-                    'image_info': {
-                        'width': ann.get('image_width', 320),
-                        'height': ann.get('image_height', 160),
-                        'original_pic_id': pic_id
-                    },
-                    'annotations': {
-                        'gap_x': bg_center[0] if isinstance(bg_center, list) else bg_center,
-                        'gap_y': bg_center[1] if isinstance(bg_center, list) else 0,
-                        'slider_x': sd_center[0] if isinstance(sd_center, list) else sd_center,
-                        'slider_y': sd_center[1] if isinstance(sd_center, list) else 0,
-                        'puzzle_size': ann.get('size', 40),
-                        'shape': ann.get('shape', 'unknown'),
-                        'confusion_strategies': confusion_strategies
-                    },
-                    'metadata': {
-                        'background_hash': ann.get('background_hash', ''),
-                        'hash': ann.get('hash', ''),
-                        'aspect_ratio': ann.get('aspect_ratio', 1.0),
-                        'generation_metadata': ann.get('metadata', {})
-                    }
-                }
-                samples.append(sample)
+                # 只保留文件名
+                filenames.append(ann['filename'])
         
-        # 构建完整的数据集JSON
-        dataset_json = {
-            'dataset_type': dataset_type,
-            'num_samples': len(samples),
-            'num_unique_images': len(image_ids),
-            'samples': samples
-        }
-        
-        return dataset_json
+        return filenames
     
     def create_split_info(self,
                          train_ids: List[str],
@@ -259,7 +207,8 @@ class DatasetSplitter:
         filepath = self.output_dir / filename
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"Saved {filename} ({len(data.get('samples', []))} samples)")
+        num_samples = data.get('num_samples', len(data.get('filenames', [])))
+        print(f"Saved {filename} ({num_samples} samples)")
     
     def run(self):
         """执行数据集划分"""
@@ -295,19 +244,34 @@ class DatasetSplitter:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         print(f"\nCreated output directory: {self.output_dir}")
         
-        # 5. 生成数据集JSON文件
-        print("\nGenerating dataset JSON files...")
+        # 5. 生成数据集JSON文件（简化版 - 只包含文件名）
+        print("\nGenerating simplified dataset JSON files (filenames only)...")
         
         # Train set
-        train_json = self.create_dataset_json('train', train_ids, image_groups)
+        train_filenames = self.create_dataset_json('train', train_ids, image_groups)
+        train_json = {
+            'dataset_type': 'train',
+            'num_samples': len(train_filenames),
+            'filenames': train_filenames
+        }
         self.save_json(train_json, 'train.json')
         
         # Validation set
-        val_json = self.create_dataset_json('val', val_ids, image_groups)
+        val_filenames = self.create_dataset_json('val', val_ids, image_groups)
+        val_json = {
+            'dataset_type': 'val',
+            'num_samples': len(val_filenames),
+            'filenames': val_filenames
+        }
         self.save_json(val_json, 'val.json')
         
         # Test set
-        test_json = self.create_dataset_json('test', test_ids, image_groups)
+        test_filenames = self.create_dataset_json('test', test_ids, image_groups)
+        test_json = {
+            'dataset_type': 'test',
+            'num_samples': len(test_filenames),
+            'filenames': test_filenames
+        }
         self.save_json(test_json, 'test.json')
         
         # 6. 生成划分信息文件
@@ -332,7 +296,7 @@ class DatasetSplitter:
               f"({split_info['statistics']['test']['percentage']:.1f}%)")
         print("=" * 60)
         print("Dataset splitting completed successfully!")
-        print(f"JSON files saved to: {self.output_dir}")
+        print(f"Simplified JSON files (filenames only) saved to: {self.output_dir}")
         print("=" * 60)
         
         return 0

@@ -7,8 +7,9 @@ from typing import Tuple, Dict, Optional, Union, List, Any
 import numpy as np
 import cv2
 from PIL import Image
-import torch
-import torch.nn.functional as F
+# 移除PyTorch以解决内存泄漏
+# import torch
+# import torch.nn.functional as F
 
 
 class LetterboxTransform:
@@ -174,10 +175,10 @@ class CoordinateTransform:
             y_prime = scale * y + pad_top
             return (x_prime, y_prime)
         else:
-            # 处理numpy数组
-            coords_prime = coords.copy().astype(np.float32)
-            coords_prime[..., 0] = scale * coords[..., 0] + pad_left
-            coords_prime[..., 1] = scale * coords[..., 1] + pad_top
+            # 处理numpy数组 - 优化：避免双重复制
+            coords_prime = coords.astype(np.float32, copy=True)
+            coords_prime[..., 0] = scale * coords_prime[..., 0] + pad_left
+            coords_prime[..., 1] = scale * coords_prime[..., 1] + pad_top
             return coords_prime
     
     def input_to_original(self, coords: Union[Tuple[float, float], np.ndarray],
@@ -202,9 +203,10 @@ class CoordinateTransform:
             y = (y_prime - pad_top) / scale
             return (x, y)
         else:
-            coords_orig = coords.copy().astype(np.float32)
-            coords_orig[..., 0] = (coords[..., 0] - pad_left) / scale
-            coords_orig[..., 1] = (coords[..., 1] - pad_top) / scale
+            # 优化：避免双重复制
+            coords_orig = coords.astype(np.float32, copy=True)
+            coords_orig[..., 0] = (coords_orig[..., 0] - pad_left) / scale
+            coords_orig[..., 1] = (coords_orig[..., 1] - pad_top) / scale
             return coords_orig
     
     def pixel_to_grid(self, x: float, y: float) -> Tuple[Tuple[int, int], Tuple[float, float]]:
@@ -301,7 +303,7 @@ class TrainingPreprocessor:
                   gap_center: Tuple[int, int],
                   slider_center: Tuple[int, int],
                   confusing_gaps: Optional[List[Tuple[int, int]]] = None,
-                  gap_angle: float = 0.0) -> Dict[str, Union[np.ndarray, torch.Tensor, Dict]]:
+                  gap_angle: float = 0.0) -> Dict[str, Union[np.ndarray, Dict]]:
         """
         完整的训练预处理流程
         
@@ -335,10 +337,12 @@ class TrainingPreprocessor:
         # 3. 生成padding mask
         padding_mask = self.letterbox.create_padding_mask(transform_params)
         
-        # 4. 组合4通道输入
+        # 4. 组合4通道输入 - 优化：使用更高效的内存布局
         image_normalized = image_letterboxed.astype(np.float32) / 255.0
+        # 使用ascontiguousarray避免transpose创建新数组
+        image_channels = np.ascontiguousarray(image_normalized.transpose(2, 0, 1))
         input_tensor = np.concatenate([
-            image_normalized.transpose(2, 0, 1),  # [3, H, W]
+            image_channels,                       # [3, H, W]
             padding_mask[np.newaxis, :, :]        # [1, H, W]
         ], axis=0)  # [4, H, W]
         
@@ -369,11 +373,12 @@ class TrainingPreprocessor:
                 conf_grid, _ = self.coord_transform.pixel_to_grid(*conf_input)
                 confusing_grids.append(conf_grid)
         
+        # 优化：数据已经是float32，不需要再转换
         return {
-            'input': torch.from_numpy(input_tensor).float(),
-            'heatmaps': torch.from_numpy(heatmaps).float(),
-            'offsets': torch.from_numpy(offsets).float(),
-            'weight_mask': torch.from_numpy(weight_mask).float(),
+            'input': input_tensor,  # 已经是float32
+            'heatmaps': heatmaps,   # 已经是float32
+            'offsets': offsets,     # 已经是float32
+            'weight_mask': weight_mask,  # 已经是float32
             'gap_grid': gap_grid,  # 添加网格坐标
             'gap_offset': gap_offset,  # 添加偏移
             'slider_grid': slider_grid,  # 添加滑块网格
@@ -458,13 +463,28 @@ class TrainingPreprocessor:
         Returns:
             权重掩码 [H/4, W/4]，有效区域=1，padding区域=0
         """
-        # 使用平均池化下采样
-        mask_tensor = torch.from_numpy(padding_mask).unsqueeze(0).unsqueeze(0).float()
-        mask_downsampled = F.avg_pool2d(mask_tensor, kernel_size=self.downsample, 
-                                       stride=self.downsample)
+        # 使用NumPy实现平均池化下采样，避免PyTorch内存泄漏
+        h, w = padding_mask.shape
+        h_out = h // self.downsample
+        w_out = w // self.downsample
+        
+        # 创建输出数组
+        mask_downsampled = np.zeros((h_out, w_out), dtype=np.float32)
+        
+        # 执行平均池化
+        for i in range(h_out):
+            for j in range(w_out):
+                # 计算池化窗口的起始和结束位置
+                h_start = i * self.downsample
+                h_end = h_start + self.downsample
+                w_start = j * self.downsample
+                w_end = w_start + self.downsample
+                
+                # 计算窗口内的平均值
+                mask_downsampled[i, j] = padding_mask[h_start:h_end, w_start:w_end].mean()
         
         # 转换：padding mask是1表示padding，权重掩码需要相反
-        weight_mask = 1 - mask_downsampled.squeeze().numpy()
+        weight_mask = 1 - mask_downsampled
         
         return weight_mask
 
@@ -501,7 +521,7 @@ class InferencePreprocessor:
         self.target_size = target_size
         self.downsample = downsample
     
-    def preprocess(self, image: Union[np.ndarray, Image.Image, str]) -> Tuple[torch.Tensor, Dict]:
+    def preprocess(self, image: Union[np.ndarray, Image.Image, str]) -> Tuple[np.ndarray, Dict]:
         """
         推理预处理
         
@@ -531,7 +551,8 @@ class InferencePreprocessor:
             padding_mask[np.newaxis, :, :]
         ], axis=0)
         
-        return torch.from_numpy(input_tensor).float(), transform_params
+        # 推理时返回NumPy数组，避免在多进程中创建PyTorch张量
+        return input_tensor.astype(np.float32), transform_params
     
     def postprocess(self, predictions: Dict[str, Tuple[Tuple[int, int], Tuple[float, float]]],
                    transform_params: Dict) -> Dict[str, Tuple[float, float]]:
