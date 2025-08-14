@@ -5,7 +5,7 @@ Lite-HRNet-18的特征提取阶段 (Stage1)
 """
 import torch
 import torch.nn as nn
-from .lite_block import LiteBlock
+from .modules import ConvBNAct, LiteBlock
 
 
 class Stem(nn.Module):
@@ -27,18 +27,26 @@ class Stem(nn.Module):
         
         # Conv1: 3×3, stride=2, 32通道
         # [B, 4, 256, 512] → [B, 32, 128, 256]
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(out_channels, eps=1e-5, momentum=0.1),
-            nn.SiLU(inplace=True)
+        self.conv1 = ConvBNAct(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            stride=2,
+            groups=1,
+            act_type='silu'
+            # padding自动计算
         )
         
         # Conv2: 3×3, stride=2, 32通道
         # [B, 32, 128, 256] → [B, 32, 64, 128]
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
-            nn.BatchNorm2d(out_channels, eps=1e-5, momentum=0.1),
-            nn.SiLU(inplace=True)
+        self.conv2 = ConvBNAct(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=3,
+            stride=2,
+            groups=1,
+            act_type='silu'
+            # padding自动计算
         )
         
         # LiteBlock×2: 保持分辨率不变

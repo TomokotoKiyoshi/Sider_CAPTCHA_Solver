@@ -27,7 +27,11 @@
 - **1/8 分支**：`LiteBlock(64,e=2,s=1) × 2`
   - `S2_1/8_in → S2_1/8_mid = [B,64,32,64]`
 
-> LiteBlock 结构：PW-Expand 1×1(C→eC) → DWConv 3×3(s=1) → PW-Project 1×1(eC→C)，每层后 BN+SiLU；若 s=1 且 Cin=Cout 用残差。
+> LiteBlock 结构：PW-Expand 1×1(C→eC) → DWConv 3×3(s=1) → PW-Project 1×1(eC→C)
+> - PW-Expand后：BN+SiLU激活
+> - DWConv后：BN+SiLU激活
+> - PW-Project后：仅BN，**无激活函数**（线性输出）
+> - 若 s=1 且 Cin=Cout 使用残差连接
 
 ### 2.0.3 跨尺度融合（CRF-2）（与 HRNet 同型：对齐→相加→平滑）
 

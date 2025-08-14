@@ -3,7 +3,7 @@
 模型模块
 包含Lite-HRNet-18的所有组件
 """
-from .lite_block import LiteBlock
+from .modules import LiteBlock
 from .stem import Stem, create_stem
 from .utils import init_weights, count_parameters, get_model_size
 from .config_loader import (

@@ -26,7 +26,11 @@
 - **Branch_1/16**：`LiteBlock(128,e=2) ×3`
   - I/O：`Z3_in → Z3_mid = [B,128,16,32]`
 
-> LiteBlock：PW-Expand 1×1(C→2C) → DW 3×3 → PW-Project 1×1(2C→C)，层层 BN+SiLU；s=1 且 Cin=Cout 使用残差。
+> LiteBlock：PW-Expand 1×1(C→2C) → DW 3×3 → PW-Project 1×1(2C→C)
+> - PW-Expand后：BN+SiLU激活
+> - DW后：BN+SiLU激活
+> - PW-Project后：仅BN，**无激活函数**（线性输出）
+> - s=1 且 Cin=Cout 使用残差连接
 
 ### (C) 跨尺度融合（CRF-3，HRNet 风格：对齐→相加→平滑）
 

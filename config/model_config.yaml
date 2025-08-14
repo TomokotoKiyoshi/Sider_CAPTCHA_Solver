@@ -81,21 +81,52 @@ backbone:
       
     # Stage2配置
     stage2:
-      num_branches: 2
-      num_blocks: [2, 2]
-      channels: [32, 64]  # 1/4分辨率: 32, 1/8分辨率: 64
+      # 通道配置 - 决定模型容量
+      channels: [32, 64]  # [1/4分辨率, 1/8分辨率]
+      # 块数量配置 - 决定深度
+      num_blocks: [2, 2]  # 每个分支的LiteBlock数量
+      # 扩张倍率 - 影响参数量
+      expansion: 2
       
     # Stage3配置
     stage3:
-      num_branches: 3
-      num_blocks: [3, 3, 3]
-      channels: [32, 64, 128]  # 1/4: 32, 1/8: 64, 1/16: 128
+      # 通道配置 - 决定模型容量
+      channels: [32, 64, 128]  # [1/4分辨率, 1/8分辨率, 1/16分辨率]
+      # 块数量配置 - 决定深度
+      num_blocks: [3, 3, 3]  # 每个分支的LiteBlock数量
+      # 扩张倍率 - 影响参数量
+      expansion: 2
       
     # Stage4配置
     stage4:
-      num_branches: 4
-      num_blocks: [2, 2, 2, 2]
-      channels: [32, 64, 128, 256]  # 1/4: 32, 1/8: 64, 1/16: 128, 1/32: 256
+      # 通道配置 - 决定模型容量
+      channels: [32, 64, 128, 256]  # [1/4, 1/8, 1/16, 1/32分辨率]
+      # 块数量配置 - 决定深度
+      num_blocks: [2, 2, 2, 2]  # 每个分支的LiteBlock数量
+      # 扩张倍率 - 影响参数量
+      expansion: 2
+      
+    # Stage5配置 (LiteFPN)
+    stage5_lite_fpn:
+      # 输入通道配置（来自Stage4的四个分支）
+      in_channels: [32, 64, 128, 256]  # [1/4, 1/8, 1/16, 1/32分辨率]
+      # FPN统一通道数
+      fpn_channels: 128
+      # 融合类型: 'add' (直接相加), 'weighted' (可学习权重), 'attention' (通道注意力)
+      fusion_type: 'weighted'
+      # 是否返回中间金字塔特征（用于辅助监督）
+      return_pyramid: false
+      
+    # Stage6配置 (双头预测网络)
+    stage6_dual_head:
+      # 输入通道数（来自Stage5 LiteFPN的Hf）
+      in_channels: 128
+      # 中间层通道数
+      mid_channels: 64
+      # 是否使用角度预测头（用于处理微旋转）
+      use_angle: true
+      # 是否使用tanh限制偏移范围到[-0.5, 0.5]
+      use_tanh_offset: true
       
   # 输出分辨率 (相对于输入)
   output_scales: [1/4, 1/8, 1/16, 1/32]

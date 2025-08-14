@@ -1,0 +1,61 @@
+# Loss Function Configuration
+# Stage7 Loss Configuration for Slider CAPTCHA Solver
+
+# Focal Loss Configuration (CenterNet-style heatmap loss)
+focal_loss:
+  alpha: 1.5          # Focusing parameter for positive samples
+  beta: 4.0           # Distance weighting parameter for negative samples
+  pos_threshold: 0.8  # Threshold for positive samples (adjust based on Gaussian peak)
+  eps: 1.0e-8        # Numerical stability constant
+
+# Offset Loss Configuration (Sub-pixel regression)
+offset_loss:
+  beta: 1.0                # Smooth L1 beta parameter
+
+# Hard Negative Loss Configuration (False gap suppression)
+hard_negative_loss:
+  margin: 0.2              # Margin for ranking loss (m=0.2~0.3)
+  score_type: bilinear     # Options: bilinear, nearest
+  neighborhood_size: 3     # Size of neighborhood (3x3)
+  reduction: mean          # Options: mean, sum
+
+# Angle Loss Configuration (Micro-rotation prediction)
+angle_loss:
+  loss_type: cosine        # Options: cosine, l2, smooth_l1
+  pos_threshold: 0.7       # Threshold for supervision region
+  temperature: 1.0         # Temperature for cosine similarity
+  reduction: mean          # Options: mean, sum
+
+# Total Loss Configuration
+total_loss:
+  # Loss weights (λ in the formula)
+  weights:
+    heatmap: 1.0         # Weight for heatmap losses (gap + piece)
+    offset: 1.0          # Weight for offset loss (λ=1.0 from documentation)
+    hard_negative: 0.5   # Weight for hard negative loss
+    angle: 0.5           # Weight for angle loss
+  
+  # Feature flags
+  use_angle: false           # Enable angle loss (for rotated gaps)
+  use_hard_negative: true    # Enable hard negative loss (for confusing gaps)
+  
+  # Advanced options
+  loss_class: total          # Options: total, adaptive_total
+  weight_schedule: constant  # Options: constant, linear, cosine (for adaptive)
+  balance_losses: false      # Auto-balance loss magnitudes (for adaptive)
+
+# Model-specific configurations for different stages
+stage_configs:
+  stage7:
+    focal_loss:
+      alpha: 1.5
+      beta: 4.0
+      pos_threshold: 0.8
+    offset_loss:
+      beta: 1.0
+    total_loss:
+      weights:
+        heatmap: 1.0
+        offset: 1.0
+        hard_negative: 0.5
+        angle: 0.5

@@ -83,11 +83,16 @@ L_heat = Σ_{i,j}(L_focal(P,Y)_ij * W_1/4,ij) / (Σ_{i,j}W_1/4,ij + ε)
 ### 作用
 回归每个中心在其栅格内的连续偏移，实现亚像素定位。
 
-### 预测
+### 预测张量
 ```
-O = [B,4,64,128]  # 通道(du_g, dv_g, du_p, dv_p)
+O = [B,4,64,128]  # 四通道分别是 (du_g, dv_g, du_p, dv_p)
 ```
-用`tanh × 0.5`限到`[−0.5, 0.5]`
+网络输出通过 `tanh × 0.5` 映射到 `[−0.5, 0.5]`
+
+### 读取对应单点预测
+按batch第b个样本：
+- Gap: `d̂_x(g) = O[b,0,:,:]`, `d̂_y(g) = O[b,1,:,:]`
+- Piece: `d̂_x(p) = O[b,2,:,:]`, `d̂_y(p) = O[b,3,:,:]`
 
 ### 标签
 ```
@@ -95,16 +100,21 @@ O = [B,4,64,128]  # 通道(du_g, dv_g, du_p, dv_p)
 (δu_p - 0.5, δv_p - 0.5)  # Piece偏移
 ```
 
-### 正样本掩码
+### 损失计算
+单样本Smooth-L1（Huber）：
 ```
-M_pos = 1(Y ≥ 0.7)
+l_off(g) = SmoothL1(d̂_x(g) - d*_x(g)) + SmoothL1(d̂_y(g) - d*_y(g))
+l_off(p) = SmoothL1(d̂_x(p) - d*_x(p)) + SmoothL1(d̂_y(p) - d*_y(p))
 ```
 
-### 屏蔽归一化
-```python
-L_off = Σ|(du_g,dv_g)-(δu_g-0.5,δv_g-0.5)|_1 * M_pos * W_1/4 / Σ(M_pos*W_1/4)+ε
-      + Σ|(du_p,dv_p)-(δu_p-0.5,δv_p-0.5)|_1 * M_pos * W_1/4 / Σ(M_pos*W_1/4)+ε
+### 加权归一化
+使用热图值作为权重：
 ```
+L_off = Σ(w_g * l_off(g)) / Σw_g + Σ(w_p * l_off(p)) / Σw_p
+```
+其中 w_g 和 w_p 分别是gap和piece的热图值
+
+**注意**：不使用epsilon，而是通过assert检查确保权重和不为零
 
 ---
 
@@ -165,14 +175,17 @@ L_ang = Σ[1 - (sin̂θ*sinθ_g + coŝθ*cosθ_g)] * M_ang * W_1/4 / Σ(M_ang*W
 ### 损失组合
 ```
 L_total = L_focal(H_gap, Ĥ_gap) + L_focal(H_piece, Ĥ_piece)
-        + λ * [L1(O_gap, Ô_gap) + L1(O_piece, Ô_piece)]
+        + λ_off * L_offset
+        + λ_hn * L_hard_negative  (可选)
+        + λ_ang * L_angle  (可选)
 ```
 
 其中：
-- `L_focal`：CenterNet Variant, α=2, γ=4
-- 真值`Ĥ`由σ=2高斯绘制
-- `λ=1.0`（Offset权重）
-- Offset L1仅在正样本像素(Gaussian peak > 0.5)处计算
+- `L_focal`：CenterNet风格热力图损失，α=1.5, β=4.0
+- `L_offset`：子像素偏移损失，使用热图值加权
+- `L_hard_negative`：Margin Ranking损失，抑制假缺口
+- `L_angle`：角度损失，用于微旋转
+- 权重：λ_off=1.0, λ_hn=0.5, λ_ang=0.5
 
 ---
 
@@ -285,3 +298,45 @@ writer.add_scalar('Loss/hard_negative', L_hn, step)
 writer.add_image('Heatmap/gap', H_gap[0], step)
 writer.add_image('Heatmap/piece', H_piece[0], step)
 ```
+
+---
+
+## 8️⃣ 代码实现说明
+
+### 损失函数模块结构
+```
+src/models/loss_calculation/
+├── focal_loss.py       # CenterNet风格热力图损失
+├── offset_loss.py      # 子像素偏移损失
+├── hard_negative_loss.py  # 假缺口抑制损失
+├── angle_loss.py       # 角度损失
+├── total_loss.py       # 总损失组合
+└── config_loader.py    # 配置加载器
+```
+
+### 配置文件
+```yaml
+# config/loss.yaml
+focal_loss:
+  alpha: 1.5          # 正样本聚焦参数
+  beta: 4.0           # 负样本距离加权
+  pos_threshold: 0.8  # 正样本阈值
+  eps: 1.0e-8        # 数值稳定性
+
+
+offset_loss:
+  beta: 1.0           # Smooth L1平滑参数
+
+
+hard_negative_loss:
+  margin: 0.2         # 真假缺口最小得分差
+  score_type: bilinear  # 采样方式
+  neighborhood_size: 3  # 邻域大小
+```
+
+### 关键实现细节
+
+1. **Focal Loss归一化**：使用N_pos（正样本数）进行归一化，避免样本不平衡
+2. **Offset Loss加权**：直接使用热图值作为权重w_g，无需额外阈值
+3. **Hard Negative采样**：支持双线性插值和邻域最大值两种方式
+4. **工厂函数**：所有损失函数都提供工厂函数，不使用默认参数

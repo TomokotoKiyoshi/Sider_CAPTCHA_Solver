@@ -16,6 +16,11 @@
 
 **结构**：`PW-Expand (1×1, e=2) → DWConv (3×3, s=1) → PW-Project (1×1) → Residual`
 
+**激活函数配置**：
+- PW-Expand后：BN + SiLU激活
+- DWConv后：BN + SiLU激活  
+- PW-Project后：仅BN，**无激活函数**（线性输出）
+
 ## 4. 网络架构
 
 ### 4.1 Stage1 (Stem) - 特征提取阶段
