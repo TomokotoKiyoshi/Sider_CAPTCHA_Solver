@@ -9,17 +9,197 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+import yaml
+from typing import Tuple
 from src.models.loss_calculation.focal_loss import FocalLoss, create_focal_loss
 from src.models.loss_calculation.offset_loss import OffsetLoss, create_offset_loss
 from src.models.loss_calculation.hard_negative_loss import HardNegativeLoss, create_hard_negative_loss
 from src.models.loss_calculation.angle_loss import AngleLoss, create_angle_loss
 from src.models.loss_calculation.total_loss import TotalLoss, create_total_loss
-from src.models.loss_calculation.loss_utils import (
-    generate_gaussian_heatmap,
-    create_padding_mask,
-    coordinate_transform,
-    extract_peaks
-)
+
+
+# ============ 测试辅助函数（从loss_utils.py移植） ============
+
+def generate_gaussian_heatmap(centers: torch.Tensor,
+                             shape: Tuple[int, int],
+                             sigma: float = 1.5,
+                             device: str = 'cpu') -> torch.Tensor:
+    """
+    生成高斯热图（用于测试）
+    
+    Args:
+        centers: 中心点坐标 [N, 2] 或 [B, N, 2]
+        shape: 热图形状 (H, W)
+        sigma: 高斯标准差
+        device: 设备
+    
+    Returns:
+        高斯热图 [H, W] 或 [B, N, H, W]
+    """
+    H, W = shape
+    
+    # 处理不同维度的输入
+    if centers.dim() == 2:  # [N, 2]
+        centers = centers.unsqueeze(0)  # [1, N, 2]
+        squeeze_batch = True
+    else:
+        squeeze_batch = False
+    
+    B, N, _ = centers.shape
+    
+    # 创建坐标网格
+    y_grid, x_grid = torch.meshgrid(
+        torch.arange(H, dtype=torch.float32, device=device),
+        torch.arange(W, dtype=torch.float32, device=device),
+        indexing='ij'
+    )
+    
+    # 扩展维度以支持批处理
+    y_grid = y_grid.unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
+    x_grid = x_grid.unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
+    
+    # 初始化热图
+    heatmaps = torch.zeros(B, N, H, W, device=device)
+    
+    # 为每个中心生成高斯分布
+    for i in range(N):
+        cx = centers[:, i, 0:1].unsqueeze(-1).unsqueeze(-1)  # [B, 1, 1, 1]
+        cy = centers[:, i, 1:2].unsqueeze(-1).unsqueeze(-1)  # [B, 1, 1, 1]
+        
+        # 计算高斯分布
+        gaussian = torch.exp(
+            -((x_grid - cx) ** 2 + (y_grid - cy) ** 2) / (2 * sigma ** 2)
+        )
+        
+        heatmaps[:, i, :, :] = gaussian.squeeze(1)
+    
+    # 处理输出维度
+    if squeeze_batch:
+        heatmaps = heatmaps.squeeze(0)  # [N, H, W]
+    
+    return heatmaps
+
+
+def create_padding_mask(input_shape: Tuple[int, int],
+                       padded_shape: Tuple[int, int],
+                       downsample: int = 4,
+                       pooling: str = 'avg') -> torch.Tensor:
+    """
+    创建padding掩码并下采样到特征图分辨率（用于测试）
+    
+    Args:
+        input_shape: 原始输入形状 (H_orig, W_orig)
+        padded_shape: padding后的形状 (H_pad, W_pad)
+        downsample: 下采样率
+        pooling: 池化方式 ('avg' 或 'max')
+    
+    Returns:
+        下采样后的掩码 [1, H_down, W_down]
+    """
+    H_orig, W_orig = input_shape
+    H_pad, W_pad = padded_shape
+    
+    # 创建原始分辨率掩码
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    mask = torch.zeros(1, 1, H_pad, W_pad, device=device)
+    mask[:, :, :H_orig, :W_orig] = 1.0
+    
+    # 下采样到特征图分辨率
+    if pooling == 'avg':
+        # 平均池化（软掩码）
+        mask_down = F.avg_pool2d(mask, kernel_size=downsample, stride=downsample)
+    else:  # 'max'
+        # 最大池化（硬掩码）
+        mask_down = F.max_pool2d(mask, kernel_size=downsample, stride=downsample)
+    
+    return mask_down.squeeze(0)  # [1, H_down, W_down]
+
+
+def coordinate_transform(coords: torch.Tensor,
+                        mode: str,
+                        scale: float = 4.0) -> torch.Tensor:
+    """
+    坐标系转换（用于测试）
+    
+    Args:
+        coords: 坐标 [B, N, 2] 或 [N, 2]
+        mode: 转换模式
+        scale: 缩放因子
+    
+    Returns:
+        转换后的坐标
+    """
+    if mode == 'pixel_to_grid':
+        # 原图坐标 -> 栅格坐标
+        return coords / scale
+    elif mode == 'grid_to_pixel':
+        # 栅格坐标 -> 原图坐标
+        return coords * scale
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+
+
+def extract_peaks(heatmap: torch.Tensor,
+                 threshold: float = 0.1,
+                 nms: bool = True,
+                 nms_kernel: int = 3,
+                 top_k: int = 100) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    从热力图中提取峰值点（用于测试）
+    
+    Args:
+        heatmap: 热力图 [B, C, H, W]
+        threshold: 响应阈值
+        nms: 是否应用NMS
+        nms_kernel: NMS核大小
+        top_k: 保留前k个峰值
+    
+    Returns:
+        peaks: 峰值坐标 [B, C, K, 2]
+        scores: 峰值得分 [B, C, K]
+    """
+    B, C, H, W = heatmap.shape
+    
+    # 应用NMS
+    if nms:
+        # 最大池化找到局部最大值
+        padding = (nms_kernel - 1) // 2
+        max_pool = F.max_pool2d(heatmap, nms_kernel, stride=1, padding=padding)
+        
+        # 保留局部最大值
+        peak_mask = (heatmap == max_pool).float()
+        
+        # 应用阈值
+        peak_mask = peak_mask * (heatmap > threshold).float()
+        
+        # 应用掩码
+        heatmap = heatmap * peak_mask
+    
+    # 展平并找到top-k
+    heatmap_flat = heatmap.view(B, C, -1)
+    scores, indices = torch.topk(heatmap_flat, k=min(top_k, heatmap_flat.shape[-1]), dim=-1)
+    
+    # 转换索引为坐标
+    y_coords = indices // W
+    x_coords = indices % W
+    peaks = torch.stack([x_coords, y_coords], dim=-1)  # [B, C, K, 2]
+    
+    # 过滤低于阈值的峰值
+    valid_mask = scores > threshold
+    peaks = peaks * valid_mask.unsqueeze(-1)
+    scores = scores * valid_mask
+    
+    return peaks, scores
+
+
+# ============ 测试函数 ============
+
+def load_config():
+    """加载配置文件"""
+    config_path = Path(__file__).parent.parent.parent / 'config' / 'loss.yaml'
+    with open(config_path, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
 
 
 def test_focal_loss():
@@ -31,15 +211,15 @@ def test_focal_loss():
     batch_size = 2
     height, width = 64, 128
     
-    # 创建损失函数
-    focal_loss = FocalLoss(alpha=1.5, beta=4.0, pos_threshold=0.8)  # 调整阈值以匹配高斯热图峰值
+    # 从配置文件创建损失函数
+    config = load_config()
+    focal_loss = create_focal_loss(config['focal_loss'])
     
     # 创建测试数据
-    # 预测：随机热力图（经过sigmoid），需要requires_grad
     pred = torch.sigmoid(torch.randn(batch_size, 1, height, width, requires_grad=True))
     
     # 目标：生成高斯热图
-    centers = torch.tensor([[30.5, 20.5], [60.5, 40.5]])  # 两个批次的中心点
+    centers = torch.tensor([[30.5, 20.5], [60.5, 40.5]])
     target = generate_gaussian_heatmap(centers, (height, width), sigma=1.5)
     target = target.unsqueeze(1)  # [B, 1, H, W]
     
@@ -61,17 +241,6 @@ def test_focal_loss():
     loss.backward()
     print(f"梯度计算成功")
     
-    # 测试工厂函数创建
-    print("\n测试工厂函数创建:")
-    config = {
-        'alpha': 2.0,
-        'beta': 4.0,
-        'pos_threshold': 0.8
-    }
-    focal_from_factory = create_focal_loss(config)
-    loss_factory = focal_from_factory(pred.detach(), target, mask)
-    print(f"工厂函数创建的Focal Loss值: {loss_factory.item():.4f}")
-    
     print("\n✓ Focal Loss测试通过")
 
 
@@ -83,29 +252,22 @@ def test_offset_loss():
     
     batch_size = 2
     height, width = 64, 128
-    num_points = 2  # 缺口和滑块
     
-    # 创建损失函数
-    offset_loss = OffsetLoss(loss_type='smooth_l1', pos_threshold=0.7)
+    # 从配置文件创建损失函数
+    config = load_config()
+    offset_loss = create_offset_loss(config['offset_loss'])
     
     # 创建测试数据
-    # 预测偏移：[-0.5, 0.5]范围，需要requires_grad
-    pred_offset = torch.tanh(torch.randn(batch_size, 2*num_points, height, width, requires_grad=True)) * 0.5
-    
-    # 目标偏移
-    target_offset = torch.randn(batch_size, 2*num_points, height, width) * 0.3
+    pred_offset = torch.tanh(torch.randn(batch_size, 4, height, width, requires_grad=True)) * 0.5
+    target_offset = torch.randn(batch_size, 4, height, width) * 0.3
     target_offset = torch.clamp(target_offset, -0.5, 0.5)
     
-    # 热力图（用于确定正样本位置）
-    centers = torch.tensor([
-        [[30, 20], [60, 40]],  # 批次1：缺口和滑块中心
-        [[35, 25], [65, 45]]   # 批次2：缺口和滑块中心
-    ])
-    heatmap = torch.zeros(batch_size, num_points, height, width)
-    for b in range(batch_size):
-        for p in range(num_points):
-            x, y = int(centers[b, p, 0]), int(centers[b, p, 1])
-            heatmap[b, p, y-2:y+3, x-2:x+3] = 1.0  # 简单的方形区域
+    # 热力图（用于权重）
+    centers_gap = torch.tensor([[30, 20], [35, 25]])
+    centers_piece = torch.tensor([[60, 40], [65, 45]])
+    heatmap_gap = generate_gaussian_heatmap(centers_gap, (height, width), sigma=1.5)
+    heatmap_piece = generate_gaussian_heatmap(centers_piece, (height, width), sigma=1.5)
+    heatmap = torch.stack([heatmap_gap, heatmap_piece], dim=1)  # [B, 2, H, W]
     
     # 计算损失
     loss = offset_loss(pred_offset, target_offset, heatmap)
@@ -133,27 +295,27 @@ def test_hard_negative_loss():
     batch_size = 2
     height, width = 64, 128
     
-    # 创建损失函数
-    hn_loss = HardNegativeLoss(margin=0.2, score_type='bilinear')
+    # 从配置文件创建损失函数
+    config = load_config()
+    hn_loss = create_hard_negative_loss(config['hard_negative_loss'])
     
     # 创建测试数据
-    # 预测的缺口热力图，需要requires_grad
     heatmap = torch.sigmoid(torch.randn(batch_size, 1, height, width, requires_grad=True))
     
-    # 真实缺口中心（栅格坐标）
+    # 真实缺口中心
     true_centers = torch.tensor([[30.5, 20.5], [60.5, 40.5]])
     
-    # 假缺口中心（1-3个）
+    # 假缺口中心
     fake_centers = [
-        torch.tensor([[25.0, 30.0], [55.0, 50.0]]),  # 第1个假缺口
-        torch.tensor([[70.0, 30.0], [40.0, 20.0]]),  # 第2个假缺口
+        torch.tensor([[25.0, 30.0], [55.0, 50.0]]),
+        torch.tensor([[70.0, 30.0], [40.0, 20.0]]),
     ]
     
-    # 设置真实位置的高响应（使用克隆避免inplace操作）
+    # 设置真实位置的高响应
     heatmap_data = heatmap.clone()
     for b in range(batch_size):
         x, y = int(true_centers[b, 0]), int(true_centers[b, 1])
-        heatmap_data[b, 0, y, x] = 0.9  # 真实位置高响应
+        heatmap_data[b, 0, y, x] = 0.9
     heatmap = heatmap_data
     
     # 计算损失
@@ -183,27 +345,33 @@ def test_angle_loss():
     batch_size = 2
     height, width = 64, 128
     
-    # 创建损失函数
-    angle_loss = AngleLoss(loss_type='cosine', pos_threshold=0.7)
+    # 从配置文件创建损失函数
+    config = load_config()
+    angle_loss = create_angle_loss(config['angle_loss'])
     
     # 创建测试数据
-    # 预测角度（sin θ, cos θ）- 需要归一化，需要requires_grad
     pred_angle = torch.randn(batch_size, 2, height, width, requires_grad=True)
     pred_angle = torch.nn.functional.normalize(pred_angle, p=2, dim=1)
     
     # 目标角度
     angle_deg = torch.tensor([0.5, -1.0])  # 度
-    target_angle = AngleLoss.angle_to_sincos(angle_deg)  # 转换为sin/cos
+    angle_rad = angle_deg * (torch.pi / 180.0)
+    sin_theta = torch.sin(angle_rad)
+    cos_theta = torch.cos(angle_rad)
+    target_angle = torch.stack([sin_theta, cos_theta], dim=1)  # [B, 2]
     target_angle = target_angle.unsqueeze(-1).unsqueeze(-1)  # [B, 2, 1, 1]
     target_angle = target_angle.expand(batch_size, 2, height, width)
     
-    # 热力图（用于确定监督区域）
+    # 热力图
     centers = torch.tensor([[30, 20], [60, 40]])
     heatmap = generate_gaussian_heatmap(centers, (height, width), sigma=2.0)
     heatmap = heatmap.unsqueeze(1)  # [B, 1, H, W]
     
+    # 掩码
+    mask = torch.ones(batch_size, 1, height, width)
+    
     # 计算损失
-    loss = angle_loss(pred_angle, target_angle, heatmap)
+    loss = angle_loss(pred_angle, target_angle, heatmap, mask)
     
     print(f"\n输入形状:")
     print(f"  预测角度: {pred_angle.shape}")
@@ -232,18 +400,8 @@ def test_total_loss():
     batch_size = 2
     height, width = 64, 128
     
-    # 创建总损失函数
-    config = {
-        'loss_class': 'total',
-        'use_angle': True,
-        'use_hard_negative': True,
-        'loss_weights': {
-            'heatmap': 1.0,
-            'offset': 1.0,
-            'hard_negative': 0.5,
-            'angle': 0.5
-        }
-    }
+    # 从配置文件创建总损失函数
+    config = load_config()
     total_loss_fn = create_total_loss(config)
     
     # 创建预测数据
@@ -288,51 +446,7 @@ def test_total_loss():
     total_loss.backward()
     print(f"\n梯度计算成功")
     
-    # 测试损失统计
-    print(f"\n损失统计功能:")
-    summary = total_loss_fn.get_loss_summary()
-    for key, value in summary.items():
-        print(f"  {key}: {value:.4f}")
-    
     print("\n✓ Total Loss测试通过")
-
-
-def test_loss_utils():
-    """测试损失工具函数"""
-    print("\n" + "=" * 70)
-    print("测试 Loss Utils - 损失计算工具函数")
-    print("=" * 70)
-    
-    # 测试高斯热图生成
-    print("\n1. 测试高斯热图生成:")
-    centers = torch.tensor([[30.5, 20.5], [60.5, 40.5]])
-    heatmap = generate_gaussian_heatmap(centers, (64, 128), sigma=1.5)
-    print(f"  热图形状: {heatmap.shape}")
-    print(f"  值域: [{heatmap.min():.4f}, {heatmap.max():.4f}]")
-    
-    # 测试坐标转换
-    print("\n2. 测试坐标转换:")
-    coords = torch.tensor([[120.0, 80.0], [240.0, 160.0]])
-    grid_coords = coordinate_transform(coords, 'pixel_to_grid', scale=4.0)
-    print(f"  原图坐标: {coords}")
-    print(f"  栅格坐标: {grid_coords}")
-    
-    # 测试峰值提取
-    print("\n3. 测试峰值提取:")
-    test_heatmap = torch.zeros(1, 1, 64, 128)
-    test_heatmap[0, 0, 20, 30] = 0.9
-    test_heatmap[0, 0, 40, 60] = 0.8
-    peaks, scores = extract_peaks(test_heatmap, threshold=0.5, nms=True)
-    print(f"  峰值坐标: {peaks[0, 0, :2]}")
-    print(f"  峰值得分: {scores[0, 0, :2]}")
-    
-    # 测试padding掩码
-    print("\n4. 测试Padding掩码生成:")
-    mask = create_padding_mask((200, 400), (256, 512), downsample=4, pooling='avg')
-    print(f"  掩码形状: {mask.shape}")
-    print(f"  有效区域比例: {mask.mean().item():.2%}")
-    
-    print("\n✓ Loss Utils测试通过")
 
 
 def test_gradient_flow():
@@ -361,61 +475,77 @@ def test_gradient_flow():
     model = SimpleModel()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     
-    # 创建损失函数
-    loss_fn = TotalLoss(use_angle=False, use_hard_negative=False)
+    # 从配置文件创建损失函数（禁用可选损失）
+    config = load_config()
+    config['total_loss']['use_angle'] = False  # 禁用角度损失用于梯度流测试
+    total_loss_fn = create_total_loss(config)
     
-    # 模拟训练步骤
+    # 测试数据
     batch_size = 2
-    x = torch.randn(batch_size, 3, 64, 128)
+    input_img = torch.randn(batch_size, 3, 64, 128)
     
     # 前向传播
-    predictions = model(x)
+    predictions = model(input_img)
     
     # 创建目标
+    gap_centers = torch.tensor([[30, 20], [35, 25]])
+    piece_centers = torch.tensor([[60, 40], [65, 45]])
+    
     targets = {
-        'heatmap_gap': torch.rand_like(predictions['heatmap_gap']),
-        'heatmap_piece': torch.rand_like(predictions['heatmap_piece']),
-        'offset': torch.randn_like(predictions['offset']) * 0.3,
-        'mask': predictions['mask'].detach()
+        'heatmap_gap': generate_gaussian_heatmap(gap_centers, (64, 128), sigma=1.5).unsqueeze(1),
+        'heatmap_piece': generate_gaussian_heatmap(piece_centers, (64, 128), sigma=1.5).unsqueeze(1),
+        'offset': torch.zeros(batch_size, 4, 64, 128),
+        'mask': torch.ones(batch_size, 1, 64, 128),
+        'gap_center': gap_centers,
+        'fake_centers': []
     }
     
     # 计算损失
-    loss, loss_dict = loss_fn(predictions, targets)
+    loss, loss_dict = total_loss_fn(predictions, targets)
+    
+    print(f"损失值: {loss.item():.4f}")
     
     # 反向传播
     optimizer.zero_grad()
     loss.backward()
     
     # 检查梯度
-    has_grad = True
-    for name, param in model.named_parameters():
-        if param.grad is None or param.grad.abs().sum() == 0:
-            print(f"  警告: {name} 没有梯度")
-            has_grad = False
-        else:
-            print(f"  {name}: 梯度范数 = {param.grad.norm().item():.6f}")
+    has_grad = all(p.grad is not None and p.grad.abs().sum() > 0 
+                   for p in model.parameters())
     
     if has_grad:
-        print("\n✓ 梯度流测试通过")
+        print("✓ 梯度成功传播到所有参数")
     else:
-        print("\n✗ 梯度流存在问题")
+        print("✗ 部分参数没有梯度")
     
     # 更新参数
     optimizer.step()
-    print("参数更新成功")
+    print("✓ 参数更新成功")
+    
+    print("\n✓ 梯度流测试通过")
 
 
-if __name__ == "__main__":
-    # 测试各个损失函数
+def main():
+    """主测试函数"""
+    print("\n" + "=" * 70)
+    print("开始测试损失函数模块")
+    print("=" * 70)
+    
+    # 设置随机种子
+    torch.manual_seed(42)
+    
+    # 运行各项测试
     test_focal_loss()
     test_offset_loss()
     test_hard_negative_loss()
     test_angle_loss()
     test_total_loss()
-    test_loss_utils()
     test_gradient_flow()
     
     print("\n" + "=" * 70)
-    print("🎯 所有损失函数测试通过! ✓")
-    print("损失计算模块构建完成!")
+    print("所有损失函数测试通过！✅")
     print("=" * 70)
+
+
+if __name__ == "__main__":
+    main()

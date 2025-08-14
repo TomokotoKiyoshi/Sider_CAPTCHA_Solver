@@ -27,22 +27,14 @@ class HardNegativeLoss(nn.Module):
     
     def __init__(self,
                  margin: float = 0.2,
-                 score_type: str = 'bilinear',
-                 neighborhood_size: int = 3,
                  reduction: str = 'mean'):
         """
         Args:
             margin: 真假缺口之间的最小得分差（m=0.2~0.3）
-            score_type: 得分计算方式
-                       'bilinear': 双线性插值采样
-                       'nearest': 最近邻（文档中的邻域最大）
-            neighborhood_size: 邻域大小（3×3）
             reduction: 归约方式 ('mean', 'sum')
         """
         super().__init__()
         self.margin = margin
-        self.score_type = score_type
-        self.neighborhood_size = neighborhood_size
         self.reduction = reduction
     
     def forward(self,
@@ -66,18 +58,12 @@ class HardNegativeLoss(nn.Module):
         device = heatmap.device
         
         # 计算真实缺口的得分 s^+
-        if self.score_type == 'bilinear':
-            pos_scores = self._bilinear_sample(heatmap, true_centers)
-        else:  # 'nearest' or 'neighborhood'
-            pos_scores = self._neighborhood_max(heatmap, true_centers)
+        pos_scores = self._bilinear_sample(heatmap, true_centers)
         
         # 计算假缺口的得分 s_k^-
         neg_scores_list = []
         for fake_center in fake_centers:
-            if self.score_type == 'bilinear':
-                neg_score = self._bilinear_sample(heatmap, fake_center)
-            else:
-                neg_score = self._neighborhood_max(heatmap, fake_center)
+            neg_score = self._bilinear_sample(heatmap, fake_center)
             neg_scores_list.append(neg_score)
         
         if len(neg_scores_list) == 0:
@@ -151,41 +137,6 @@ class HardNegativeLoss(nn.Module):
         # 返回 [B]
         return sampled.squeeze()
     
-    def _neighborhood_max(self,
-                         heatmap: torch.Tensor,
-                         centers: torch.Tensor) -> torch.Tensor:
-        """
-        邻域最大值（3×3邻域）
-        
-        Args:
-            heatmap: [B, 1, H, W]
-            centers: [B, 2]
-        
-        Returns:
-            最大值 [B]
-        """
-        B = centers.shape[0]
-        _, _, H, W = heatmap.shape
-        device = heatmap.device
-        
-        scores = torch.zeros(B, device=device)
-        radius = self.neighborhood_size // 2
-        
-        for b in range(B):
-            u, v = int(centers[b, 0]), int(centers[b, 1])
-            
-            # 计算3×3邻域边界
-            u_min = max(0, u - radius)
-            u_max = min(W, u + radius + 1)
-            v_min = max(0, v - radius)
-            v_max = min(H, v + radius + 1)
-            
-            # 提取邻域并取最大值
-            if u_min < u_max and v_min < v_max:
-                neighborhood = heatmap[b, 0, v_min:v_max, u_min:u_max]
-                scores[b] = neighborhood.max()
-        
-        return scores
 
 
 def create_hard_negative_loss(config: dict) -> HardNegativeLoss:
@@ -203,14 +154,12 @@ def create_hard_negative_loss(config: dict) -> HardNegativeLoss:
         HardNegativeLoss实例
     """
     # 必须提供的参数
-    required_params = ['margin', 'score_type', 'neighborhood_size', 'reduction']
+    required_params = ['margin', 'reduction']
     missing_params = [p for p in required_params if p not in config]
     if missing_params:
         raise KeyError(f"Missing required parameters: {missing_params}")
     
     return HardNegativeLoss(
         margin=config['margin'],
-        score_type=config['score_type'],
-        neighborhood_size=config['neighborhood_size'],
         reduction=config['reduction']
     )

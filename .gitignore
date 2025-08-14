@@ -16,9 +16,6 @@ data/
 # Test output directory (contains test images)
 test_output/
 
-# Results directory
-results/
-
 # Model checkpoints (except versioned best_model.pth)
 src/checkpoints/**/*
 !src/checkpoints/**/best_model.pth

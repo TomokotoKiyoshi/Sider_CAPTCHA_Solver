@@ -15,16 +15,12 @@ offset_loss:
 # Hard Negative Loss Configuration (False gap suppression)
 hard_negative_loss:
   margin: 0.2              # Margin for ranking loss (m=0.2~0.3)
-  score_type: bilinear     # Options: bilinear, nearest
-  neighborhood_size: 3     # Size of neighborhood (3x3)
   reduction: mean          # Options: mean, sum
 
 # Angle Loss Configuration (Micro-rotation prediction)
 angle_loss:
-  loss_type: cosine        # Options: cosine, l2, smooth_l1
-  pos_threshold: 0.7       # Threshold for supervision region
-  temperature: 1.0         # Temperature for cosine similarity
-  reduction: mean          # Options: mean, sum
+  pos_threshold: 0.7       # Threshold for supervision region (M_ang = 1(Y_gap > 0.7))
+  eps: 1.0e-8              # Small constant to prevent division by zero
 
 # Total Loss Configuration
 total_loss:
@@ -51,11 +47,19 @@ stage_configs:
       alpha: 1.5
       beta: 4.0
       pos_threshold: 0.8
+      eps: 1.0e-8
     offset_loss:
       beta: 1.0
+    hard_negative_loss:
+      margin: 0.2
+      reduction: mean
+    angle_loss:
+      pos_threshold: 0.7
+      eps: 1.0e-8
     total_loss:
       weights:
         heatmap: 1.0
         offset: 1.0
         hard_negative: 0.5
         angle: 0.5
+      use_angle: true
