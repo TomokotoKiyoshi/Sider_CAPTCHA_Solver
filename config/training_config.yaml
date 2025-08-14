@@ -1,0 +1,96 @@
+# Lite-HRNet-18+LiteFPN 训练配置
+# 目标: MAE < 2px, hit@2px > 98%
+
+model:
+  name: "Lite-HRNet-18+LiteFPN"
+  input_channels: 4  # RGB(3) + padding_mask(1)
+  model_path: "src.models.lite_hrnet_18_fpn"
+  
+optimizer:
+  name: AdamW
+  lr: 3.0e-4               # global_batch=256
+  betas: [0.9, 0.999]
+  eps: 1.0e-8
+  weight_decay: 0.05
+  clip_grad_norm: 1.0
+  ema_decay: 0.999
+
+sched:
+  warmup_epochs: 5
+  cosine_min_lr: 3.0e-6
+  epochs: 160
+  min_epochs: 100                 # 最少训练100个epoch
+  patience: 18                     # 早停耐心值
+
+train:
+  batch_size: 256
+  amp: bf16                # bfloat16混合精度
+  channels_last: true      # 内存布局优化
+  num_workers: 24
+  pin_memory: true
+  
+eval:
+  metrics: [mae_px, rmse_px, hit_le_2px, hit_le_5px]
+  select_by: hit_le_5px               # 以5px内命中率选择最佳模型
+  vis_fail_k: 10                      # 可视化前10个失败案例
+  eval_interval: 1                    # 每个epoch评估一次
+  early_stopping:
+    min_epochs: 100                   # 最少训练100个epoch后才考虑早停
+    patience: 18                      # 连续18个epoch无改善则停止
+    second_guard:                     # 第二道防护措施
+      metric: mae_px                  # 监控MAE指标
+      mode: min                       # 越小越好
+      min_delta: 0.05                 # MAE（缺口和滑块误差的综合平均值）至少改善0.05px才算"有进步"
+ 
+
+checkpoints:
+  save_dir: "checkpoints/1.1.0"
+  save_interval: 1                   # 每个epoch保存
+  save_best: true                    # 保存最佳模型
+  
+  # 保存策略
+  save_strategy:
+    - name: "epoch_{epoch:03d}.pth"  # 每个epoch
+    - name: "best_model.pth"         # 最佳模型
+    
+logging:
+  log_dir: "logs/log-1.1.0"
+  log_interval: 10                   # 每10个batch记录一次
+  tensorboard: true
+  tensorboard_dir: "logs/tensorboard/1.1.0"
+  
+  # TensorBoard监控项
+  tb_items:
+    - "loss/train"
+    - "loss/val"
+    - "metrics/mae_px"
+    - "metrics/rmse_px"
+    - "metrics/hit_le_2px"
+    - "metrics/hit_le_5px"
+    - "lr/current"
+    - "vis/overlay_gap"           # 可视化缺口位置
+    - "vis/overlay_slider"        # 可视化滑块位置
+    - "hist/grad_layer_*"         # 梯度直方图
+    - "hist/weight_layer_*"       # 权重直方图
+    - "hist/angle_loss"           # 角度损失直方图
+    - "hist/slider_loss"          # 滑块损失直方图
+    - "hist/gap_loss"             # 缺口损失直方图
+
+hardware:
+  device: "cuda"                     # cuda/cpu
+  cudnn_benchmark: true              # CuDNN自动调优
+
+monitoring:
+  wandb:
+    enabled: false
+    project: "slider-captcha"
+    entity: "TomokotoKyoshi"
+    tags: ["lite-hrnet", "v1.1.0"]
+
+  # 性能监控
+  profile:
+    enabled: false
+    wait: 5                         # 完全不采集数据，只是让模型和硬件进入稳定状态
+    warmup: 5                       # 预热epoch
+    active: 5                       # 每 10 步的数据会被保存下来，用来分析
+    repeat: 1                       # 为了减少偶然波动，可以重复多轮测量再取平均。
