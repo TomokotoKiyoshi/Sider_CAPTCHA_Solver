@@ -323,9 +323,15 @@ def create_label_from_captcha_result(
     if additional_gaps:
         fake_gaps = []
         for gap in additional_gaps:
+            # 使用geometric_center（质心）而不是position（边界框中心）
+            geometric_center = gap.get('geometric_center')
+            if geometric_center is None:
+                # 如果没有geometric_center，尝试使用position作为备选
+                geometric_center = gap.get('position', [0, 0])
+            
             fake_gap = {
-                'position': gap.get('position', [0, 0]),
-                'rotation_angle': gap.get('rotation_angle', 0.0),
+                'position': geometric_center,  # 使用质心坐标
+                'rotation_angle': gap.get('rotation', 0.0),  # 注意：字段名是rotation而不是rotation_angle
                 'scale': gap.get('scale', 1.0)
             }
             fake_gaps.append(fake_gap)

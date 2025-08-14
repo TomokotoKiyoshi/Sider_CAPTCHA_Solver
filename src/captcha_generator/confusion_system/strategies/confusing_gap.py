@@ -6,6 +6,11 @@ import numpy as np
 import cv2
 from typing import Dict, Any, List, Tuple
 from ..base import ConfusionStrategy, GapImage
+import sys
+from pathlib import Path
+# 添加项目根目录到路径
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+from src.captcha_generator.utils.geometric_center import calculate_geometric_center
 
 
 class ConfusingGapConfusion(ConfusionStrategy):
@@ -76,14 +81,43 @@ class ConfusingGapConfusion(ConfusionStrategy):
                 # 如果没有alpha通道，创建一个全255的掩码
                 alpha_mask = np.ones(transformed.shape[:2], dtype=np.uint8) * 255
             
+            # 计算变换后形状的几何中心
+            # 获取形状类型
+            shape_type = gap_image.metadata.get('puzzle_shape', 'unknown') if gap_image.metadata else 'unknown'
+            
+            # 重要：对于旋转后的图像，我们需要计算旋转后的实际质心
+            # 而不是假设质心相对位置不变
+            mask_geometric_center = calculate_geometric_center(alpha_mask, shape_type)
+            
+            # 计算绝对几何中心位置
+            # gap_config['position'] 是混淆缺口的预定放置位置（边界框中心）
+            intended_center = gap_config['position']
+            actual_h, actual_w = alpha_mask.shape[:2]
+            
+            # 计算从实际边界框中心到几何中心的偏移
+            # 这个偏移是基于旋转后的实际mask计算的
+            offset_x = mask_geometric_center[0] - actual_w // 2
+            offset_y = mask_geometric_center[1] - actual_h // 2
+            
+            # 绝对几何中心 = 放置位置（边界框中心） + 偏移
+            # 混淆缺口会被放置为其边界框中心在intended_center
+            absolute_geometric_center = (
+                intended_center[0] + offset_x,
+                intended_center[1] + offset_y
+            )
+            
             # 保存额外的gap信息（使用完整的alpha通道而不是二值掩码）
+            # 重要：size必须与mask的实际尺寸一致，用于正确放置
             self.additional_gaps.append({
-                'position': gap_config['position'],  # 中心位置
+                'position': gap_config['position'],  # 边界框中心位置（用于放置）
+                'geometric_center': absolute_geometric_center,  # 几何中心位置（真实中心）
                 'mask': alpha_mask,  # 完整的alpha通道（保留hollow效果）
-                'size': (transformed.shape[1], transformed.shape[0]),  # (w, h)
+                'size': (actual_w, actual_h),  # 实际的mask尺寸 (w, h)
+                'actual_size': (actual_w, actual_h),  # 明确记录实际尺寸
                 'type': gap_config['type'],
                 'rotation': gap_config.get('rotation', 0),
-                'scale': gap_config.get('scale', 1.0)
+                'scale': gap_config.get('scale', 1.0),
+                'shape': shape_type  # 保存形状类型
             })
         
         # 返回原始gap图像（不修改）
@@ -141,9 +175,10 @@ class ConfusingGapConfusion(ConfusionStrategy):
         new_w, new_h = self._calculate_transformed_bounds(w, h, angle, scale)
         
         # 创建变换矩阵（旋转+缩放）
+        # 注意：旋转是围绕原始图像中心进行的
         transform_matrix = cv2.getRotationMatrix2D(center, angle, scale)
         
-        # 调整中心点
+        # 调整平移量，使旋转后的图像居中在新的边界框中
         transform_matrix[0, 2] += (new_w - w) / 2
         transform_matrix[1, 2] += (new_h - h) / 2
         

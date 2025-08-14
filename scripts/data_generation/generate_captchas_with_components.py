@@ -45,6 +45,12 @@ from src.captcha_generator.confusion_system.strategies import (
 from src.config import get_confusion_config, get_dataset_config, get_size_confusion_config
 from src.config.size_confusion_config import SizeConfusionConfig
 
+# 导入几何中心计算工具
+from src.captcha_generator.utils.geometric_center import (
+    calculate_geometric_center,
+    calculate_absolute_geometric_center
+)
+
 # 获取配置实例（作为全局变量使用）
 DatasetConfig = get_dataset_config()
 ConfusionConfig = get_confusion_config()
@@ -510,11 +516,26 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 confusion_strategies=strategies
             )
             
-            # 生成唯一文件名
-            params_str = f"{gap_pos[0]}{gap_pos[1]}{slider_pos[0]}{slider_pos[1]}{size}"
+            # 计算几何中心坐标
+            # gap的几何中心
+            gap_geometric_center = calculate_absolute_geometric_center(
+                result.gap_image.image if hasattr(result, 'gap_image') and hasattr(result.gap_image, 'image') else result.slider,
+                gap_pos,
+                shape
+            )
+            
+            # slider的几何中心
+            slider_geometric_center = calculate_absolute_geometric_center(
+                result.slider,
+                slider_pos,
+                shape
+            )
+            
+            # 生成唯一文件名（使用几何中心坐标）
+            params_str = f"{gap_geometric_center[0]}{gap_geometric_center[1]}{slider_geometric_center[0]}{slider_geometric_center[1]}{size}"
             file_hash = hashlib.md5(f"{params_str}{sample_idx}".encode()).hexdigest()[:8]
-            filename = (f"Pic{pic_index:04d}_Bgx{gap_pos[0]}Bgy{gap_pos[1]}_"
-                       f"Sdx{slider_pos[0]}Sdy{slider_pos[1]}_{file_hash}.png")
+            filename = (f"Pic{pic_index:04d}_Bgx{gap_geometric_center[0]}Bgy{gap_geometric_center[1]}_"
+                       f"Sdx{slider_geometric_center[0]}Sdy{slider_geometric_center[1]}_{file_hash}.png")
             
             # 创建最终图像（背景+滑块区域）
             final_image = create_final_image(result.background, result.slider, slider_pos)
@@ -526,8 +547,8 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
             composite_path = captchas_dir / filename
             cv2.imwrite(str(composite_path), final_image)
             
-            # 使用统一的基础文件名（包含所有位置信息）- 移到外面，不管是否保存组件都需要
-            base_filename = f"Pic{pic_index:04d}_Bgx{gap_pos[0]}Bgy{gap_pos[1]}_Sdx{slider_pos[0]}Sdy{slider_pos[1]}_{file_hash}"
+            # 使用统一的基础文件名（包含几何中心位置信息）- 移到外面，不管是否保存组件都需要
+            base_filename = f"Pic{pic_index:04d}_Bgx{gap_geometric_center[0]}Bgy{gap_geometric_center[1]}_Sdx{slider_geometric_center[0]}Sdy{slider_geometric_center[1]}_{file_hash}"
             
             # 如果需要保存组件
             if save_components:
@@ -543,12 +564,16 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 bg_path = components_dir / 'backgrounds' / bg_filename
                 cv2.imwrite(str(bg_path), result.background)
             
-            # 记录标注（包含尺寸信息）
+            # 记录标注（包含尺寸信息和几何中心）
             annotation = {
                 'filename': filename,
                 'background_hash': img_hash,
-                'bg_center': [int(gap_pos[0]), int(gap_pos[1])],
-                'sd_center': [int(slider_pos[0]), int(slider_pos[1])],
+                # 主要坐标使用几何中心（真实质心）
+                'bg_center': [int(gap_geometric_center[0]), int(gap_geometric_center[1])],
+                'sd_center': [int(slider_geometric_center[0]), int(slider_geometric_center[1])],
+                # 保留边界框中心供参考
+                'bg_bbox_center': [int(gap_pos[0]), int(gap_pos[1])],
+                'sd_bbox_center': [int(slider_pos[0]), int(slider_pos[1])],
                 'shape': str(shape),
                 'size': int(size),
                 'image_width': size_info['width'],
@@ -566,11 +591,12 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 annotation['background_file'] = f"components/backgrounds/{bg_filename}"
             
             # 始终生成训练标签（无论是否保存组件）
+            # 使用几何中心坐标
             label = create_label_from_captcha_result(
                 pic_index=pic_index,
                 sample_idx=sample_idx,
-                gap_position=gap_pos,
-                slider_position=slider_pos,
+                gap_position=gap_geometric_center,  # 使用几何中心
+                slider_position=slider_geometric_center,  # 使用几何中心
                 puzzle_size=size,
                 confusion_type=confusion_type,
                 confusion_metadata=result.confusion_params if hasattr(result, 'confusion_params') else {},
@@ -586,9 +612,20 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
                 # 转换 numpy 数组为列表以便 JSON 序列化
                 serializable_gaps = []
                 for gap in result.additional_gaps:
+                    # 必须使用预计算的几何中心
+                    if 'geometric_center' not in gap:
+                        raise ValueError(f"混淆缺口缺少geometric_center字段: {gap.keys()}")
+                    
+                    # 直接使用预计算的几何中心
+                    confusing_gap_geometric_center = gap['geometric_center']
+                    
                     serializable_gap = {
-                        'position': [int(gap['position'][0]), int(gap['position'][1])],
-                        'size': [int(gap['size'][0]), int(gap['size'][1])]
+                        'position': [int(confusing_gap_geometric_center[0]), int(confusing_gap_geometric_center[1])],  # 几何中心
+                        'bbox_position': [int(gap['position'][0]), int(gap['position'][1])],  # 边界框中心
+                        'size': [int(gap['size'][0]), int(gap['size'][1])],
+                        'rotation': gap.get('rotation', 0),
+                        'scale': gap.get('scale', 1.0),
+                        'type': gap.get('type', 'unknown')
                     }
                     # 不包含 mask，因为它是 numpy 数组且太大
                     serializable_gaps.append(serializable_gap)
