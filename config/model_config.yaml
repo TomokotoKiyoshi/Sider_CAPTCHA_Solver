@@ -5,8 +5,7 @@
 preprocessing:
   # Letterbox变换配置
   letterbox:
-    # 目标尺寸 (width, height) - 网络输入尺寸
-    target_size: [512, 256]
+    # 目标尺寸从captcha_config.yaml的size_confusion.target_size读取
     # padding填充值 (0-255)
     fill_value: 255
     # 插值方法: linear, cubic, nearest, area
@@ -64,7 +63,7 @@ input:
     total: 4        # 总输入通道数 (RGB + padding_mask)
   
   # PyTorch张量格式 [channels, height, width]
-  # 会根据preprocessing.letterbox.target_size自动计算
+  # 会根据captcha_config.yaml中的size_confusion.target_size自动计算
   tensor_shape: [4, 256, 512]  # [C, H, W]
 
 # ============== 网络架构配置 ==============

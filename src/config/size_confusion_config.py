@@ -36,11 +36,11 @@ class SizeConfusionConfig:
         self.min_size = tuple(min_size_list)  # 最小宽x高
         self.max_size = tuple(max_size_list)  # 最大宽x高
         
-        # ========== 目标尺寸（神经网络输入 - 从model_config读取） ==========
+        # ========== 目标尺寸（神经网络输入 - 从captcha_config读取） ==========
         # 最终padding到的目标尺寸
-        target_size_list = self.loader.get('model_config.input.target_size')
+        target_size_list = self.loader.get(f'{base_path}.target_size')
         if target_size_list is None:
-            raise ValueError("Must configure input.target_size in model_config.yaml")
+            raise ValueError(f"Must configure {base_path}.target_size in captcha_config.yaml")
         self.target_size = tuple(target_size_list)  # 目标宽x高
         
         # ========== 常见尺寸（提高这些尺寸的生成概率） ==========
@@ -53,16 +53,16 @@ class SizeConfusionConfig:
         self.common_sizes = [tuple(size) for size in common_sizes_list]
         self.common_size_probability = common_prob
         
-        # ========== Padding配置 (从model_config读取) ==========
-        # 从model_config.yaml的preprocessing.padding部分读取
-        padding_color_list = self.loader.get('model_config.preprocessing.padding.color')
-        padding_mode = self.loader.get('model_config.preprocessing.padding.mode')
+        # ========== Padding配置 (从captcha_config读取) ==========
+        # 从captcha_config.yaml的size_confusion.padding部分读取
+        padding_color_list = self.loader.get(f'{base_path}.padding.color')
+        padding_mode = self.loader.get(f'{base_path}.padding.mode')
         if padding_color_list is None:
-            raise ValueError("Must configure preprocessing.padding.color in model_config.yaml")
+            raise ValueError(f"Must configure {base_path}.padding.color in captcha_config.yaml")
         if padding_mode is None:
-            raise ValueError("Must configure preprocessing.padding.mode in model_config.yaml")
-        self.padding_color = tuple(padding_color_list)  # 黑色padding
-        self.padding_mode = padding_mode  # letterbox模式
+            raise ValueError(f"Must configure {base_path}.padding.mode in captcha_config.yaml")
+        self.padding_color = tuple(padding_color_list)  # padding颜色
+        self.padding_mode = padding_mode  # padding模式
     
     def generate_random_size(self) -> Tuple[int, int]:
         """

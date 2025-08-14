@@ -82,6 +82,14 @@ size_confusion:
       - [400, 200]
       - [384, 192]
     common_size_probability: 0.3
+  
+  # Target size (neural network input size)
+  target_size: [512, 256]  # [width, height]
+  
+  # Padding configuration
+  padding:
+    color: [255, 255, 255]  # BGR format, white padding
+    mode: 'center'  # center, top_left, bottom_right
 
 # ============================================================
 # Confusion Strategy Configuration
