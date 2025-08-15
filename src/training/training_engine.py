@@ -379,17 +379,15 @@ class TrainingEngine:
             gap_centers = self._extract_peak_coords(targets['heatmap_gap'])
             loss_targets['gap_center'] = gap_centers
         
-        # 提取混淆缺口坐标（如果有）
-        if 'confusing_gaps' in targets:
-            # confusing_gaps应该是每个批次样本的混淆缺口列表
-            loss_targets['fake_centers'] = targets['confusing_gaps']
-        else:
-            # 如果没有混淆缺口信息，提供空列表
-            loss_targets['fake_centers'] = [[] for _ in range(batch_size)]
+        # 提取混淆缺口坐标（必须存在）
+        if 'confusing_gaps' not in targets:
+            raise ValueError("数据批次缺少 'confusing_gaps' 字段，无法计算硬负样本损失。请确保数据预处理正确生成了混淆缺口信息。")
+        loss_targets['fake_centers'] = targets['confusing_gaps']
         
-        # 如果有角度目标，添加到loss_targets
-        if 'angle' in targets:
-            loss_targets['angle'] = targets['angle']  # [B, 2, H, W]
+        # 提取角度信息（必须存在）
+        if 'angle' not in targets and 'gap_angles' not in targets:
+            raise ValueError("数据批次缺少 'angle' 或 'gap_angles' 字段，无法计算角度损失。请确保数据预处理正确生成了角度信息。")
+        loss_targets['angle'] = targets.get('angle', targets.get('gap_angles'))  # 支持两种命名
         
         # 使用TotalLoss计算损失
         total_loss, loss_dict = self.loss_fn(predictions, loss_targets)

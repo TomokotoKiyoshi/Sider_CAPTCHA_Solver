@@ -228,6 +228,11 @@ class StreamingDatasetGenerator:
             'gap_angles': []
         }
     
+    def _reset_batch_buffers(self):
+        """重置批缓冲区"""
+        self._buf_ptr = 0
+        self._reset_metadata_buffer()
+    
     def _write_sample_to_buffer(self, sample: Dict[str, Any]) -> bool:
         """
         将样本写入缓冲区

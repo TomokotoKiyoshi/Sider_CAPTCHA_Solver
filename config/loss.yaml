@@ -32,7 +32,7 @@ total_loss:
     angle: 0.5           # Weight for angle loss
   
   # Feature flags
-  use_angle: false           # Enable angle loss (for rotated gaps)
+  use_angle: true            # Enable angle loss (for rotated gaps) - 必须启用以处理旋转混淆
   use_hard_negative: true    # Enable hard negative loss (for confusing gaps)
   
   # Advanced options

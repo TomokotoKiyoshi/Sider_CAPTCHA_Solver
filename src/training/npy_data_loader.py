@@ -206,6 +206,36 @@ class NPYBatchDataset(Dataset):
             # weights 形状是 [B, 1, 64, 128]，squeeze 去掉通道维度得到 [B, 64, 128]
             weight_mask = weights.squeeze(1)  # [B, 64, 128]
             
+            # 提取混淆缺口信息（必须存在）
+            if 'confusing_gaps' not in meta:
+                raise ValueError(f"批次 {batch_id} 的元数据缺少 'confusing_gaps' 字段，无法计算硬负样本损失")
+            confusing_gaps = meta['confusing_gaps']
+            
+            # 提取角度信息（必须存在）
+            if 'gap_angles' not in meta:
+                raise ValueError(f"批次 {batch_id} 的元数据缺少 'gap_angles' 字段，无法计算角度损失")
+            gap_angles = meta['gap_angles']
+            
+            # 验证数据长度一致性
+            if len(confusing_gaps) != batch_size:
+                raise ValueError(f"批次 {batch_id}: confusing_gaps 长度 ({len(confusing_gaps)}) 与批次大小 ({batch_size}) 不匹配")
+            if len(gap_angles) != batch_size:
+                raise ValueError(f"批次 {batch_id}: gap_angles 长度 ({len(gap_angles)}) 与批次大小 ({batch_size}) 不匹配")
+            
+            # 将角度信息转换为张量
+            gap_angles_tensor = torch.tensor(gap_angles, dtype=torch.float32)
+            
+            # 处理混淆缺口坐标（转换为特征图坐标）
+            # confusing_gaps 是一个列表，每个元素是该样本的混淆缺口坐标列表
+            # 需要将原图坐标转换为1/4分辨率的特征图坐标
+            confusing_gaps_scaled = []
+            for sample_gaps in confusing_gaps:
+                scaled_gaps = []
+                for gap in sample_gaps:
+                    # gap 是 [x, y] 坐标，需要除以4转换到特征图尺度
+                    scaled_gaps.append([gap[0] / 4.0, gap[1] / 4.0])
+                confusing_gaps_scaled.append(scaled_gaps)
+            
             return {
                 'image': images,
                 'heatmap_gap': heatmaps[:, 0],
@@ -216,7 +246,11 @@ class NPYBatchDataset(Dataset):
                 'weight_slider': weight_mask,  # [B, 64, 128] - gap和slider共享同一个权重掩码
                 'gap_coords': gap_coords,
                 'slider_coords': slider_coords,
-                'batch_size': batch_info['batch_size']
+                'batch_size': batch_info['batch_size'],
+                # 新增：混淆缺口和角度信息
+                'confusing_gaps': confusing_gaps_scaled,  # 混淆缺口坐标（特征图尺度）
+                'gap_angles': gap_angles_tensor,  # 缺口旋转角度（弧度）
+                'angle': gap_angles_tensor  # 兼容训练引擎的命名
             }
             
         except Exception as e:
@@ -236,7 +270,11 @@ class NPYBatchDataset(Dataset):
             'weight_slider': torch.zeros(batch_size, 64, 128),
             'gap_coords': torch.zeros(batch_size, 2),
             'slider_coords': torch.zeros(batch_size, 2),
-            'batch_size': batch_size
+            'batch_size': batch_size,
+            # 新增：混淆缺口和角度信息（空批次时使用默认值）
+            'confusing_gaps': [[] for _ in range(batch_size)],  # 每个样本的空列表
+            'gap_angles': torch.zeros(batch_size),  # 零角度
+            'angle': torch.zeros(batch_size)  # 兼容训练引擎的命名
         }
 
 
