@@ -33,6 +33,13 @@ paths:
 output_structure:
   image_subdir: "images"     # 图像数据子目录
   label_subdir: "labels"     # 标签数据子目录
+  split_info_subdir: "split_info"  # 数据集划分信息子目录
+  
+  # 数据集划分子目录（在image_subdir和label_subdir下）
+  splits:
+    train: "train"           # 训练集子目录
+    val: "val"               # 验证集子目录
+    test: "test"             # 测试集子目录
 
 # 文件命名模板配置
 file_naming:
@@ -50,3 +57,19 @@ dimensions:
   grid_size: [64, 128]       # [H/4, W/4] - 特征图尺寸
   heatmap_channels: 2        # gap + slider
   offset_channels: 4         # gap_x, gap_y, slider_x, slider_y
+
+# 数据集划分配置
+# Dataset split configuration
+data_split:
+  # 划分比例
+  split_ratio:
+    train: 0.8               # 80% 训练集
+    val: 0.1                 # 10% 验证集
+    test: 0.1                # 10% 测试集
+  
+  # 划分选项
+  options:
+    random_seed: 42          # 随机种子，保证可重现性
+    stratify_by_image: true  # 按图片ID分层，防止数据泄漏
+    shuffle: true            # 划分前打乱数据
+    auto_split: true         # 是否自动划分数据集（默认true，会生成train/val/test）

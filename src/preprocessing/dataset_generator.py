@@ -6,7 +6,7 @@
 import json
 import numpy as np
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Optional, Any
 from tqdm import tqdm
 from datetime import datetime
 from multiprocessing import Pool
@@ -148,10 +148,21 @@ class StreamingDatasetGenerator:
             'index_pattern': '{split}_index.json'
         })
         
-        # 创建输出目录
+        # 创建输出目录（使用配置文件中的split目录结构）
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        (self.output_dir / self.output_structure['image_subdir']).mkdir(exist_ok=True)
-        (self.output_dir / self.output_structure['label_subdir']).mkdir(exist_ok=True)
+        splits_config = self.output_structure.get('splits', {
+            'train': 'train',
+            'val': 'val', 
+            'test': 'test'
+        })
+        
+        for split_key, split_dir in splits_config.items():
+            (self.output_dir / self.output_structure['image_subdir'] / split_dir).mkdir(parents=True, exist_ok=True)
+            (self.output_dir / self.output_structure['label_subdir'] / split_dir).mkdir(parents=True, exist_ok=True)
+        
+        # 创建split_info目录（如果配置中有）
+        if 'split_info_subdir' in self.output_structure:
+            (self.output_dir / self.output_structure['split_info_subdir']).mkdir(parents=True, exist_ok=True)
         
         # 记录配置信息
         self.target_size = preprocessing_config['letterbox']['target_size']
@@ -252,12 +263,19 @@ class StreamingDatasetGenerator:
         batch_size = self._buf_ptr
         batch_id = self._batch_counter
         
-        # 使用配置的文件命名模式准备文件路径
-        image_path = self.output_dir / self.output_structure['image_subdir'] / self.file_naming['image_pattern'].format(split=split, batch_id=batch_id)
-        heatmap_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['heatmap_pattern'].format(split=split, batch_id=batch_id)
-        offset_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['offset_pattern'].format(split=split, batch_id=batch_id)
-        weight_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['weight_pattern'].format(split=split, batch_id=batch_id)
-        meta_path = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['meta_pattern'].format(split=split, batch_id=batch_id)
+        # 使用配置的文件命名模式准备文件路径（使用配置中的split目录）
+        splits_config = self.output_structure.get('splits', {
+            'train': 'train',
+            'val': 'val',
+            'test': 'test'
+        })
+        split_dir = splits_config.get(split, split)  # 如果没有配置，使用原始split名称
+        
+        image_path = self.output_dir / self.output_structure['image_subdir'] / split_dir / self.file_naming['image_pattern'].format(split=split, batch_id=batch_id)
+        heatmap_path = self.output_dir / self.output_structure['label_subdir'] / split_dir / self.file_naming['heatmap_pattern'].format(split=split, batch_id=batch_id)
+        offset_path = self.output_dir / self.output_structure['label_subdir'] / split_dir / self.file_naming['offset_pattern'].format(split=split, batch_id=batch_id)
+        weight_path = self.output_dir / self.output_structure['label_subdir'] / split_dir / self.file_naming['weight_pattern'].format(split=split, batch_id=batch_id)
+        meta_path = self.output_dir / self.output_structure['label_subdir'] / split_dir / self.file_naming['meta_pattern'].format(split=split, batch_id=batch_id)
         
         # 分文件保存，避免np.savez的临时zip缓冲
         # 只保存实际使用的部分（0:batch_size）
@@ -294,9 +312,16 @@ class StreamingDatasetGenerator:
         
         return labels
     
-    def generate_dataset(self, labels_path: str, split: str = 'train', max_samples: Optional[int] = None):
+    def generate_dataset(self, labels_path: str, split: str = 'train', max_samples: Optional[int] = None,
+                        labels_subset: Optional[List[Dict]] = None):
         """
         使用流式写入生成数据集
+        
+        Args:
+            labels_path: 标签文件路径
+            split: 数据集划分 (train/val/test)
+            max_samples: 最大样本数（用于测试）
+            labels_subset: 预先划分好的标签子集（如果提供，则忽略labels_path）
         """
         print(f"\n{'='*60}")
         print(f"Generating {split} dataset (Streaming Version)")
@@ -304,7 +329,15 @@ class StreamingDatasetGenerator:
         print(f"Using {self.num_workers} parallel processes")
         
         # 加载标签
-        labels = self.load_labels(labels_path)
+        if labels_subset is not None:
+            labels = labels_subset
+            print(f"Using provided subset: {len(labels)} labels")
+            # 为subset模式下的标签也添加_data_root字段
+            for label in labels:
+                if '_data_root' not in label:
+                    label['_data_root'] = str(self.data_root)
+        else:
+            labels = self.load_labels(labels_path)
         
         # 如果指定了最大样本数，截取标签
         if max_samples is not None and max_samples < len(labels):
@@ -375,7 +408,7 @@ class StreamingDatasetGenerator:
     
     def _generate_index(self, split: str):
         """生成数据集索引文件"""
-        image_files = sorted((self.output_dir / self.output_structure['image_subdir']).glob(f'{split}_*.npy'))
+        image_files = sorted((self.output_dir / self.output_structure['image_subdir'] / split).glob(f'{split}_*.npy'))
         
         index = {
             'split': split,
@@ -389,7 +422,7 @@ class StreamingDatasetGenerator:
         
         for img_file in image_files:
             batch_id = int(img_file.stem.split('_')[-1])
-            meta_file = self.output_dir / self.output_structure['label_subdir'] / self.file_naming['meta_pattern'].format(split=split, batch_id=batch_id)
+            meta_file = self.output_dir / self.output_structure['label_subdir'] / split / self.file_naming['meta_pattern'].format(split=split, batch_id=batch_id)
             
             with open(meta_file, 'r', encoding='utf-8') as f:
                 meta = json.load(f)
@@ -406,8 +439,8 @@ class StreamingDatasetGenerator:
             index['batches'].append(batch_info)
             index['total_samples'] += meta['batch_size']
         
-        # 保存索引
-        index_path = self.output_dir / self.file_naming['index_pattern'].format(split=split)
+        # 保存索引（保存到对应的split文件夹）
+        index_path = self.output_dir / self.output_structure['label_subdir'] / split / self.file_naming['index_pattern'].format(split=split)
         with open(index_path, 'w', encoding='utf-8') as f:
             json.dump(index, f, indent=2)
         

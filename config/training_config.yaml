@@ -1,6 +1,13 @@
 # Lite-HRNet-18+LiteFPN 训练配置
 # 目标: MAE < 2px, hit@2px > 98%
 
+# 数据配置
+data:
+  train_dir: "data/split_for_training/train.json"  # JSON格式训练数据
+  val_dir: "data/split_for_training/val.json"      # JSON格式验证数据
+  test_file: "data/split_for_training/test.json"   # JSON格式测试数据
+  processed_dir: "data/processed"                  # 处理后的图像目录
+  
 model:
   name: "Lite-HRNet-18+LiteFPN"
   input_channels: 4  # RGB(3) + padding_mask(1)
@@ -16,7 +23,7 @@ optimizer:
   ema_decay: 0.999
 
 sched:
-  warmup_epochs: 5
+  warmup_epochs: 1
   cosine_min_lr: 3.0e-6
   epochs: 160
   min_epochs: 100                 # 最少训练100个epoch
@@ -90,7 +97,7 @@ monitoring:
   # 性能监控
   profile:
     enabled: false
-    wait: 5                         # 完全不采集数据，只是让模型和硬件进入稳定状态
-    warmup: 5                       # 预热epoch
-    active: 5                       # 每 10 步的数据会被保存下来，用来分析
+    wait: 1                         # 完全不采集数据，只是让模型和硬件进入稳定状态
+    warmup: 1                       # 预热epoch
+    active: 1                       # 每 10 步的数据会被保存下来，用来分析
     repeat: 1                       # 为了减少偶然波动，可以重复多轮测量再取平均。

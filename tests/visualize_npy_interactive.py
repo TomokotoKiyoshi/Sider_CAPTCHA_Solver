@@ -63,30 +63,50 @@ class InteractiveVisualizer:
         """扫描可用的批次文件（不加载数据）"""
         self.batch_files = []
         
-        # 查找所有训练数据批次
-        image_files = sorted((self.data_dir / "images").glob("train_*.npy"))
+        # 支持查看不同的数据集分割
+        splits = ['train', 'val', 'test']
         
-        for img_file in image_files:
-            # 提取批次ID（4位数字格式）
-            batch_id = img_file.stem.replace('train_', '')
+        for split in splits:
+            # 查找该分割下的所有图像批次
+            image_dir = self.data_dir / "images" / split
+            label_dir = self.data_dir / "labels" / split
             
-            # 检查对应的标签和元数据文件是否存在
-            heatmap_file = self.data_dir / "labels" / f"train_{batch_id}_heatmaps.npy"
-            offset_file = self.data_dir / "labels" / f"train_{batch_id}_offsets.npy"
-            weight_file = self.data_dir / "labels" / f"train_{batch_id}_weights.npy"
-            meta_file = self.data_dir / "labels" / f"train_{batch_id}_meta.json"
+            if not image_dir.exists():
+                continue
+                
+            image_files = sorted(image_dir.glob(f"{split}_*.npy"))
             
-            if heatmap_file.exists() and offset_file.exists() and weight_file.exists() and meta_file.exists():
-                self.batch_files.append({
-                    'batch_id': batch_id,
-                    'image_file': img_file,
-                    'heatmap_file': heatmap_file,
-                    'offset_file': offset_file,
-                    'weight_file': weight_file,
-                    'meta_file': meta_file
-                })
+            for img_file in image_files:
+                # 提取批次ID（4位数字格式）
+                batch_id = img_file.stem.replace(f'{split}_', '')
+                
+                # 检查对应的标签和元数据文件是否存在
+                heatmap_file = label_dir / f"{split}_{batch_id}_heatmaps.npy"
+                offset_file = label_dir / f"{split}_{batch_id}_offsets.npy"
+                weight_file = label_dir / f"{split}_{batch_id}_weights.npy"
+                meta_file = label_dir / f"{split}_{batch_id}_meta.json"
+                
+                if heatmap_file.exists() and offset_file.exists() and weight_file.exists() and meta_file.exists():
+                    self.batch_files.append({
+                        'split': split,
+                        'batch_id': batch_id,
+                        'image_file': img_file,
+                        'heatmap_file': heatmap_file,
+                        'offset_file': offset_file,
+                        'weight_file': weight_file,
+                        'meta_file': meta_file
+                    })
         
-        print(f"Found {len(self.batch_files)} batches")
+        # 显示找到的批次统计
+        splits_count = {}
+        for batch in self.batch_files:
+            split = batch['split']
+            splits_count[split] = splits_count.get(split, 0) + 1
+        
+        print(f"Found {len(self.batch_files)} batches total:")
+        for split, count in splits_count.items():
+            print(f"  - {split}: {count} batches")
+            
         if self.batch_files:
             # 加载第一个批次
             success = self.load_batch(0)
@@ -101,7 +121,7 @@ class InteractiveVisualizer:
             return False
             
         batch_info = self.batch_files[batch_index]
-        print(f"Loading batch {batch_index} (ID: {batch_info['batch_id']})...")
+        print(f"Loading {batch_info['split'].upper()} batch {batch_index} (ID: {batch_info['batch_id']})...")
         
         try:
             # 加载数据
@@ -206,12 +226,14 @@ class InteractiveVisualizer:
         ax2 = self.fig.add_subplot(gs[0, 1])
         self.show_info_panel(ax2, sample)
         
-        # 更新标题
+        # 更新标题（包含数据集分割信息）
         total_batches = len(self.batch_files)
         current_in_batch = self.current_sample + 1
+        batch_info = self.batch_files[self.current_batch]
+        split_name = batch_info['split'].upper()
         self.fig.suptitle(
-            f'Batch {self.current_batch+1}/{total_batches} | Sample {current_in_batch}/{self.total_samples_in_batch} | '
-            f'{sample["sample_id"]} | (← → navigate, B/Shift+B batch, ESC exit)',
+            f'[{split_name}] Batch {self.current_batch+1}/{total_batches} | Sample {current_in_batch}/{self.total_samples_in_batch} | '
+            f'{sample["sample_id"]} | (← → navigate, B batch, S split, ESC exit)',
             fontsize=12,
             color='white'
         )
@@ -496,7 +518,7 @@ Original labels not found for this sample
   Slider: grid=({sample['slider_grid'][0]:3d}, {sample['slider_grid'][1]:3d})  offset=({sample['slider_offset'][0]:+.3f}, {sample['slider_offset'][1]:+.3f})
 {confusion_text}
 {comparison_text}
-Controls: ← → (Navigate) | PageUp/Down (±10) | Home/End (±100) | ESC (Exit)
+Controls: ← → (Navigate) | B (Batch) | S (Split) | PageUp/Down (±10) | ESC (Exit)
 """
         ax.text(0.02, 0.98, info_text, transform=ax.transAxes,
                fontsize=7, verticalalignment='top', fontfamily='monospace', color='white')
@@ -523,6 +545,12 @@ Controls: ← → (Navigate) | PageUp/Down (±10) | Home/End (±100) | ESC (Exit
         elif event.key == 'B':
             # 切换到上一个批次
             self.switch_batch_prev()
+        elif event.key == 's':
+            # 切换到下一个数据集分割（train->val->test->train）
+            self.switch_split()
+        elif event.key == 'S':
+            # 切换到上一个数据集分割（train->test->val->train）
+            self.switch_split_prev()
     
     def jump_samples(self, count):
         """跳转指定数量的样本
@@ -590,6 +618,62 @@ Controls: ← → (Navigate) | PageUp/Down (±10) | Home/End (±100) | ESC (Exit
             self.load_batch(self.current_batch)
             self.current_sample = self.total_samples_in_batch - 1
         self.update_display()
+    
+    def switch_split(self):
+        """切换到下一个数据集分割"""
+        if not self.batch_files:
+            return
+            
+        # 获取当前分割
+        current_split = self.batch_files[self.current_batch]['split']
+        
+        # 找到该分割在所有分割中的下一个
+        available_splits = sorted(list(set(b['split'] for b in self.batch_files)))
+        if len(available_splits) <= 1:
+            print("Only one split available")
+            return
+            
+        current_idx = available_splits.index(current_split)
+        next_idx = (current_idx + 1) % len(available_splits)
+        next_split = available_splits[next_idx]
+        
+        # 找到下一个分割的第一个批次
+        for i, batch in enumerate(self.batch_files):
+            if batch['split'] == next_split:
+                self.current_batch = i
+                self.current_sample = 0
+                self.load_batch(self.current_batch)
+                self.update_display()
+                print(f"Switched to {next_split} split")
+                break
+    
+    def switch_split_prev(self):
+        """切换到上一个数据集分割"""
+        if not self.batch_files:
+            return
+            
+        # 获取当前分割
+        current_split = self.batch_files[self.current_batch]['split']
+        
+        # 找到该分割在所有分割中的上一个
+        available_splits = sorted(list(set(b['split'] for b in self.batch_files)))
+        if len(available_splits) <= 1:
+            print("Only one split available")
+            return
+            
+        current_idx = available_splits.index(current_split)
+        prev_idx = (current_idx - 1) % len(available_splits)
+        prev_split = available_splits[prev_idx]
+        
+        # 找到上一个分割的第一个批次
+        for i, batch in enumerate(self.batch_files):
+            if batch['split'] == prev_split:
+                self.current_batch = i
+                self.current_sample = 0
+                self.load_batch(self.current_batch)
+                self.update_display()
+                print(f"Switched to {prev_split} split")
+                break
 
 
 def main():
@@ -609,6 +693,8 @@ def main():
     print("  ← / Left Arrow   : Previous sample")
     print("  B                : Next batch")
     print("  Shift+B          : Previous batch")
+    print("  S                : Next split (train→val→test)")
+    print("  Shift+S          : Previous split")
     print("  Page Down        : Jump forward 10 samples")
     print("  Page Up          : Jump backward 10 samples")
     print("  End              : Jump forward 100 samples")
