@@ -451,7 +451,11 @@ class NPYDataPipeline:
             'offset_gap': batch['offset_gap'],
             'offset_slider': batch['offset_slider'],
             'weight_gap': batch['weight_gap'],
-            'weight_slider': batch['weight_slider']
+            'weight_slider': batch['weight_slider'],
+            # 添加混淆缺口和角度信息
+            'confusing_gaps': batch.get('confusing_gaps', []),
+            'gap_angles': batch.get('gap_angles'),
+            'angle': batch.get('angle')
         }
     
     def get_train_loader(self) -> DataLoader:

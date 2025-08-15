@@ -1,0 +1,45 @@
+2025-08-16 08:29:47,340 - ConfigManager - INFO - 日志文件: D:\Hacker\Sider_CAPTCHA_Solver\logs\log-1.1.0\training_20250816_082947.log
+2025-08-16 08:29:47,340 - root - INFO - 覆盖batch_size: 64
+2025-08-16 08:29:47,340 - root - INFO - 覆盖训练轮数: 1
+2025-08-16 08:29:47,342 - ConfigManager - INFO - 配置已保存到: D:\Hacker\Sider_CAPTCHA_Solver\checkpoints\1.1.0\config_20250816_082947.yaml
+2025-08-16 08:29:47,354 - ConfigManager - INFO - 使用GPU: NVIDIA GeForce RTX 5090
+2025-08-16 08:29:47,355 - ConfigManager - INFO - CuDNN benchmark enabled
+2025-08-16 08:29:47,355 - ConfigManager - INFO - CuDNN non-deterministic mode enabled (faster)
+2025-08-16 08:29:47,355 - ConfigManager - INFO - TF32 enabled for matrix multiplication
+2025-08-16 08:29:47,367 - ConfigManager - INFO - TF32 enabled for convolution operations
+2025-08-16 08:29:47,367 - root - INFO - 创建模型...
+2025-08-16 08:29:47,401 - root - INFO - 加载NPY批次格式数据...
+2025-08-16 08:29:47,404 - NPYDataPipeline - INFO - 初始化NPY数据管道...
+2025-08-16 08:29:47,404 - NPYDataPipeline - INFO - 检测到新目录结构，使用目录扫描模式...
+2025-08-16 08:29:48,390 - NPYBatchDataset.train - INFO - 加载了 3351 个批次，共 214464 个样本
+2025-08-16 08:29:48,390 - NPYDataPipeline - INFO - 训练样本数: 214464
+2025-08-16 08:29:48,390 - NPYDataPipeline - INFO - 训练批次数: 3351
+2025-08-16 08:29:48,506 - NPYBatchDataset.val - INFO - 加载了 418 个批次，共 26752 个样本
+2025-08-16 08:29:48,506 - NPYDataPipeline - INFO - 验证样本数: 26752
+2025-08-16 08:29:48,506 - NPYDataPipeline - INFO - 验证批次数: 418
+2025-08-16 08:29:48,506 - root - INFO - 使用NPY数据目录: data/processed
+2025-08-16 08:29:48,506 - root - INFO - 训练数据目录: data\processed\images\train
+2025-08-16 08:29:48,506 - root - INFO - 验证数据目录: data\processed\images\val
+2025-08-16 08:29:48,506 - root - INFO - 训练批次数: 3351
+2025-08-16 08:29:48,506 - root - INFO - 验证批次数: 418
+2025-08-16 08:29:48,506 - root - INFO - 创建训练引擎...
+2025-08-16 08:29:48,574 - TrainingEngine - INFO - 使用完整的TotalLoss（包含硬负样本损失和角度损失）
+2025-08-16 08:29:48,574 - TrainingEngine - INFO - 损失权重: {'heatmap': 1.0, 'offset': 1.0, 'hard_negative': 0.5, 'angle': 0.5}
+2025-08-16 08:29:49,848 - TrainingEngine - INFO - 优化器: AdamW (lr=0.0003, wd=0.05)
+2025-08-16 08:29:49,849 - TrainingEngine - INFO - 调度器: CosineAnnealingWarmRestarts
+2025-08-16 08:29:49,849 - TrainingEngine - INFO - 使用BFloat16混合精度训练
+2025-08-16 08:29:49,884 - TrainingEngine - INFO - 启用EMA，decay=0.999
+2025-08-16 08:29:49,977 - TrainingEngine - INFO - 使用channels_last内存布局
+2025-08-16 08:29:49,977 - root - INFO - 创建验证器...
+2025-08-16 08:29:49,977 - Validator - INFO - 启用第二道防护: mae_px (min)
+2025-08-16 08:29:49,977 - root - INFO - 创建可视化器...
+2025-08-16 08:29:49,980 - Visualizer - INFO - TensorBoard日志目录: D:\Hacker\Sider_CAPTCHA_Solver\logs\tensorboard\1.1.0
+2025-08-16 08:29:52,270 - Visualizer - WARNING - 无法添加模型结构图: Encountering a dict at the output of the tracer might cause the trace to be incorrect, this is only valid if the container structure does not change based on the module's inputs. Consider using a constant container instead (e.g. for `list`, use a `tuple` instead. for `dict`, use a `NamedTuple` instead). If you absolutely need this and know the side effects, pass strict=False to trace() to allow this behavior.
+2025-08-16 08:29:52,276 - root - INFO - Launching TensorBoard on port 6006...
+2025-08-16 08:29:52,280 - root - INFO - TensorBoard started! Access at: http://localhost:6006
+2025-08-16 08:29:54,274 - root - INFO - 
+============================================================
+2025-08-16 08:29:54,274 - root - INFO - 开始训练
+2025-08-16 08:29:54,274 - root - INFO - ============================================================
+2025-08-16 08:29:54,276 - root - INFO - 
+开始训练 Epoch 1

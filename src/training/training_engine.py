@@ -285,8 +285,8 @@ class TrainingEngine:
         """
         # 混合精度上下文
         if self.use_amp:
-            # 兼容旧版本PyTorch的autocast API
-            with autocast(dtype=self.amp_dtype):
+            # 使用新版本PyTorch的autocast API
+            with autocast(device_type='cuda', dtype=self.amp_dtype):
                 outputs = self.model(batch['image'])
                 loss, loss_dict = self._compute_loss(outputs, batch)
         else:
