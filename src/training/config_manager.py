@@ -203,10 +203,8 @@ class ConfigManager:
                 device = torch.device('cuda')
                 self.logger.info(f"使用GPU: {torch.cuda.get_device_name(0)}")
                 
-                # 设置CuDNN
-                if self.config['hardware'].get('cudnn_benchmark', True):
-                    torch.backends.cudnn.benchmark = True
-                    self.logger.info("CuDNN benchmark已启用")
+                # 应用硬件优化设置
+                self.apply_hardware_optimizations()
             else:
                 device = torch.device('cpu')
                 self.logger.warning("CUDA不可用，使用CPU训练")
@@ -215,6 +213,42 @@ class ConfigManager:
             self.logger.info("使用CPU训练")
         
         return device
+    
+    def apply_hardware_optimizations(self):
+        """
+        应用硬件优化设置
+        """
+        hardware_cfg = self.config['hardware']
+        
+        # CuDNN benchmark
+        if hardware_cfg.get('cudnn_benchmark', True):
+            torch.backends.cudnn.benchmark = True
+            self.logger.info("CuDNN benchmark enabled")
+        
+        # CuDNN deterministic
+        if not hardware_cfg.get('cudnn_deterministic', False):
+            torch.backends.cudnn.deterministic = False
+            self.logger.info("CuDNN non-deterministic mode enabled (faster)")
+        else:
+            torch.backends.cudnn.deterministic = True
+            self.logger.info("CuDNN deterministic mode enabled (reproducible)")
+        
+        # TF32 acceleration (for Ampere GPUs and above)
+        if hardware_cfg.get('allow_tf32', True):
+            # Check if GPU supports TF32 (Ampere architecture or newer)
+            device_capability = torch.cuda.get_device_capability()
+            if device_capability[0] >= 8:  # Ampere is compute capability 8.x
+                # Enable TF32 for matrix multiplication
+                if hardware_cfg.get('matmul_allow_tf32', True):
+                    torch.backends.cuda.matmul.allow_tf32 = True
+                    self.logger.info("TF32 enabled for matrix multiplication")
+                
+                # Enable TF32 for convolution
+                if hardware_cfg.get('cudnn_allow_tf32', True):
+                    torch.backends.cudnn.allow_tf32 = True
+                    self.logger.info("TF32 enabled for convolution operations")
+            else:
+                self.logger.info(f"GPU compute capability {device_capability[0]}.{device_capability[1]} does not support TF32")
     
     def get_optimizer_config(self) -> Dict[str, Any]:
         """获取优化器配置"""

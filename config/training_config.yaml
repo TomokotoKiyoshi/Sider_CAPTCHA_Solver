@@ -3,10 +3,12 @@
 
 # 数据配置
 data:
-  train_dir: "data/split_for_training/train.json"  # JSON格式训练数据
-  val_dir: "data/split_for_training/val.json"      # JSON格式验证数据
-  test_file: "data/split_for_training/test.json"   # JSON格式测试数据
-  processed_dir: "data/processed"                  # 处理后的图像目录
+  processed_dir: "data/processed"                  # NPY批次数据目录
+  # 数据结构:
+  # - images/train/: train_XXXX.npy
+  # - images/val/: val_XXXX.npy  
+  # - labels/train/: 标签文件
+  # - labels/val/: 标签文件
   
 model:
   name: "Lite-HRNet-18+LiteFPN"
@@ -35,6 +37,10 @@ train:
   channels_last: true      # 内存布局优化
   num_workers: 24
   pin_memory: true
+  non_blocking: true       # 异步数据传输（H2D）
+  gradient_accumulation_steps: 1   # 梯度累积步数（1=不累积，保持原样）
+  compile_model: false     # torch.compile优化（PyTorch 2.0+）
+  compile_mode: "default"  # compile模式: default, reduce-overhead, max-autotune
   
 eval:
   metrics: [mae_px, rmse_px, hit_le_2px, hit_le_5px]
@@ -65,6 +71,17 @@ logging:
   log_interval: 10                   # 每10个batch记录一次
   tensorboard: true
   tensorboard_dir: "logs/tensorboard/1.1.0"
+  auto_launch_tensorboard: true      # 训练开始时自动启动TensorBoard
+  tensorboard_port: 6006              # TensorBoard端口
+  
+  # 时间追踪配置
+  time_tracking:
+    enabled: true                     # 启用时间追踪
+    log_to_tensorboard: true         # 记录到TensorBoard
+    display_eta: true                 # 显示预计完成时间
+    update_interval: 1                # 每个epoch更新一次
+    time_format: "hours"              # 时间显示格式: seconds, minutes, hours
+    show_progress_bar: true           # 显示进度条
   
   # TensorBoard监控项
   tb_items:
@@ -82,10 +99,19 @@ logging:
     - "hist/angle_loss"           # 角度损失直方图
     - "hist/slider_loss"          # 滑块损失直方图
     - "hist/gap_loss"             # 缺口损失直方图
+    - "time/epoch_duration"       # 每个epoch训练时间
+    - "time/total_elapsed"        # 总训练时间
+    - "time/eta_hours"            # 预计剩余时间（小时）
+    - "time/avg_epoch_time"       # 平均每epoch时间
+    - "time/estimated_total"      # 预计总训练时间
 
 hardware:
   device: "cuda"                     # cuda/cpu
   cudnn_benchmark: true              # CuDNN自动调优
+  cudnn_deterministic: false         # 非确定性算法（更快）
+  allow_tf32: true                   # 启用TF32加速（RTX 30系列及以上）
+  matmul_allow_tf32: true           # 矩阵乘法TF32加速
+  cudnn_allow_tf32: true            # 卷积TF32加速
 
 monitoring:
   wandb:

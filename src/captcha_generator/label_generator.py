@@ -95,8 +95,12 @@ class CaptchaLabelGenerator:
         # 如果有旋转混淆，更新旋转角度
         if confusion_metadata and 'rotation' in confusion_metadata:
             rotation_params = confusion_metadata['rotation']
-            if 'angle' in rotation_params:
-                label['labels']['gap_pose']['delta_theta_deg'] = float(rotation_params['angle'])
+            # 旋转策略返回的是 'rotation_angle' 而不是 'angle'
+            if 'rotation_angle' in rotation_params:
+                label['labels']['gap_pose']['delta_theta_deg'] = float(rotation_params['rotation_angle'])
+            elif 'config' in rotation_params and 'rotation_angle' in rotation_params['config']:
+                # 兼容从config中读取
+                label['labels']['gap_pose']['delta_theta_deg'] = float(rotation_params['config']['rotation_angle'])
         
         # 增强标签（可选但推荐）
         if fake_gaps:

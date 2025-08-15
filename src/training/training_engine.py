@@ -9,11 +9,19 @@ import torch.nn.functional as F
 from torch.cuda.amp import GradScaler, autocast
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 import logging
 import time
 from copy import deepcopy
 import numpy as np
+import yaml
+from pathlib import Path
+
+# 导入完整的损失函数
+import sys
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+from src.models.loss_calculation.total_loss import create_total_loss
 
 
 class TrainingEngine:
@@ -45,6 +53,9 @@ class TrainingEngine:
         self.config = config
         self.device = device
         self.logger = logging.getLogger('TrainingEngine')
+        
+        # 加载损失函数配置并创建总损失函数
+        self.loss_fn = self._setup_loss_function()
         
         # 优化器设置
         self.optimizer = self._setup_optimizer()
@@ -81,9 +92,59 @@ class TrainingEngine:
         # 梯度裁剪
         self.clip_grad_norm = config['optimizer'].get('clip_grad_norm', 1.0)
         
+        # 梯度累积
+        self.gradient_accumulation_steps = config['train'].get('gradient_accumulation_steps', 1)
+        self.accumulation_counter = 0
+        
         # 训练统计
         self.global_step = 0
         self.epoch = 0
+    
+    def _setup_loss_function(self):
+        """设置损失函数"""
+        # 加载损失函数配置
+        loss_config_path = project_root / 'config' / 'loss.yaml'
+        if not loss_config_path.exists():
+            # 使用默认配置
+            self.logger.warning(f"损失配置文件不存在: {loss_config_path}，使用默认配置")
+            loss_config = {
+                'focal_loss': {
+                    'alpha': 1.5,
+                    'beta': 4.0,
+                    'pos_threshold': 0.8,
+                    'eps': 1e-8
+                },
+                'offset_loss': {
+                    'beta': 1.0
+                },
+                'hard_negative_loss': {
+                    'margin': 0.2,
+                    'score_type': 'bilinear',
+                    'neighborhood_size': 3
+                },
+                'angle_loss': {
+                    'weight': 1.0
+                },
+                'total_loss': {
+                    'use_angle': False,  # 默认不使用角度损失
+                    'weights': {
+                        'heatmap': 1.0,
+                        'offset': 1.0,
+                        'hard_negative': 0.5,
+                        'angle': 0.5
+                    }
+                }
+            }
+        else:
+            with open(loss_config_path, 'r', encoding='utf-8') as f:
+                loss_config = yaml.safe_load(f)
+        
+        # 创建总损失函数
+        loss_fn = create_total_loss(loss_config)
+        self.logger.info("使用完整的TotalLoss（包含硬负样本损失和角度损失）")
+        self.logger.info(f"损失权重: {loss_config['total_loss']['weights']}")
+        
+        return loss_fn
     
     def _setup_optimizer(self) -> torch.optim.Optimizer:
         """设置优化器"""
@@ -148,6 +209,8 @@ class TrainingEngine:
             'loss': 0.0,
             'focal_loss': 0.0,
             'offset_loss': 0.0,
+            'hard_negative_loss': 0.0,
+            'angle_loss': 0.0,
             'gap_mae': 0.0,
             'slider_mae': 0.0,
             'lr': self.optimizer.param_groups[0]['lr']
@@ -197,9 +260,12 @@ class TrainingEngine:
     def _batch_to_device(self, batch: Dict) -> Dict:
         """将批次数据传输到设备"""
         device_batch = {}
+        # 检查是否启用非阻塞传输
+        non_blocking = self.config['train'].get('non_blocking', True)
+        
         for key, value in batch.items():
             if isinstance(value, torch.Tensor):
-                device_batch[key] = value.to(self.device)
+                device_batch[key] = value.to(self.device, non_blocking=non_blocking)
                 # 应用channels_last（如果启用）
                 if self.config['train'].get('channels_last', False) and len(value.shape) == 4:
                     device_batch[key] = device_batch[key].to(memory_format=torch.channels_last)
@@ -240,8 +306,10 @@ class TrainingEngine:
         # 整合指标
         metrics = {
             'loss': loss.item(),
-            'focal_loss': loss_dict['focal_loss'],
-            'offset_loss': loss_dict['offset_loss'],
+            'focal_loss': loss_dict.get('focal_loss', 0.0),
+            'offset_loss': loss_dict.get('offset_loss', 0.0),
+            'hard_negative_loss': loss_dict.get('hard_negative_loss', 0.0),
+            'angle_loss': loss_dict.get('angle_loss', 0.0),
             'gap_mae': gap_error,
             'slider_mae': slider_error
         }
@@ -250,62 +318,113 @@ class TrainingEngine:
     
     def _compute_loss(self, outputs: Dict, targets: Dict) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
-        计算损失函数
+        计算损失函数（使用完整的TotalLoss）
         
-        实现CenterNet风格的损失：
+        包含：
         - Focal Loss用于热力图
-        - L1 Loss用于偏移量
+        - L1 Loss用于偏移量  
+        - Hard Negative Loss用于混淆缺口抑制
+        - Angle Loss用于微旋转（可选）
         
         Args:
             outputs: 模型输出
-            targets: 目标值
+            targets: 目标值（已包含预计算的热力图和偏移量）
             
         Returns:
             总损失和各项损失
         """
-        # 生成目标热力图
-        gap_heatmap_gt, gap_offset_gt = self._generate_targets(
-            targets['gap_coords'], 
-            outputs['heatmap_gap'].shape
-        )
-        slider_heatmap_gt, slider_offset_gt = self._generate_targets(
-            targets['slider_coords'], 
-            outputs['heatmap_slider'].shape
-        )
-        
-        # Focal Loss for heatmaps
-        gap_focal_loss = self._focal_loss(
-            outputs['heatmap_gap'], 
-            gap_heatmap_gt
-        )
-        slider_focal_loss = self._focal_loss(
-            outputs['heatmap_slider'], 
-            slider_heatmap_gt
-        )
-        focal_loss = gap_focal_loss + slider_focal_loss
-        
-        # L1 Loss for offsets (只在正样本位置计算)
-        gap_offset_loss = self._offset_loss(
-            outputs['offset_gap'],
-            gap_offset_gt,
-            gap_heatmap_gt
-        )
-        slider_offset_loss = self._offset_loss(
-            outputs['offset_slider'],
-            slider_offset_gt,
-            slider_heatmap_gt
-        )
-        offset_loss = gap_offset_loss + slider_offset_loss
-        
-        # 总损失
-        loss = focal_loss + offset_loss
-        
-        loss_dict = {
-            'focal_loss': focal_loss.item(),
-            'offset_loss': offset_loss.item()
+        # 准备TotalLoss需要的输入格式
+        predictions = {
+            'heatmap_gap': outputs['heatmap_gap'],  # [B, 1, H, W]
+            'heatmap_piece': outputs['heatmap_slider'],  # [B, 1, H, W] 
+            'offset': torch.cat([  # [B, 4, H, W]
+                outputs['offset_gap'],  # [B, 2, H, W]
+                outputs['offset_slider']  # [B, 2, H, W]
+            ], dim=1)
         }
         
-        return loss, loss_dict
+        # 如果模型输出角度预测，添加到predictions
+        if 'angle' in outputs:
+            predictions['angle'] = outputs['angle']  # [B, 2, H, W]
+        
+        # 准备目标格式
+        loss_targets = {
+            'heatmap_gap': targets['heatmap_gap'].unsqueeze(1),  # [B, 1, H, W]
+            'heatmap_piece': targets['heatmap_slider'].unsqueeze(1),  # [B, 1, H, W]
+            'offset': torch.cat([  # [B, 4, H, W]
+                targets['offset_gap'],  # [B, 2, H, W]
+                targets['offset_slider']  # [B, 2, H, W]
+            ], dim=1)
+        }
+        
+        # 添加权重掩码（如果有）
+        if 'weight_gap' in targets and 'weight_slider' in targets:
+            # 使用gap和slider权重的平均值作为统一掩码
+            loss_targets['mask'] = (targets['weight_gap'] + targets['weight_slider']) / 2.0
+            if loss_targets['mask'].dim() == 3:  # [B, H, W]
+                loss_targets['mask'] = loss_targets['mask'].unsqueeze(1)  # [B, 1, H, W]
+        
+        # 准备混淆缺口信息（用于硬负样本损失）
+        batch_size = predictions['heatmap_gap'].shape[0]
+        gap_centers = []
+        fake_centers_list = []
+        
+        # 从targets中提取真实缺口中心和混淆缺口中心
+        if 'gap_coords' in targets:
+            # gap_coords是原图坐标，需要转换到特征图坐标
+            gap_centers = targets['gap_coords'] / 4.0  # [B, 2]
+            loss_targets['gap_center'] = gap_centers
+        else:
+            # 如果没有提供坐标，从热力图中提取峰值位置
+            gap_centers = self._extract_peak_coords(targets['heatmap_gap'])
+            loss_targets['gap_center'] = gap_centers
+        
+        # 提取混淆缺口坐标（如果有）
+        if 'confusing_gaps' in targets:
+            # confusing_gaps应该是每个批次样本的混淆缺口列表
+            loss_targets['fake_centers'] = targets['confusing_gaps']
+        else:
+            # 如果没有混淆缺口信息，提供空列表
+            loss_targets['fake_centers'] = [[] for _ in range(batch_size)]
+        
+        # 如果有角度目标，添加到loss_targets
+        if 'angle' in targets:
+            loss_targets['angle'] = targets['angle']  # [B, 2, H, W]
+        
+        # 使用TotalLoss计算损失
+        total_loss, loss_dict = self.loss_fn(predictions, loss_targets)
+        
+        # 提取各项损失值用于记录
+        result_dict = {
+            'focal_loss': loss_dict.get('heatmap', 0.0).item() if isinstance(loss_dict.get('heatmap', 0.0), torch.Tensor) else loss_dict.get('heatmap', 0.0),
+            'offset_loss': loss_dict.get('offset', 0.0).item() if isinstance(loss_dict.get('offset', 0.0), torch.Tensor) else loss_dict.get('offset', 0.0),
+            'hard_negative_loss': loss_dict.get('hard_negative', 0.0).item() if isinstance(loss_dict.get('hard_negative', 0.0), torch.Tensor) else loss_dict.get('hard_negative', 0.0),
+            'angle_loss': loss_dict.get('angle', 0.0).item() if isinstance(loss_dict.get('angle', 0.0), torch.Tensor) else loss_dict.get('angle', 0.0)
+        }
+        
+        return total_loss, result_dict
+    
+    def _extract_peak_coords(self, heatmap: torch.Tensor) -> torch.Tensor:
+        """
+        从热力图中提取峰值坐标
+        
+        Args:
+            heatmap: 热力图 [B, H, W]
+            
+        Returns:
+            峰值坐标 [B, 2] (x, y)
+        """
+        batch_size = heatmap.shape[0]
+        coords = torch.zeros(batch_size, 2, device=heatmap.device)
+        
+        for b in range(batch_size):
+            # 找到最大值位置
+            flat_idx = heatmap[b].argmax()
+            y = flat_idx // heatmap.shape[2]
+            x = flat_idx % heatmap.shape[2]
+            coords[b] = torch.tensor([x, y], device=heatmap.device, dtype=torch.float32)
+        
+        return coords
     
     def _generate_targets(self, 
                          coords: torch.Tensor, 
@@ -355,7 +474,8 @@ class TrainingEngine:
         return heatmap, offset
     
     def _focal_loss(self, pred: torch.Tensor, target: torch.Tensor, 
-                   alpha: float = 2.0, beta: float = 4.0) -> torch.Tensor:
+                   alpha: float = 2.0, beta: float = 4.0, 
+                   weight_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         CenterNet变体的Focal Loss
         
@@ -376,6 +496,13 @@ class TrainingEngine:
         # 负样本损失
         neg_weights = torch.pow(1 - target, beta)
         neg_loss = -torch.log(1 - pred + 1e-12) * torch.pow(pred, alpha) * neg_weights * neg_mask
+        
+        # 应用权重掩码（如果提供）
+        if weight_mask is not None:
+            if weight_mask.dim() == 3:  # [B, H, W]
+                weight_mask = weight_mask.unsqueeze(1)  # [B, 1, H, W]
+            pos_loss = pos_loss * weight_mask
+            neg_loss = neg_loss * weight_mask
         
         # 归一化
         num_pos = pos_mask.sum()
@@ -415,21 +542,34 @@ class TrainingEngine:
         return loss
     
     def _backward_step(self, loss: torch.Tensor):
-        """反向传播步骤"""
-        self.optimizer.zero_grad()
+        """反向传播步骤（支持梯度累积）"""
+        # 如果使用梯度累积，需要缩放损失
+        if self.gradient_accumulation_steps > 1:
+            loss = loss / self.gradient_accumulation_steps
+        
+        # 累积计数器
+        self.accumulation_counter += 1
         
         if self.use_amp and self.amp_dtype != torch.bfloat16:
             # 标准混合精度（FP16）
             self.scaler.scale(loss).backward()
-            self.scaler.unscale_(self.optimizer)
-            nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+            
+            # 只在累积完成时更新权重
+            if self.accumulation_counter % self.gradient_accumulation_steps == 0:
+                self.scaler.unscale_(self.optimizer)
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                self.optimizer.zero_grad()
         else:
             # BFloat16或FP32
             loss.backward()
-            nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
-            self.optimizer.step()
+            
+            # 只在累积完成时更新权重
+            if self.accumulation_counter % self.gradient_accumulation_steps == 0:
+                nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
+                self.optimizer.step()
+                self.optimizer.zero_grad()
     
     def _update_ema(self):
         """更新EMA模型"""

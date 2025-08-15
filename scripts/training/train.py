@@ -17,7 +17,6 @@ sys.path.insert(0, str(project_root))
 # 导入核心模块
 from src.models import create_lite_hrnet_18_fpn
 from src.training.config_manager import ConfigManager
-from src.training.data_pipeline import DataPipeline
 from src.training.training_engine import TrainingEngine
 from src.training.validator import Validator
 from src.training.visualizer import Visualizer
@@ -41,13 +40,6 @@ def parse_args():
     parser.add_argument('--eval-only', action='store_true',
                        help='仅执行评估')
     
-    # 数据参数
-    parser.add_argument('--train-dir', type=str, 
-                       default=None,  # 将从配置文件读取
-                       help='训练数据目录（覆盖配置文件中的值）')
-    parser.add_argument('--val-dir', type=str, 
-                       default=None,  # 将从配置文件读取
-                       help='验证数据目录（覆盖配置文件中的值）')
     
     # 覆盖配置参数
     parser.add_argument('--batch-size', type=int, default=None,
@@ -74,10 +66,7 @@ def set_seed(seed: int):
     np.random.seed(seed)
     import random
     random.seed(seed)
-    
-    # 确保可复现性
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    # Note: CuDNN settings are now handled by config_manager.apply_hardware_optimizations()
 
 
 def override_config(config: dict, args):
@@ -274,18 +263,11 @@ def main():
         model.load_state_dict(checkpoint['model_state_dict'])
         model = model.to(device)
         
-        # 创建数据管道
+        # 创建数据管道 (仅支持NPY格式)
+        from src.training.npy_data_loader import NPYDataPipeline
         processed_dir_eval = config.get('data', {}).get('processed_dir', 'data/processed')
-        npy_val_index = Path(processed_dir_eval) / "val_index.json"
-        
-        if npy_val_index.exists():
-            from src.training.npy_data_loader import NPYDataPipeline
-            data_pipeline = NPYDataPipeline(config)
-            data_pipeline.setup()
-        else:
-            data_pipeline = DataPipeline(config)
-            val_path = config.get('data', {}).get('val_dir', 'data/split_for_training/val')
-            data_pipeline.setup(None, val_path)
+        data_pipeline = NPYDataPipeline(config)
+        data_pipeline.setup()
         
         # 创建验证器
         validator = Validator(config, device)
@@ -304,11 +286,14 @@ def main():
     # 获取数据路径
     processed_dir = config.get('data', {}).get('processed_dir', 'data/processed')
     
-    # 检测数据格式
-    # 1. 首先检查是否有NPY批次数据（新目录结构）
+    # 使用NPY批次数据加载器（唯一支持的格式）
+    logging.info("加载NPY批次格式数据...")
+    from src.training.npy_data_loader import NPYDataPipeline
+    
+    # 检查数据目录是否存在
     npy_train_dir = Path(processed_dir) / "images" / "train"
     npy_val_dir = Path(processed_dir) / "images" / "val"
-    # 也检查索引文件（兼容旧格式）
+    # 也检查索引文件
     npy_train_index = Path(processed_dir) / "train_index.json"
     npy_val_index = Path(processed_dir) / "val_index.json"
     # 或在split_info目录
@@ -317,39 +302,26 @@ def main():
     if not npy_val_index.exists():
         npy_val_index = Path(processed_dir) / "split_info" / "val_index.json"
     
-    if npy_train_dir.exists() or npy_val_dir.exists() or npy_train_index.exists() or npy_val_index.exists():
-        # 使用NPY批次数据加载器
-        logging.info("检测到NPY批次格式数据，使用NPY数据管道...")
-        from src.training.npy_data_loader import NPYDataPipeline
-        
-        config['data']['processed_dir'] = processed_dir
-        data_pipeline = NPYDataPipeline(config)
-        data_pipeline.setup()
-        
-        logging.info(f"使用NPY数据目录: {processed_dir}")
-        if npy_train_dir.exists():
-            logging.info(f"训练数据目录: {npy_train_dir} (新目录结构)")
-        elif npy_train_index.exists():
-            logging.info(f"训练索引: {npy_train_index} (索引文件模式)")
-        if npy_val_dir.exists():
-            logging.info(f"验证数据目录: {npy_val_dir} (新目录结构)")
-        elif npy_val_index.exists():
-            logging.info(f"验证索引: {npy_val_index} (索引文件模式)")
-        
-    # 2. 使用传统目录数据加载器作为备用
-    else:
-        logging.warning("未找到NPY批次数据索引文件")
-        logging.info("使用目录格式数据管道...")
-        
-        # 从配置文件获取目录路径
-        train_path = config.get('data', {}).get('train_dir', 'data/split_for_training/train')
-        val_path = config.get('data', {}).get('val_dir', 'data/split_for_training/val')
-        
-        data_pipeline = DataPipeline(config)
-        data_pipeline.setup(train_path, val_path)
-        
-        logging.info(f"使用训练数据目录: {train_path}")
-        logging.info(f"使用验证数据目录: {val_path}")
+    # 验证数据存在
+    if not (npy_train_dir.exists() or npy_train_index.exists()):
+        raise FileNotFoundError(
+            f"未找到训练数据！请先运行预处理脚本生成NPY格式数据。\n"
+            f"期望路径: {npy_train_dir} 或 {npy_train_index}"
+        )
+    
+    config['data']['processed_dir'] = processed_dir
+    data_pipeline = NPYDataPipeline(config)
+    data_pipeline.setup()
+    
+    logging.info(f"使用NPY数据目录: {processed_dir}")
+    if npy_train_dir.exists():
+        logging.info(f"训练数据目录: {npy_train_dir}")
+    elif npy_train_index.exists():
+        logging.info(f"训练索引: {npy_train_index}")
+    if npy_val_dir.exists():
+        logging.info(f"验证数据目录: {npy_val_dir}")
+    elif npy_val_index.exists():
+        logging.info(f"验证索引: {npy_val_index}")
     
     # 获取批次信息
     batch_info = data_pipeline.get_batch_info()
@@ -375,6 +347,56 @@ def main():
     except:
         pass
     
+    # 自动启动TensorBoard（如果配置启用）
+    if config.get('logging', {}).get('auto_launch_tensorboard', False):
+        tensorboard_dir = config['logging']['tensorboard_dir']
+        tensorboard_port = config['logging'].get('tensorboard_port', 6006)
+        
+        # 启动TensorBoard进程
+        import subprocess
+        import threading
+        import socket
+        
+        def is_port_in_use(port):
+            """检查端口是否已被占用"""
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(('localhost', port))
+                    return False
+                except:
+                    return True
+        
+        def launch_tensorboard():
+            try:
+                # Check if port is already in use
+                if is_port_in_use(tensorboard_port):
+                    logging.info(f"Port {tensorboard_port} is already in use, TensorBoard may be running")
+                    print(f"\n{'='*60}")
+                    print(f"INFO: TensorBoard may already be running!")
+                    print(f"URL: http://localhost:{tensorboard_port}")
+                    print(f"{'='*60}\n")
+                else:
+                    logging.info(f"Launching TensorBoard on port {tensorboard_port}...")
+                    cmd = f"tensorboard --logdir {tensorboard_dir} --port {tensorboard_port} --bind_all"
+                    subprocess.Popen(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    logging.info(f"TensorBoard started! Access at: http://localhost:{tensorboard_port}")
+                    print(f"\n{'='*60}")
+                    print(f"TensorBoard auto-launched successfully!")
+                    print(f"URL: http://localhost:{tensorboard_port}")
+                    print(f"Note: TensorBoard will continue running after training stops")
+                    print(f"{'='*60}\n")
+            except Exception as e:
+                logging.warning(f"Failed to auto-launch TensorBoard: {e}")
+                logging.info(f"Please run manually: tensorboard --logdir {tensorboard_dir}")
+        
+        # 在后台线程中启动TensorBoard
+        tb_thread = threading.Thread(target=launch_tensorboard, daemon=True)
+        tb_thread.start()
+        
+        # 等待一下让TensorBoard启动
+        import time
+        time.sleep(2)
+    
     # 恢复训练（如果需要）
     start_epoch = 1
     if args.resume:
@@ -387,7 +409,19 @@ def main():
     
     total_epochs = config['sched']['epochs']
     
-    for epoch in range(start_epoch, total_epochs + 1):
+    # 检查是否显示进度条
+    show_progress = config.get('logging', {}).get('time_tracking', {}).get('show_progress_bar', False)
+    
+    if show_progress:
+        from tqdm import tqdm
+        epoch_iterator = tqdm(range(start_epoch, total_epochs + 1), 
+                             desc="Training Progress", 
+                             unit="epoch",
+                             ncols=100)
+    else:
+        epoch_iterator = range(start_epoch, total_epochs + 1)
+    
+    for epoch in epoch_iterator:
         epoch_start_time = time.time()
         
         print(f"\n{'='*50}")
@@ -436,11 +470,26 @@ def main():
         epoch_time = time.time() - epoch_start_time
         logging.info(f"Epoch {epoch} 用时: {epoch_time:.2f}秒")
         
-        # 打印关键指标
+        # 记录时间指标到TensorBoard
+        visualizer.log_time_metrics(epoch, epoch_time)
+        
+        # 获取ETA字符串
+        eta_string = visualizer.get_eta_string(epoch)
+        
+        # 打印关键指标（包含ETA）
         print(f"\n训练损失: {train_metrics['loss']:.4f}")
         print(f"验证MAE: {val_metrics['mae_px']:.3f}px")
         print(f"验证Hit@2px: {val_metrics['hit_le_2px']:.2f}%")
         print(f"验证Hit@5px: {val_metrics['hit_le_5px']:.2f}%")
+        print(f"预计剩余时间: {eta_string}")
+        
+        # 更新进度条描述（如果使用tqdm）
+        if show_progress and hasattr(epoch_iterator, 'set_postfix'):
+            epoch_iterator.set_postfix({
+                'Loss': f"{train_metrics['loss']:.4f}",
+                'MAE': f"{val_metrics['mae_px']:.2f}px",
+                'ETA': eta_string
+            })
         
         # 早停检查
         if val_metrics.get('early_stop', False):
@@ -485,36 +534,48 @@ def main():
     
     visualizer.log_hyperparameters(hparams, final_metrics)
     
-    # 在测试集上评估（如果有测试集）
-    test_file = config.get('data', {}).get('test_file', 'data/split_for_training/test.json')
-    if Path(test_file).exists():
+    # 在测试集上评估（如果有测试集NPY数据）
+    test_dir = Path(processed_dir) / "images" / "test"
+    test_index = Path(processed_dir) / "test_index.json"
+    if not test_index.exists():
+        test_index = Path(processed_dir) / "split_info" / "test_index.json"
+    
+    if test_dir.exists() or test_index.exists():
         logging.info("\n在测试集上评估最佳模型...")
-        from src.training.test_evaluator import TestEvaluator
         
         # 加载最佳模型
         best_checkpoint_path = Path(config['checkpoints']['save_dir']) / "best_model.pth"
         if best_checkpoint_path.exists():
-            # 创建测试评估器
-            test_evaluator = TestEvaluator(
-                test_file=test_file,
-                processed_dir=config.get('data', {}).get('processed_dir', 'data/processed')
-            )
+            # 创建测试数据加载器
+            test_config = config.copy()
+            test_pipeline = NPYDataPipeline(test_config)
+            # 设置为测试模式
+            test_loader = test_pipeline.get_test_loader() if hasattr(test_pipeline, 'get_test_loader') else None
             
-            # 加载最佳模型
-            best_model = create_lite_hrnet_18_fpn(config['model'])
-            checkpoint = torch.load(best_checkpoint_path, map_location='cpu')
-            best_model.load_state_dict(checkpoint['model_state_dict'])
-            
-            # 评估
-            test_metrics = test_evaluator.evaluate(best_model, device)
-            
-            # 记录到TensorBoard
-            for key, value in test_metrics.items():
-                visualizer.writer.add_scalar(f'test/{key}', value, epoch)
+            if test_loader:
+                # 加载最佳模型
+                best_model = create_lite_hrnet_18_fpn(config['model'])
+                checkpoint = torch.load(best_checkpoint_path, map_location='cpu')
+                best_model.load_state_dict(checkpoint['model_state_dict'])
+                best_model = best_model.to(device)
+                
+                # 评估
+                test_validator = Validator(config, device)
+                test_metrics = test_validator.validate(best_model, test_loader, 0)
+                
+                # 记录到TensorBoard
+                for key, value in test_metrics.items():
+                    if isinstance(value, (int, float)):
+                        visualizer.writer.add_scalar(f'test/{key}', value, epoch)
+                
+                logging.info(f"测试集MAE: {test_metrics.get('mae_px', 0):.3f}px")
+                logging.info(f"测试集Hit@2px: {test_metrics.get('hit_le_2px', 0):.2f}%")
+            else:
+                logging.info("测试数据加载器不可用")
         else:
             logging.warning("未找到最佳模型检查点，跳过测试集评估")
     else:
-        logging.info(f"测试集文件不存在: {test_file}，跳过测试集评估")
+        logging.info("未找到测试集NPY数据，跳过测试集评佐")
     
     # 关闭可视化器
     visualizer.close()

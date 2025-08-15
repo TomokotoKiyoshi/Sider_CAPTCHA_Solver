@@ -112,6 +112,12 @@ class NPYBatchDataset(Dataset):
                     meta = json.load(f)
                     batch_size = meta.get('batch_size', 64)
                 
+                # 丢弃不完整的批次（从配置或索引文件获取期望的批次大小）
+                expected_batch_size = self.index.get('batch_size', 64) if hasattr(self, 'index') and self.index else 64
+                if batch_size < expected_batch_size:
+                    self.logger.info(f"丢弃不完整批次 {batch_id}，大小为 {batch_size}（期望 {expected_batch_size}）")
+                    continue
+                
                 self.batches.append({
                     'batch_id': batch_id,
                     'batch_size': batch_size,
@@ -155,7 +161,7 @@ class NPYBatchDataset(Dataset):
             images = np.load(image_path)  # [B, 4, 256, 512]
             heatmaps = np.load(heatmap_path)  # [B, 2, 64, 128]
             offsets = np.load(offset_path)  # [B, 4, 64, 128]
-            weights = np.load(weight_path)  # [B, 2, 64, 128]
+            weights = np.load(weight_path)  # [B, 1, 64, 128]
             
             # 加载元数据
             with open(meta_path, 'r', encoding='utf-8') as f:
@@ -197,14 +203,17 @@ class NPYBatchDataset(Dataset):
             gap_coords = torch.tensor(gap_coords_list, dtype=torch.float32)
             slider_coords = torch.tensor(slider_coords_list, dtype=torch.float32)
             
+            # weights 形状是 [B, 1, 64, 128]，squeeze 去掉通道维度得到 [B, 64, 128]
+            weight_mask = weights.squeeze(1)  # [B, 64, 128]
+            
             return {
                 'image': images,
                 'heatmap_gap': heatmaps[:, 0],
                 'heatmap_slider': heatmaps[:, 1],
                 'offset_gap': offsets[:, :2],
                 'offset_slider': offsets[:, 2:],
-                'weight_gap': weights[:, 0],
-                'weight_slider': weights[:, 1],
+                'weight_gap': weight_mask,  # [B, 64, 128] - gap和slider共享同一个权重掩码
+                'weight_slider': weight_mask,  # [B, 64, 128] - gap和slider共享同一个权重掩码
                 'gap_coords': gap_coords,
                 'slider_coords': slider_coords,
                 'batch_size': batch_info['batch_size']
@@ -278,13 +287,15 @@ class NPYDataPipeline:
                 self.num_train_samples = self.train_dataset.total_samples
                 
                 # 创建训练数据加载器（批次已预处理，所以batch_size=1）
+                num_workers = self.config.get('train', {}).get('num_workers', 8)
                 self.train_loader = DataLoader(
                     self.train_dataset,
                     batch_size=1,  # 每次加载一个预处理的批次
                     shuffle=True,
-                    num_workers=2,
+                    num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True,
+                    persistent_workers=True if num_workers > 0 else False,
+                    prefetch_factor=4 if num_workers > 0 else None,
                     collate_fn=self._collate_batch
                 )
                 
@@ -310,13 +321,15 @@ class NPYDataPipeline:
                 )
                 self.num_train_samples = self.train_dataset.total_samples
                 
+                num_workers = self.config.get('train', {}).get('num_workers', 8)
                 self.train_loader = DataLoader(
                     self.train_dataset,
                     batch_size=1,
                     shuffle=True,
-                    num_workers=2,
+                    num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True,
+                    persistent_workers=True if num_workers > 0 else False,
+                    prefetch_factor=4 if num_workers > 0 else None,
                     collate_fn=self._collate_batch
                 )
                 
@@ -334,13 +347,15 @@ class NPYDataPipeline:
                 )
                 self.num_val_samples = self.val_dataset.total_samples
                 
+                num_workers = self.config.get('train', {}).get('num_workers', 8)
                 self.val_loader = DataLoader(
                     self.val_dataset,
                     batch_size=1,
                     shuffle=False,
-                    num_workers=2,
+                    num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True,
+                    persistent_workers=True if num_workers > 0 else False,
+                    prefetch_factor=4 if num_workers > 0 else None,
                     collate_fn=self._collate_batch
                 )
                 
@@ -362,13 +377,15 @@ class NPYDataPipeline:
                 )
                 self.num_val_samples = self.val_dataset.total_samples
                 
+                num_workers = self.config.get('train', {}).get('num_workers', 8)
                 self.val_loader = DataLoader(
                     self.val_dataset,
                     batch_size=1,
                     shuffle=False,
-                    num_workers=2,
+                    num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True,
+                    persistent_workers=True if num_workers > 0 else False,
+                    prefetch_factor=4 if num_workers > 0 else None,
                     collate_fn=self._collate_batch
                 )
                 
@@ -431,13 +448,15 @@ class NPYDataPipeline:
                     index_file=None
                 )
                 
+                num_workers = self.config.get('train', {}).get('num_workers', 8)
                 test_loader = DataLoader(
                     test_dataset,
                     batch_size=1,
                     shuffle=False,
-                    num_workers=2,
+                    num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True,
+                    persistent_workers=True if num_workers > 0 else False,
+                    prefetch_factor=4 if num_workers > 0 else None,
                     collate_fn=self._collate_batch
                 )
                 

@@ -61,6 +61,16 @@ class Visualizer:
         # 全局步数
         self.global_step = 0
         
+        # 时间追踪配置
+        self.time_tracking_config = config['logging'].get('time_tracking', {})
+        self.time_tracking_enabled = self.time_tracking_config.get('enabled', False)
+        
+        # 时间追踪变量
+        import time
+        self.training_start_time = time.time()
+        self.epoch_times = []  # 存储每个epoch的训练时间
+        self.total_epochs = config.get('sched', {}).get('epochs', 100)
+        
     def log_scalars(self, 
                    metrics: Dict[str, float], 
                    step: int, 
@@ -402,6 +412,99 @@ class Visualizer:
                 return True
         
         return False
+    
+    def log_time_metrics(self, epoch: int, epoch_time: float):
+        """
+        记录时间相关的指标
+        
+        Args:
+            epoch: 当前epoch
+            epoch_time: 本epoch训练时间（秒）
+        """
+        if not self.time_tracking_enabled:
+            return
+        
+        import time
+        
+        # 记录本epoch时间
+        self.epoch_times.append(epoch_time)
+        
+        # 计算各种时间指标
+        current_time = time.time()
+        total_elapsed = current_time - self.training_start_time
+        avg_epoch_time = sum(self.epoch_times) / len(self.epoch_times)
+        
+        # 计算预计剩余时间
+        remaining_epochs = self.total_epochs - epoch
+        eta_seconds = avg_epoch_time * remaining_epochs
+        
+        # 计算预计总时间
+        estimated_total_seconds = avg_epoch_time * self.total_epochs
+        
+        # 根据配置的时间格式转换
+        time_format = self.time_tracking_config.get('time_format', 'hours')
+        if time_format == 'hours':
+            time_divisor = 3600
+            time_suffix = 'h'
+        elif time_format == 'minutes':
+            time_divisor = 60
+            time_suffix = 'min'
+        else:  # seconds
+            time_divisor = 1
+            time_suffix = 's'
+        
+        # 转换时间单位
+        epoch_time_display = epoch_time / time_divisor
+        total_elapsed_display = total_elapsed / time_divisor
+        avg_epoch_time_display = avg_epoch_time / time_divisor
+        eta_display = eta_seconds / time_divisor
+        estimated_total_display = estimated_total_seconds / time_divisor
+        
+        # 记录到TensorBoard
+        if self.time_tracking_config.get('log_to_tensorboard', True):
+            self.writer.add_scalar(f'time/epoch_duration_{time_suffix}', epoch_time_display, epoch)
+            self.writer.add_scalar(f'time/total_elapsed_{time_suffix}', total_elapsed_display, epoch)
+            self.writer.add_scalar(f'time/avg_epoch_time_{time_suffix}', avg_epoch_time_display, epoch)
+            self.writer.add_scalar(f'time/eta_{time_suffix}', eta_display, epoch)
+            self.writer.add_scalar(f'time/estimated_total_{time_suffix}', estimated_total_display, epoch)
+            
+            # 记录进度百分比
+            progress_percent = (epoch / self.total_epochs) * 100
+            self.writer.add_scalar('time/progress_percent', progress_percent, epoch)
+        
+        # 打印到控制台
+        if self.time_tracking_config.get('display_eta', True):
+            self.logger.info(f"时间统计 - Epoch {epoch}/{self.total_epochs}:")
+            self.logger.info(f"  本epoch用时: {epoch_time_display:.2f}{time_suffix}")
+            self.logger.info(f"  平均每epoch: {avg_epoch_time_display:.2f}{time_suffix}")
+            self.logger.info(f"  已用总时间: {total_elapsed_display:.2f}{time_suffix}")
+            self.logger.info(f"  预计剩余: {eta_display:.2f}{time_suffix}")
+            self.logger.info(f"  预计总时间: {estimated_total_display:.2f}{time_suffix}")
+            self.logger.info(f"  训练进度: {progress_percent:.1f}%")
+    
+    def get_eta_string(self, epoch: int) -> str:
+        """
+        获取格式化的ETA字符串
+        
+        Args:
+            epoch: 当前epoch
+            
+        Returns:
+            格式化的ETA字符串
+        """
+        if not self.time_tracking_enabled or not self.epoch_times:
+            return "N/A"
+        
+        avg_epoch_time = sum(self.epoch_times) / len(self.epoch_times)
+        remaining_epochs = self.total_epochs - epoch
+        eta_seconds = avg_epoch_time * remaining_epochs
+        
+        # 格式化为 HH:MM:SS
+        hours = int(eta_seconds // 3600)
+        minutes = int((eta_seconds % 3600) // 60)
+        seconds = int(eta_seconds % 60)
+        
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     
     def close(self):
         """关闭TensorBoard writer"""

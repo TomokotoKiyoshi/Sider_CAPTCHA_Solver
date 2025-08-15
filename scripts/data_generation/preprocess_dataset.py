@@ -191,11 +191,17 @@ def main():
             split_info_dir = config.get('output_structure', {}).get('split_info_subdir', 'split_info')
             splitter.save_split_info(split_result, str(output_dir / split_info_dir))
             
-            # 生成各个数据集
-            for split_name, split_labels in split_result.items():
+            # 得到 split_result 后，尽快释放大表
+            del all_labels
+            gc.collect()
+            
+            # 保证固定次序，且每次处理后从 split_result 弹出释放引用
+            for split_name in ("train", "val", "test"):
+                split_labels = split_result.pop(split_name, [])
+                if not split_labels:
+                    continue  # 跳过空的split
+                    
                 print(f"\n📝 Processing {split_name} split ({len(split_labels)} samples)...")
-                
-                # 显示处理前内存
                 mem_before_mb, mem_before_percent = monitor_memory()
                 print(f"Memory before: {mem_before_mb:.2f} MB ({mem_before_percent:.1f}%)")
                 
@@ -206,13 +212,17 @@ def main():
                     labels_subset=split_labels
                 )
                 
-                # 显示处理后内存
+                # 释放当前 split 的列表
+                del split_labels
+                gc.collect()
+                
                 mem_after_mb, mem_after_percent = monitor_memory()
                 print(f"Memory after: {mem_after_mb:.2f} MB ({mem_after_percent:.1f}%)")
                 print(f"Memory delta: {mem_after_mb - mem_before_mb:+.2f} MB")
-                
-                # 强制垃圾回收
-                gc.collect(2)
+            
+            # 最后清空字典，二次回收
+            split_result.clear()
+            gc.collect()
         else:
             # 原始逻辑：不自动划分
             if args.split == 'all':

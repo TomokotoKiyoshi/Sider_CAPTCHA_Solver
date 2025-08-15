@@ -19,7 +19,7 @@ preprocessing:
 dataset:
   batch_size: 64             # 批次大小，每批保存一个文件
   num_workers: 12            # 并行处理进程数（建议：CPU核心数的一半）
-  chunk_size: 1             # 每个进程任务块大小，避免序列化开销
+  chunk_size: 1              # 每个进程任务块大小，避免序列化开销
   maxtasksperchild: 10       # 每个进程处理任务数上限，防止内存累积
   gc_interval: 2             # 垃圾回收频率，每N批强制回收一次
 

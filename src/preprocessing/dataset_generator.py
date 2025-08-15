@@ -49,12 +49,19 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
         # 提取坐标信息
         gap_center = tuple(label['labels']['bg_gap_center'])
         slider_center = tuple(label['labels']['comp_piece_center'])
-        gap_angle = label['labels']['gap_pose'].get('delta_theta_deg', 0.0)
         
-        # 处理混淆缺口
+        # 提取真缺口的旋转角度（从gap_pose中获取）
+        gap_angle = 0.0
+        if 'gap_pose' in label['labels']:
+            gap_angle = label['labels']['gap_pose'].get('delta_theta_deg', 0.0)
+            # gap_scale = label['labels']['gap_pose'].get('scale', 1.0)  # 如果需要缩放信息
+        
+        # 处理混淆缺口（从augmented_labels中获取）
         fake_gaps = []
-        if 'fake_gaps' in label['labels']:
-            for fake_gap in label['labels']['fake_gaps']:
+        if 'augmented_labels' in label and 'fake_gaps' in label.get('augmented_labels', {}):
+            for fake_gap in label['augmented_labels']['fake_gaps']:
+                # fake_gap格式: {'center': [x, y], 'delta_theta_deg': angle, 'scale': scale}
+                # 这里只传递中心位置，混淆缺口的旋转/缩放用于生成时的视觉效果
                 fake_gaps.append(tuple(fake_gap['center']))
         
         # 使用预处理器处理图像
@@ -63,7 +70,7 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
             gap_center=gap_center,
             slider_center=slider_center,
             confusing_gaps=fake_gaps if fake_gaps else None,
-            gap_angle=gap_angle
+            gap_angle=gap_angle  # 现在包含正确的旋转角度
         )
         
         # 只返回必要的数据，减少序列化开销
@@ -79,8 +86,8 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
             'gap_offset': result['gap_offset'],
             'slider_grid': result['slider_grid'],
             'slider_offset': result['slider_offset'],
-            'confusing_gaps': result.get('confusing_gaps', []),
-            'gap_angle': result.get('gap_angle', 0.0)
+            'confusing_gaps': result.get('confusing_gaps', []),  # 现在包含实际的假缺口坐标
+            'gap_angle': result.get('gap_angle', 0.0)  # 现在包含实际的旋转角度
         }
     except Exception as e:
         print(f"Failed to process sample {label.get('sample_id', 'unknown')}: {e}")
@@ -193,7 +200,8 @@ class StreamingDatasetGenerator:
         self._buf_images = np.empty((self.batch_size, *self.input_shape), dtype=np.float32)
         self._buf_heatmaps = np.empty((self.batch_size, 2, *self.grid_size), dtype=np.float32)
         self._buf_offsets = np.empty((self.batch_size, 4, *self.grid_size), dtype=np.float32)
-        self._buf_weight_masks = np.empty((self.batch_size, *self.grid_size), dtype=np.float32)
+        # 修复：添加通道维度 [B, 1, H, W] - gap和slider共享同一个权重掩码
+        self._buf_weight_masks = np.empty((self.batch_size, 1, *self.grid_size), dtype=np.float32)
         
         # 元数据缓冲（这些比较小，可以用列表）
         self._buf_metadata = {
@@ -233,7 +241,8 @@ class StreamingDatasetGenerator:
         self._buf_images[idx] = sample['input']
         self._buf_heatmaps[idx] = sample['heatmaps']
         self._buf_offsets[idx] = sample['offsets']
-        self._buf_weight_masks[idx] = sample['weight_mask']
+        # 修复：将2D权重掩码放入正确的通道位置 [1, H, W]
+        self._buf_weight_masks[idx, 0] = sample['weight_mask']
         
         # 元数据添加到列表
         self._buf_metadata['sample_ids'].append(sample['sample_id'])
@@ -261,6 +270,13 @@ class StreamingDatasetGenerator:
             return  # 空缓冲区，无需写入
         
         batch_size = self._buf_ptr
+        
+        # 丢弃不完整的批次（小于配置的batch_size的批次）
+        if batch_size < self.batch_size:  # self.batch_size 从配置文件读取
+            print(f"  丢弃不完整批次：{batch_size} 个样本（要求 {self.batch_size} 个）")
+            self._reset_batch_buffers()
+            return
+        
         batch_id = self._batch_counter
         
         # 使用配置的文件命名模式准备文件路径（使用配置中的split目录）
