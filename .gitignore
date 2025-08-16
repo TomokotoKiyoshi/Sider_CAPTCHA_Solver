@@ -20,7 +20,9 @@ test_output/
 logs/
 
 # Model checkpoints - 只忽略大的checkpoint文件，保留best_model.pth
-src/checkpoints/**/*
+src/checkpoints/
+!src/checkpoints/
+!src/checkpoints/**/
 !src/checkpoints/**/best_model.pth
 
 # Byte-compiled / optimized / DLL files
