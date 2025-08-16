@@ -16,6 +16,9 @@ data/
 # Test output directory (contains test images)
 test_output/
 
+# Logs
+logs/
+
 # Model checkpoints (except versioned best_model.pth)
 # 忽略checkpoints目录下的所有文件，但保留best_model.pth
 src/checkpoints/**/*.pth
