@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
+# 解决OpenMP冲突问题 - 必须在导入numpy/torch之前设置
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+
 """
 Lite-HRNet-18+LiteFPN 训练主脚本
 滑块验证码识别模型训练入口
@@ -7,7 +12,6 @@ Lite-HRNet-18+LiteFPN 训练主脚本
 import argparse
 import torch
 import sys
-import os
 from pathlib import Path
 
 # 添加项目根目录到路径
@@ -215,7 +219,7 @@ def train_epoch(model, engine, dataloader, epoch, visualizer):
     return train_metrics
 
 
-def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=False):
+def validate_epoch(model, validator, dataloader, epoch, visualizer, global_step=None, use_ema=False):
     """
     验证一个epoch
     
@@ -225,6 +229,7 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=Fals
         dataloader: 数据加载器
         epoch: 当前epoch
         visualizer: 可视化器
+        global_step: 全局步数（用于TensorBoard记录）
         use_ema: 是否使用EMA模型
     
     Returns:
@@ -235,8 +240,9 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=Fals
     # 执行验证
     val_metrics = validator.validate(model, dataloader, epoch, use_ema)
     
-    # 记录到TensorBoard
-    visualizer.log_validation_metrics(val_metrics, epoch)
+    # 记录到TensorBoard - 使用global_step代替epoch
+    step_to_use = global_step if global_step is not None else epoch
+    visualizer.log_validation_metrics(val_metrics, step_to_use)
     
     # 如果有可视化数据，记录预测和热力图
     if 'vis_data' in val_metrics:
@@ -252,7 +258,7 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=Fals
                 vis_data['images'],
                 vis_data['predictions'],
                 vis_data['targets'],
-                epoch,
+                step_to_use,
                 num_samples=num_pred_samples,
                 num_best=num_best,
                 num_worst=num_worst
@@ -263,7 +269,7 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=Fals
             num_heatmap_samples = vis_config.get('num_heatmap_samples', 2)
             visualizer.log_heatmaps(
                 vis_data['outputs'],
-                epoch,
+                step_to_use,
                 num_samples=num_heatmap_samples,
                 images=vis_data['images']  # 传入原图以启用叠加显示
             )
@@ -274,7 +280,7 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=Fals
     # 记录失败案例
     failures = validator.get_failure_cases()
     if failures:
-        visualizer.log_failure_cases(failures, epoch)
+        visualizer.log_failure_cases(failures, step_to_use)
     
     return val_metrics
 
@@ -507,6 +513,7 @@ def main():
             model, validator,
             data_pipeline.get_val_loader(),
             epoch, visualizer,
+            global_step=engine.global_step,
             use_ema=False
         )
         
@@ -517,11 +524,12 @@ def main():
                 engine.ema_model, validator,
                 data_pipeline.get_val_loader(),
                 epoch, visualizer,
+                global_step=engine.global_step,
                 use_ema=True
             )
-            # 记录EMA指标
+            # 记录EMA指标 - 使用global_step
             for key, value in ema_metrics.items():
-                visualizer.writer.add_scalar(f'ema/{key}', value, epoch)
+                visualizer.writer.add_scalar(f'ema/{key}', value, engine.global_step)
         
         # 更新学习率
         engine.step_scheduler()
@@ -629,10 +637,10 @@ def main():
                 test_validator = Validator(config, device)
                 test_metrics = test_validator.validate(best_model, test_loader, 0)
                 
-                # 记录到TensorBoard
+                # 记录到TensorBoard - 使用global_step
                 for key, value in test_metrics.items():
                     if isinstance(value, (int, float)):
-                        visualizer.writer.add_scalar(f'test/{key}', value, epoch)
+                        visualizer.writer.add_scalar(f'test/{key}', value, engine.global_step)
                 
                 logging.info(f"测试集MAE: {test_metrics.get('mae_px', 0):.3f}px")
                 logging.info(f"测试集Hit@2px: {test_metrics.get('hit_le_2px', 0):.2f}%")

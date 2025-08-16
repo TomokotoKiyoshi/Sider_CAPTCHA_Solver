@@ -128,23 +128,18 @@ class Visualizer:
             metrics: 验证指标
             epoch: 当前epoch
         """
-        # 主要指标
-        self.writer.add_scalar('val/mae_px', metrics['mae_px'], epoch)
-        self.writer.add_scalar('val/rmse_px', metrics['rmse_px'], epoch)
-        
-        # 分别的误差
+        # 只记录需要的指标
+        # 分别的MAE
         self.writer.add_scalar('val/gap_mae', metrics['gap_mae'], epoch)
         self.writer.add_scalar('val/slider_mae', metrics['slider_mae'], epoch)
         
         # 命中率
-        self.writer.add_scalar('val/hit_le_1px', metrics['hit_le_1px'], epoch)
         self.writer.add_scalar('val/hit_le_2px', metrics['hit_le_2px'], epoch)
         self.writer.add_scalar('val/hit_le_5px', metrics['hit_le_5px'], epoch)
         
-        # 统计信息
-        self.writer.add_scalar('val/mae_std', metrics['mae_std'], epoch)
-        self.writer.add_scalar('val/mae_max', metrics['mae_max'], epoch)
-        self.writer.add_scalar('val/mae_median', metrics['mae_median'], epoch)
+        # 综合指标
+        self.writer.add_scalar('val/mae_px', metrics['mae_px'], epoch)
+        self.writer.add_scalar('val/rmse_px', metrics['rmse_px'], epoch)
         
         # 确保数据被写入
         self.writer.flush()
@@ -553,17 +548,18 @@ class Visualizer:
         eta_display = eta_seconds / time_divisor
         estimated_total_display = estimated_total_seconds / time_divisor
         
-        # 记录到TensorBoard
-        if self.time_tracking_config.get('log_to_tensorboard', True):
-            self.writer.add_scalar(f'time/epoch_duration_{time_suffix}', epoch_time_display, epoch)
-            self.writer.add_scalar(f'time/total_elapsed_{time_suffix}', total_elapsed_display, epoch)
-            self.writer.add_scalar(f'time/avg_epoch_time_{time_suffix}', avg_epoch_time_display, epoch)
-            self.writer.add_scalar(f'time/eta_{time_suffix}', eta_display, epoch)
-            self.writer.add_scalar(f'time/estimated_total_{time_suffix}', estimated_total_display, epoch)
-            
-            # 记录进度百分比
-            progress_percent = (epoch / self.total_epochs) * 100
-            self.writer.add_scalar('time/progress_percent', progress_percent, epoch)
+        # 不再记录时间到TensorBoard（用户要求移除）
+        # 注释掉时间记录相关代码
+        # if self.time_tracking_config.get('log_to_tensorboard', True):
+        #     self.writer.add_scalar(f'time/epoch_duration_{time_suffix}', epoch_time_display, epoch)
+        #     self.writer.add_scalar(f'time/total_elapsed_{time_suffix}', total_elapsed_display, epoch)
+        #     self.writer.add_scalar(f'time/avg_epoch_time_{time_suffix}', avg_epoch_time_display, epoch)
+        #     self.writer.add_scalar(f'time/eta_{time_suffix}', eta_display, epoch)
+        #     self.writer.add_scalar(f'time/estimated_total_{time_suffix}', estimated_total_display, epoch)
+        #     
+        #     # 记录进度百分比
+        #     progress_percent = (epoch / self.total_epochs) * 100
+        #     self.writer.add_scalar('time/progress_percent', progress_percent, epoch)
         
         # 打印到控制台
         if self.time_tracking_config.get('display_eta', True):

@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 import logging
 from typing import Dict, List, Optional, Any
+import platform
+import yaml
 
 
 class NPYBatchDataset(Dataset):
@@ -302,6 +304,45 @@ class NPYDataPipeline:
         # 数据统计
         self.num_train_samples = 0
         self.num_val_samples = 0
+        
+        # 缓存NPY批次大小
+        self._npy_batch_size_cache = None
+    
+    def _get_npy_batch_size(self) -> int:
+        """
+        获取NPY文件的批次大小
+        
+        Returns:
+            每个NPY文件包含的样本数
+        """
+        if self._npy_batch_size_cache is not None:
+            return self._npy_batch_size_cache
+            
+        # 尝试从预处理配置文件读取
+        try:
+            preprocessing_config_path = Path('config/preprocessing_config.yaml')
+            if preprocessing_config_path.exists():
+                with open(preprocessing_config_path, 'r', encoding='utf-8') as f:
+                    preprocessing_config = yaml.safe_load(f)
+                    batch_size = preprocessing_config.get('dataset', {}).get('batch_size', 64)
+                    self.logger.info(f"从预处理配置读取NPY批次大小: {batch_size}")
+                    self._npy_batch_size_cache = batch_size
+                    return batch_size
+        except Exception as e:
+            self.logger.warning(f"无法读取预处理配置: {e}")
+        
+        # 尝试从数据集检测
+        if self.train_dataset and hasattr(self.train_dataset, 'batch_size'):
+            batch_size = self.train_dataset.batch_size
+            self._npy_batch_size_cache = batch_size
+            self.logger.info(f"从数据集检测NPY批次大小: {batch_size}")
+            return batch_size
+        
+        # 默认值
+        default_batch_size = 64
+        self.logger.warning(f"使用默认NPY批次大小: {default_batch_size}")
+        self._npy_batch_size_cache = default_batch_size
+        return default_batch_size
     
     def setup(self):
         """设置数据管道"""
@@ -330,10 +371,10 @@ class NPYDataPipeline:
                 persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
                 
                 # 动态调整batch_size基于NPY文件大小
-                # 如果每个NPY只有128张图，可以加载多个NPY文件
-                npy_batch_size = 128  # 每个NPY文件的实际样本数
+                # 从预处理配置或数据集元数据中获取实际的NPY批次大小
+                npy_batch_size = self._get_npy_batch_size()  # 每个NPY文件的实际样本数
                 target_batch_size = self.config.get('train', {}).get('batch_size', 256)
-                dataloader_batch_size = max(1, target_batch_size // npy_batch_size)  # 256/128 = 2
+                dataloader_batch_size = max(1, target_batch_size // npy_batch_size)  # 例如：256/64 = 4
                 
                 self.train_loader = DataLoader(
                     self.train_dataset,
@@ -375,7 +416,7 @@ class NPYDataPipeline:
                 persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
                 
                 # 动态调整batch_size
-                npy_batch_size = 128
+                npy_batch_size = self._get_npy_batch_size()
                 target_batch_size = self.config.get('train', {}).get('batch_size', 512)
                 dataloader_batch_size = max(1, target_batch_size // npy_batch_size)
                 
@@ -404,12 +445,20 @@ class NPYDataPipeline:
                 )
                 self.num_val_samples = self.val_dataset.total_samples
                 
-                num_workers = self.config.get('train', {}).get('num_workers', 4)
-                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
-                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                # Windows fix: 验证时使用num_workers=0避免pickle错误
+                import platform
+                if platform.system() == 'Windows':
+                    num_workers = 0  # Windows验证时强制单进程
+                    prefetch_factor = None
+                    persistent_workers = False
+                    self.logger.info("Windows检测：验证使用单进程加载 (num_workers=0)")
+                else:
+                    num_workers = self.config.get('train', {}).get('num_workers', 4)
+                    prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                    persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
                 
                 # 动态调整batch_size
-                npy_batch_size = 128
+                npy_batch_size = self._get_npy_batch_size()
                 target_batch_size = self.config.get('train', {}).get('batch_size', 512)
                 dataloader_batch_size = max(1, target_batch_size // npy_batch_size)  # 验证也使用相同策略
                 
@@ -442,12 +491,20 @@ class NPYDataPipeline:
                 )
                 self.num_val_samples = self.val_dataset.total_samples
                 
-                num_workers = self.config.get('train', {}).get('num_workers', 4)
-                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
-                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                # Windows fix: 验证时使用num_workers=0避免pickle错误
+                import platform
+                if platform.system() == 'Windows':
+                    num_workers = 0  # Windows验证时强制单进程
+                    prefetch_factor = None
+                    persistent_workers = False
+                    self.logger.info("Windows检测：验证使用单进程加载 (num_workers=0)")
+                else:
+                    num_workers = self.config.get('train', {}).get('num_workers', 4)
+                    prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                    persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
                 
                 # 动态调整batch_size
-                npy_batch_size = 128
+                npy_batch_size = self._get_npy_batch_size()
                 target_batch_size = self.config.get('train', {}).get('batch_size', 512)
                 dataloader_batch_size = max(1, target_batch_size // npy_batch_size)  # 验证也使用相同策略
                 
@@ -566,12 +623,18 @@ class NPYDataPipeline:
                     index_file=None
                 )
                 
-                num_workers = self.config.get('train', {}).get('num_workers', 4)
-                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
-                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                # Windows fix: 测试时使用num_workers=0避免pickle错误
+                if platform.system() == 'Windows':
+                    num_workers = 0  # Windows测试时强制单进程
+                    prefetch_factor = None
+                    persistent_workers = False
+                else:
+                    num_workers = self.config.get('train', {}).get('num_workers', 4)
+                    prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                    persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
                 
                 # 动态调整batch_size
-                npy_batch_size = 128
+                npy_batch_size = self._get_npy_batch_size()
                 target_batch_size = self.config.get('train', {}).get('batch_size', 512)
                 dataloader_batch_size = max(1, target_batch_size // npy_batch_size)
                 

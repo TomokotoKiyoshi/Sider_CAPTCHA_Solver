@@ -285,11 +285,6 @@ class Validator:
             'hit_le_2px': (hit_counts[2] / total_samples) * 100,
             'hit_le_5px': (hit_counts[5] / total_samples) * 100,
             
-            # 统计信息
-            'mae_std': np.std(combined_errors),
-            'mae_max': np.max(combined_errors),
-            'mae_median': np.median(combined_errors),
-            
             # 样本数
             'num_samples': total_samples
         }

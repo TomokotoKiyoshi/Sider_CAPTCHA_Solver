@@ -103,9 +103,15 @@ def override_config(config: dict, args):
     config['logging']['log_interval'] = 5
     config['checkpoints']['save_interval'] = 1
     
-    # 测试模式使用单进程加载数据以避免pickle问题
-    config['train']['num_workers'] = 0
-    logging.info("测试模式：使用单进程数据加载（num_workers=0）")
+    # Windows系统使用单进程加载数据以避免pickle问题
+    import platform
+    if platform.system() == 'Windows':
+        config['train']['num_workers'] = 0
+        logging.info("Windows系统：使用单进程数据加载（num_workers=0）")
+    else:
+        # 非Windows系统可以使用多进程
+        config['train']['num_workers'] = config['train'].get('num_workers', 4)
+        logging.info(f"使用多进程数据加载（num_workers={config['train']['num_workers']}）")
 
 
 def save_checkpoint(model, engine, validator, epoch, config, is_best=False):
