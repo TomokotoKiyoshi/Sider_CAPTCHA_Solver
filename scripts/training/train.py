@@ -241,15 +241,11 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, global_step=
     # 执行验证
     val_metrics = validator.validate(model, dataloader, epoch, use_ema)
     
-    # 记录到TensorBoard - 使用epoch作为主要x轴（避免锯齿）
-    visualizer.log_validation_metrics(val_metrics, epoch)
-    
-    # 如果提供了global_step，额外记录一份与训练同步的版本
-    if global_step is not None and not use_ema:
-        # 记录与训练同步的版本（带_sync后缀）
-        for key in ['gap_mae', 'slider_mae', 'mae_px', 'hit_le_2px', 'hit_le_5px']:
-            if key in val_metrics:
-                visualizer.writer.add_scalar(f'val_sync/{key}', val_metrics[key], global_step)
+    # 记录到TensorBoard
+    if not use_ema:
+        # 主验证指标使用global_step（如果提供）或epoch
+        step_to_use = global_step if global_step is not None else epoch
+        visualizer.log_validation_metrics(val_metrics, step_to_use)
     
     # 如果有可视化数据，记录预测和热力图
     if 'vis_data' in val_metrics:
