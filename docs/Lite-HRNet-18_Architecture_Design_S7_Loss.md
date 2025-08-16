@@ -37,15 +37,32 @@ Y(i,j) = exp(−((i−v)² + (j−u)²)/(2σ²))
 ```
 训练时回归到`[−0.5, 0.5]`范围
 
-### Padding Mask与统一屏蔽权重
-- **Padding定义**：`M_pad ∈ {0,1}`（1=padding区域）
-- **权重对齐**：先对齐到1/4再取权重
+### Padding Mask与权重掩码处理
+
+#### 4通道输入结构
+模型接收4通道输入张量 `[B, 4, H, W]`：
+- **前3通道**：RGB图像（归一化到[0,1]）
+- **第4通道**：Padding mask（1=有效区域，0=padding区域）
+
+#### 权重掩码生成
 ```python
-P_1/4 = AvgPool_{k=4,s=4}(M_pad)  # 下采样
-W_1/4 = 1 − P_1/4                  # 有效权重
+# 从输入第4通道提取并下采样
+padding_mask = input[:, 3, :, :]  # [B, H, W]
+weight_mask = AvgPool2d(k=4, s=4)(padding_mask)  # [B, H/4, W/4]
 ```
 
-> **核心原则**：所有1/4分辨率上的像素级损失逐像素乘`W_1/4`并按有效像素数归一化。可选"硬屏蔽"：用MaxPool替代AvgPool。
+#### 实际实现细节
+1. **数据预处理阶段**：
+   - Letterbox变换生成padding mask
+   - 将padding mask作为第4通道存储在图像NPY文件中
+   - 不再单独保存weights.npy文件
+
+2. **数据加载阶段**：
+   - 从images.npy的第4通道提取padding mask
+   - 使用平均池化下采样到1/4分辨率
+   - 生成权重掩码供损失计算使用
+
+> **核心原则**：所有1/4分辨率上的像素级损失逐像素乘权重掩码并按有效像素数归一化。
 
 ---
 
@@ -303,6 +320,71 @@ writer.add_image('Heatmap/piece', H_piece[0], step)
 
 ## 8️⃣ 代码实现说明
 
+### 数据处理流水线
+
+#### 预处理流程
+```python
+# src/preprocessing/preprocessor.py
+class TrainingPreprocessor:
+    def preprocess(self, image, gap_center, slider_center, confusing_gaps, gap_angle):
+        # 1. Letterbox变换
+        image_letterboxed, transform_params = self.letterbox.apply(image)
+        
+        # 2. 生成padding mask
+        padding_mask = self.letterbox.create_padding_mask(transform_params)
+        
+        # 3. 组合4通道输入
+        input_tensor = np.concatenate([
+            image_channels,                    # [3, H, W]
+            padding_mask[np.newaxis, :, :]    # [1, H, W]
+        ], axis=0)  # [4, H, W]
+        
+        # 4. 生成热图和偏移标签
+        # ...
+        
+        return {
+            'input': input_tensor,  # 4通道
+            'heatmaps': heatmaps,
+            'offsets': offsets,
+            'confusing_gaps': confusing_grids,
+            'gap_angle': np.radians(gap_angle)
+        }
+```
+
+#### 数据集生成
+```python
+# src/preprocessing/dataset_generator.py
+class StreamingDatasetGenerator:
+    def _flush_buffer_to_disk(self, split):
+        # 保存数据文件
+        np.save(image_path, self._buf_images[:batch_size])     # 4通道图像
+        np.save(heatmap_path, self._buf_heatmaps[:batch_size])
+        np.save(offset_path, self._buf_offsets[:batch_size])
+        # 注意：权重掩码已集成在第4通道，不再单独保存
+```
+
+#### 数据加载
+```python
+# src/training/npy_data_loader.py
+class NPYBatchDataset:
+    def __getitem__(self, idx):
+        # 加载4通道图像
+        images = np.load(image_path)  # [B, 4, 256, 512]
+        
+        # 从第4通道提取权重掩码
+        padding_mask = images[:, 3, :, :]  # [B, 256, 512]
+        
+        # 下采样到1/4分辨率
+        weights = downsample_by_avgpool(padding_mask, factor=4)  # [B, 64, 128]
+        
+        return {
+            'image': images,  # 包含padding mask的4通道
+            'weight_gap': weights,
+            'weight_slider': weights,
+            # ...
+        }
+```
+
 ### 损失函数模块结构
 ```
 src/models/loss_calculation/
@@ -340,3 +422,109 @@ hard_negative_loss:
 2. **Offset Loss加权**：直接使用热图值作为权重w_g，无需额外阈值
 3. **Hard Negative采样**：支持双线性插值和邻域最大值两种方式
 4. **工厂函数**：所有损失函数都提供工厂函数，不使用默认参数
+
+---
+
+## 9️⃣ 数据流与损失计算完整流程
+
+### 训练数据流
+
+```mermaid
+graph TD
+    A[原始图像 320x160] --> B[Letterbox变换]
+    B --> C[图像 512x256 + Padding Mask]
+    C --> D[4通道输入张量]
+    D --> E[模型前向传播]
+    E --> F[预测输出]
+    
+    G[标签生成] --> H[热图 64x128]
+    G --> I[偏移 64x128]
+    G --> J[混淆缺口坐标]
+    G --> K[旋转角度]
+    
+    F --> L[损失计算]
+    H --> L
+    I --> L
+    J --> L
+    K --> L
+    
+    M[Padding Mask] --> N[下采样 4x]
+    N --> O[权重掩码 64x128]
+    O --> L
+```
+
+### 损失计算详细步骤
+
+#### Step 1: 准备阶段
+```python
+# 从批次数据中提取
+images = batch['image']           # [B, 4, 256, 512]
+heatmap_gap_gt = batch['heatmap_gap']     # [B, 64, 128]
+heatmap_slider_gt = batch['heatmap_slider']  # [B, 64, 128]
+offset_gap_gt = batch['offset_gap']       # [B, 2, 64, 128]
+offset_slider_gt = batch['offset_slider']    # [B, 2, 64, 128]
+weight_mask = batch['weight_gap']         # [B, 64, 128]
+confusing_gaps = batch['confusing_gaps']     # List[List[Tuple]]
+gap_angles = batch['gap_angles']          # [B]
+```
+
+#### Step 2: 模型预测
+```python
+# 模型输出
+outputs = model(images)  # 4通道输入
+heatmap_gap_pred = outputs['heatmap_gap']     # [B, 1, 64, 128]
+heatmap_slider_pred = outputs['heatmap_slider']  # [B, 1, 64, 128]
+offset_gap_pred = outputs['offset_gap']       # [B, 2, 64, 128]
+offset_slider_pred = outputs['offset_slider']    # [B, 2, 64, 128]
+angle_pred = outputs.get('angle')          # [B, 2, 64, 128] (可选)
+```
+
+#### Step 3: 损失组件计算
+```python
+# 1. Focal Loss（热图损失）
+L_focal_gap = focal_loss(heatmap_gap_pred, heatmap_gap_gt, weight_mask)
+L_focal_slider = focal_loss(heatmap_slider_pred, heatmap_slider_gt, weight_mask)
+
+# 2. Offset Loss（偏移损失）
+L_offset_gap = offset_loss(offset_gap_pred, offset_gap_gt, heatmap_gap_gt, weight_mask)
+L_offset_slider = offset_loss(offset_slider_pred, offset_slider_gt, heatmap_slider_gt, weight_mask)
+
+# 3. Hard Negative Loss（假缺口抑制）
+if confusing_gaps:
+    L_hard_negative = hard_negative_loss(heatmap_gap_pred, gap_coords_gt, confusing_gaps, weight_mask)
+else:
+    L_hard_negative = 0
+
+# 4. Angle Loss（角度损失）
+if angle_pred is not None and gap_angles is not None:
+    L_angle = angle_loss(angle_pred, gap_angles, heatmap_gap_gt, weight_mask)
+else:
+    L_angle = 0
+```
+
+#### Step 4: 总损失组合
+```python
+L_total = (L_focal_gap + L_focal_slider) * weights['heatmap'] + \
+          (L_offset_gap + L_offset_slider) * weights['offset'] + \
+          L_hard_negative * weights['hard_negative'] + \
+          L_angle * weights['angle']
+```
+
+### 关键数据转换
+
+| 阶段 | 数据格式 | 维度 | 说明 |
+|------|---------|------|------|
+| 原始图像 | uint8 | [320, 160, 3] | RGB图像 |
+| Letterbox后 | float32 | [256, 512, 3] | 归一化+填充 |
+| 4通道输入 | float32 | [4, 256, 512] | RGB+Mask |
+| 特征图 | float32 | [C, 64, 128] | 1/4分辨率 |
+| 热图预测 | float32 | [1, 64, 128] | Sigmoid激活 |
+| 偏移预测 | float32 | [2, 64, 128] | Tanh激活 |
+| 权重掩码 | float32 | [64, 128] | 从第4通道下采样 |
+
+### 内存优化策略
+
+1. **流式数据生成**：使用缓冲区复用，避免内存累积
+2. **NPY批量存储**：预处理数据保存为NPY格式，减少实时计算
+3. **权重集成**：将权重掩码集成到输入第4通道，减少独立文件
+4. **多进程加载**：使用DataLoader的多进程预取机制

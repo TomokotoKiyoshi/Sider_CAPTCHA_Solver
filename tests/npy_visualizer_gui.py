@@ -15,6 +15,7 @@ from PIL import Image, ImageTk, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.patches as patches
+from scipy.ndimage import zoom
 
 # 添加项目根目录到路径
 project_root = Path(__file__).parent.parent
@@ -104,6 +105,10 @@ class NPYVisualizerGUI:
         self.image_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.image_frame, text="Image + Overlay")
         
+        # 第四通道可视化标签页（新增到第二位）
+        self.channel4_visual_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.channel4_visual_frame, text="Channel 4 Visual")
+        
         # 热力图标签页
         self.heatmap_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.heatmap_frame, text="Heatmaps")
@@ -112,9 +117,17 @@ class NPYVisualizerGUI:
         self.weight_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.weight_frame, text="Weight Mask")
         
+        # 第四通道（Padding Mask）标签页
+        self.channel4_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.channel4_frame, text="Channel 4 Analysis")
+        
         # 图像画布
         self.image_canvas = tk.Canvas(self.image_frame, bg='black')
         self.image_canvas.pack(fill=tk.BOTH, expand=True)
+        
+        # 第四通道可视化画布
+        self.channel4_visual_canvas = tk.Canvas(self.channel4_visual_frame, bg='black')
+        self.channel4_visual_canvas.pack(fill=tk.BOTH, expand=True)
         
         # matplotlib图形
         self.setup_matplotlib_figures()
@@ -145,6 +158,11 @@ class NPYVisualizerGUI:
         self.weight_canvas = FigureCanvasTkAgg(self.weight_fig, self.weight_frame)
         self.weight_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
+        # 第四通道
+        self.channel4_fig = plt.Figure(figsize=(10, 5), dpi=80)
+        self.channel4_canvas = FigureCanvasTkAgg(self.channel4_fig, self.channel4_frame)
+        self.channel4_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        
     def update_mode_info(self):
         """更新模式信息"""
         # 查找该模式下的批次数
@@ -168,11 +186,10 @@ class NPYVisualizerGUI:
             image_path = self.data_root / "images" / self.current_mode / f"{prefix}.npy"
             heatmap_path = self.data_root / "labels" / self.current_mode / f"{prefix}_heatmaps.npy"
             offset_path = self.data_root / "labels" / self.current_mode / f"{prefix}_offsets.npy"
-            weight_path = self.data_root / "labels" / self.current_mode / f"{prefix}_weights.npy"
             meta_path = self.data_root / "labels" / self.current_mode / f"{prefix}_meta.json"
             
-            # 检查文件是否存在
-            if not all(p.exists() for p in [image_path, heatmap_path, offset_path, weight_path]):
+            # 检查文件是否存在（不再检查weight_path）
+            if not all(p.exists() for p in [image_path, heatmap_path, offset_path]):
                 self.status_bar.config(text=f"Error: Missing files for batch {batch_id}")
                 return False
             
@@ -181,12 +198,27 @@ class NPYVisualizerGUI:
                 'images': np.load(image_path),      # [B, 4, 256, 512]
                 'heatmaps': np.load(heatmap_path),  # [B, 2, 64, 128]
                 'offsets': np.load(offset_path),    # [B, 4, 64, 128]
-                'weights': np.load(weight_path)     # [B, 1, 64, 128] or [B, 64, 128]
             }
             
-            # 处理权重维度
-            if self.batch_data['weights'].ndim == 3:
-                self.batch_data['weights'] = np.expand_dims(self.batch_data['weights'], axis=1)
+            # 从第4通道生成权重掩码（使用AvgPool下采样到1/4分辨率）
+            # 第4通道是padding mask，0=padding, 1=valid
+            # P_1/4 = AvgPool_{k=4,s=4}(M_pad)
+            channel4 = self.batch_data['images'][:, 3]  # [B, 256, 512]
+            # 使用平均池化下采样到1/4分辨率 [B, 64, 128]
+            batch_size = channel4.shape[0]
+            weights = np.zeros((batch_size, 64, 128), dtype=np.float32)
+            
+            # 对每个样本应用平均池化
+            for b in range(batch_size):
+                mask = channel4[b]  # [256, 512]
+                # AvgPool with kernel=4, stride=4
+                for i in range(64):
+                    for j in range(128):
+                        # 提取4x4窗口并计算平均值
+                        window = mask[i*4:(i+1)*4, j*4:(j+1)*4]
+                        weights[b, i, j] = np.mean(window)
+            
+            self.batch_data['weights'] = np.expand_dims(weights, axis=1)  # [B, 1, 64, 128]
             
             # 加载元数据
             if meta_path.exists():
@@ -227,11 +259,17 @@ class NPYVisualizerGUI:
         # 显示图像和叠加层
         self.display_image_with_overlay(idx)
         
+        # 显示第四通道可视化
+        self.display_channel4_visual(idx)
+        
         # 显示热力图
         self.display_heatmaps(idx)
         
         # 显示权重掩码
         self.display_weight_mask(idx)
+        
+        # 显示第四通道
+        self.display_channel4(idx)
         
         # 显示坐标信息
         self.display_coordinate_info(idx)
@@ -337,6 +375,96 @@ class NPYVisualizerGUI:
         self.image_canvas.create_image(x_center, y_center, image=photo, anchor='center')
         self.image_canvas.image = photo  # 保持引用
         
+    def display_channel4_visual(self, idx):
+        """显示第四通道的可视化图像"""
+        # 获取数据
+        image_data = self.batch_data['images'][idx]
+        channel4 = image_data[3]  # 第四通道 [256, 512]
+        rgb_image = image_data[:3].transpose(1, 2, 0)  # [256, 512, 3]
+        
+        # 创建合成图像
+        composite = np.copy(rgb_image)
+        
+        # 创建彩色掩码叠加
+        # padding区域（0）显示为半透明红色
+        # valid区域（1）保持原样
+        mask_colored = np.zeros_like(rgb_image)
+        
+        # padding区域着色
+        padding_mask = (channel4 == 0)
+        mask_colored[padding_mask] = [1.0, 0.2, 0.2]  # 红色
+        
+        # 混合原图和掩码
+        alpha = 0.4  # 透明度
+        composite[padding_mask] = (1 - alpha) * composite[padding_mask] + alpha * mask_colored[padding_mask]
+        
+        # 添加边界线
+        # 使用边缘检测找到padding和valid的边界
+        from scipy import ndimage
+        edges = ndimage.sobel(channel4.astype(float))
+        edges = np.abs(edges) > 0.1
+        
+        # 在边界处画绿色线
+        composite[edges] = [0, 1, 0]  # 绿色边界
+        
+        # 转换为PIL图像
+        composite_uint8 = (composite * 255).astype(np.uint8)
+        pil_image = Image.fromarray(composite_uint8)
+        
+        # 添加文字说明
+        draw = ImageDraw.Draw(pil_image)
+        try:
+            from PIL import ImageFont
+            font = ImageFont.truetype("arial.ttf", 16)
+        except:
+            font = None
+        
+        # 添加图例
+        legend_x = 10
+        legend_y = 10
+        
+        # 画图例框
+        draw.rectangle([legend_x, legend_y, legend_x + 150, legend_y + 60], 
+                      fill=(255, 255, 255, 200), outline=(0, 0, 0))
+        
+        # 图例文字
+        draw.text((legend_x + 10, legend_y + 5), "Channel 4 Visualization", fill=(0, 0, 0), font=font)
+        draw.text((legend_x + 10, legend_y + 25), "Red: Padding (0)", fill=(255, 0, 0), font=font)
+        draw.text((legend_x + 10, legend_y + 40), "Green: Edge", fill=(0, 255, 0), font=font)
+        
+        # 添加统计信息
+        valid_ratio = np.mean(channel4 == 1)
+        stats_text = f"Valid: {valid_ratio:.1%} | Padding: {1-valid_ratio:.1%}"
+        draw.text((legend_x + 170, legend_y + 25), stats_text, fill=(0, 0, 0), font=font)
+        
+        # 调整显示大小
+        display_width = 768  # 512 * 1.5
+        display_height = 384  # 256 * 1.5
+        pil_image = pil_image.resize((display_width, display_height), Image.Resampling.LANCZOS)
+        
+        # 转换为Tkinter图像
+        photo = ImageTk.PhotoImage(pil_image)
+        
+        # 获取画布大小以居中显示
+        self.channel4_visual_canvas.update_idletasks()
+        canvas_width = self.channel4_visual_canvas.winfo_width()
+        canvas_height = self.channel4_visual_canvas.winfo_height()
+        
+        # 如果画布还没有初始化，使用默认值
+        if canvas_width <= 1:
+            canvas_width = 800
+        if canvas_height <= 1:
+            canvas_height = 600
+            
+        # 计算居中位置
+        x_center = canvas_width // 2
+        y_center = canvas_height // 2
+        
+        # 更新画布
+        self.channel4_visual_canvas.delete("all")
+        self.channel4_visual_canvas.create_image(x_center, y_center, image=photo, anchor='center')
+        self.channel4_visual_canvas.image = photo  # 保持引用
+        
     def display_heatmaps(self, idx):
         """显示热力图"""
         self.heatmap_fig.clear()
@@ -396,6 +524,68 @@ class NPYVisualizerGUI:
         self.weight_fig.tight_layout()
         self.weight_canvas.draw()
         
+    def display_channel4(self, idx):
+        """显示第四通道（Padding Mask）"""
+        self.channel4_fig.clear()
+        
+        # 创建子图
+        ax1 = self.channel4_fig.add_subplot(121)
+        ax2 = self.channel4_fig.add_subplot(122)
+        
+        # 获取第四通道数据 [256, 512]
+        channel4_data = self.batch_data['images'][idx, 3]  # 第四通道
+        
+        # 显示完整分辨率的第四通道
+        im1 = ax1.imshow(channel4_data, cmap='RdYlGn', interpolation='nearest', vmin=0, vmax=1)
+        ax1.set_title('Channel 4 - Full Resolution (512×256)')
+        ax1.set_xlabel('Width')
+        ax1.set_ylabel('Height')
+        self.channel4_fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
+        
+        # 计算并显示下采样版本（1/4分辨率，使用AvgPool）
+        # P_1/4 = AvgPool_{k=4,s=4}(M_pad)
+        downsampled = np.zeros((64, 128), dtype=np.float32)
+        for i in range(64):
+            for j in range(128):
+                # 提取4x4窗口并计算平均值
+                window = channel4_data[i*4:(i+1)*4, j*4:(j+1)*4]
+                downsampled[i, j] = np.mean(window)
+        
+        im2 = ax2.imshow(downsampled, cmap='RdYlGn', interpolation='nearest', vmin=0, vmax=1)
+        ax2.set_title('Channel 4 - Downsampled (128×64)')
+        ax2.set_xlabel('Width')
+        ax2.set_ylabel('Height')
+        self.channel4_fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
+        
+        # 显示统计信息
+        valid_pixels = np.sum(channel4_data == 1)
+        padding_pixels = np.sum(channel4_data == 0)
+        total_pixels = channel4_data.size
+        valid_ratio = valid_pixels / total_pixels
+        
+        # 在图上添加统计文本
+        stats_text = f"Valid: {valid_pixels:,} ({valid_ratio:.1%})\nPadding: {padding_pixels:,} ({1-valid_ratio:.1%})\nTotal: {total_pixels:,}"
+        ax1.text(0.02, 0.98, stats_text, 
+                transform=ax1.transAxes, va='top', color='white', fontsize=9,
+                bbox=dict(boxstyle='round', facecolor='black', alpha=0.7))
+        
+        # 检查是否与权重掩码一致
+        weight_mask = self.batch_data['weights'][idx, 0]  # [64, 128]
+        downsampled_resized = zoom(downsampled, (weight_mask.shape[0]/downsampled.shape[0], 
+                                                  weight_mask.shape[1]/downsampled.shape[1]), order=0)
+        
+        consistency = np.mean(downsampled_resized == weight_mask)
+        consistency_text = f"Consistency with\nweight mask: {consistency:.1%}"
+        
+        # 使用不同的颜色表示一致性状态
+        text_color = 'green' if consistency > 0.95 else 'orange' if consistency > 0.8 else 'red'
+        ax2.text(0.02, 0.98, consistency_text,
+                transform=ax2.transAxes, va='top', color=text_color, fontsize=9,
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
+        
+        self.channel4_fig.tight_layout()
+        self.channel4_canvas.draw()
+        
     def display_coordinate_info(self, idx):
         """显示坐标恢复公式信息"""
         # 获取数据
@@ -420,9 +610,8 @@ class NPYVisualizerGUI:
         
         # 格式化信息文本
         info = f"""
-╔══════════════════════════════════════════════════════════════╗
-║              Coordinate Recovery Formula                     ║
-╚══════════════════════════════════════════════════════════════╝
+Coordinate Recovery Formula
+========================================
 
 Sample: {idx+1}/{self.batch_data['images'].shape[0]}
 Batch: {self.current_batch_id} | Mode: {self.current_mode}
@@ -448,6 +637,12 @@ Batch: {self.current_batch_id} | Mode: {self.current_mode}
 [Weight Mask]
   Valid pixels: {np.mean(self.batch_data['weights'][idx, 0]):.1%}
   Shape: {self.batch_data['weights'][idx, 0].shape}
+
+[Channel 4 (Padding Mask)]
+  Valid pixels: {np.mean(self.batch_data['images'][idx, 3] == 1):.1%}
+  Padding pixels: {np.mean(self.batch_data['images'][idx, 3] == 0):.1%}
+  Unique values: {np.unique(self.batch_data['images'][idx, 3]).tolist()}
+  Shape: {self.batch_data['images'][idx, 3].shape}
 """
 
         # 如果有元数据，添加更多信息

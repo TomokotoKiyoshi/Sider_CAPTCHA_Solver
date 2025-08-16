@@ -26,6 +26,7 @@ def monitor_memory():
     mem_info = process.memory_info()
     mem_mb = mem_info.rss / 1024 / 1024
     mem_percent = process.memory_percent()
+    
     return mem_mb, mem_percent
 
 

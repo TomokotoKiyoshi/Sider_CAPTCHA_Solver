@@ -120,19 +120,49 @@ class LetterboxTransform:
             params: letterbox变换参数
         
         Returns:
-            padding mask (H, W)，padding区域=1，原图区域=0
+            padding mask (H, W)，padding区域=0，原图区域=1（根据PREPROCESSING_OUTPUT.md）
         """
         w_t, h_t = params['target_size']
-        mask = np.ones((h_t, w_t), dtype=np.float32)
+        # 初始化为0（padding区域）
+        mask = np.zeros((h_t, w_t), dtype=np.float32)
         
-        # 原图区域设为0
+        # 原图区域设为1（有效区域）
         pad_left = params['pad_left']
         pad_top = params['pad_top']
         w_prime, h_prime = params['resized_size']
         
-        mask[pad_top:pad_top+h_prime, pad_left:pad_left+w_prime] = 0
+        mask[pad_top:pad_top+h_prime, pad_left:pad_left+w_prime] = 1
         
         return mask
+    
+    def downsample_padding_mask(self, mask: np.ndarray, downsample: int = 4) -> np.ndarray:
+        """
+        使用平均池化下采样padding mask
+        P_1/4 = AvgPool_{k=4,s=4}(M_pad)
+        
+        Args:
+            mask: padding mask (H, W)
+            downsample: 下采样率（默认4）
+        
+        Returns:
+            下采样后的mask (H/4, W/4)
+        """
+        h, w = mask.shape
+        h_out = h // downsample
+        w_out = w // downsample
+        
+        # 使用平均池化：每个4x4区域计算平均值
+        mask_downsampled = np.zeros((h_out, w_out), dtype=np.float32)
+        
+        for i in range(h_out):
+            for j in range(w_out):
+                # 提取4x4窗口
+                window = mask[i*downsample:(i+1)*downsample, 
+                             j*downsample:(j+1)*downsample]
+                # 计算平均值
+                mask_downsampled[i, j] = np.mean(window)
+        
+        return mask_downsampled
 
 
 class CoordinateTransform:
@@ -316,13 +346,13 @@ class TrainingPreprocessor:
         
         Returns:
             预处理结果字典，包含：
-            - input: 4通道输入张量 [4, H, W]
+            - input: 4通道输入张量 [4, H, W]（第4通道是padding mask）
             - heatmaps: 热图标签 [2, H/4, W/4]
             - offsets: 偏移标签 [4, H/4, W/4]
-            - weight_mask: 权重掩码 [H/4, W/4]
             - confusing_gaps: 混淆缺口栅格坐标
             - gap_angle: 缺口角度（弧度）
             - transform_params: 变换参数
+            注：权重掩码可从第4通道下采样获得，无需单独生成
         """
         # 1. 加载图像
         if isinstance(image, str):
@@ -362,10 +392,7 @@ class TrainingPreprocessor:
         # 8. 生成偏移标签
         offsets = self._generate_offset_map(gap_grid, gap_offset, slider_grid, slider_offset)
         
-        # 9. 生成权重掩码（1/4分辨率）
-        weight_mask = self._generate_weight_mask(padding_mask)
-        
-        # 10. 处理混淆缺口
+        # 9. 处理混淆缺口
         confusing_grids = []
         if confusing_gaps:
             for conf_gap in confusing_gaps:
@@ -378,7 +405,6 @@ class TrainingPreprocessor:
             'input': input_tensor,  # 已经是float32
             'heatmaps': heatmaps,   # 已经是float32
             'offsets': offsets,     # 已经是float32
-            'weight_mask': weight_mask,  # 已经是float32
             'gap_grid': gap_grid,  # 添加网格坐标
             'gap_offset': gap_offset,  # 添加偏移
             'slider_grid': slider_grid,  # 添加滑块网格
@@ -452,41 +478,6 @@ class TrainingPreprocessor:
             print(f"Warning: Slider position out of bounds: col={slider_col}, row={slider_row}, grid_size=(h={h}, w={w})")
         
         return offset_map
-    
-    def _generate_weight_mask(self, padding_mask: np.ndarray) -> np.ndarray:
-        """
-        生成1/4分辨率的权重掩码
-        
-        Args:
-            padding_mask: 原始分辨率的padding mask
-        
-        Returns:
-            权重掩码 [H/4, W/4]，有效区域=1，padding区域=0
-        """
-        # 使用NumPy实现平均池化下采样，避免PyTorch内存泄漏
-        h, w = padding_mask.shape
-        h_out = h // self.downsample
-        w_out = w // self.downsample
-        
-        # 创建输出数组
-        mask_downsampled = np.zeros((h_out, w_out), dtype=np.float32)
-        
-        # 执行平均池化
-        for i in range(h_out):
-            for j in range(w_out):
-                # 计算池化窗口的起始和结束位置
-                h_start = i * self.downsample
-                h_end = h_start + self.downsample
-                w_start = j * self.downsample
-                w_end = w_start + self.downsample
-                
-                # 计算窗口内的平均值
-                mask_downsampled[i, j] = padding_mask[h_start:h_end, w_start:w_end].mean()
-        
-        # 转换：padding mask是1表示padding，权重掩码需要相反
-        weight_mask = 1 - mask_downsampled
-        
-        return weight_mask
 
 
 class InferencePreprocessor:

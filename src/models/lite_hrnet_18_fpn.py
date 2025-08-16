@@ -249,10 +249,12 @@ class LiteHRNet18FPN(nn.Module):
         # 如果提供了输入图像，从第4通道提取padding mask并下采样到1/4分辨率
         mask_1_4 = None
         if input_images is not None:
-            # 提取padding mask（第4通道）: padding=1, 有效=0
-            padding_mask = input_images[:, 3:4, :, :]  # [B, 1, 256, 512]
+            # 提取padding mask（第4通道）: padding=0, 有效=1（根据PREPROCESSING_OUTPUT.md）
+            valid_mask = input_images[:, 3:4, :, :]  # [B, 1, 256, 512]
             # 下采样到1/4分辨率 (64, 128)
-            mask_1_4 = F.avg_pool2d(padding_mask, kernel_size=4, stride=4).squeeze(1)  # [B, 64, 128]
+            valid_mask_1_4 = F.avg_pool2d(valid_mask, kernel_size=4, stride=4).squeeze(1)  # [B, 64, 128]
+            # 转换为padding mask：padding=1, 有效=0（用于masked_fill）
+            mask_1_4 = 1 - valid_mask_1_4
         
         # 解码缺口坐标
         gap_coords, gap_scores = self._decode_single_point(

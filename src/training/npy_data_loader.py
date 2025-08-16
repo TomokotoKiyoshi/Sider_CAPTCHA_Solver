@@ -104,7 +104,7 @@ class NPYBatchDataset(Dataset):
             required_files = [
                 label_dir / f"{prefix}_heatmaps.npy",
                 label_dir / f"{prefix}_offsets.npy",
-                label_dir / f"{prefix}_weights.npy",
+                # weights.npy不再需要，权重已集成在图像第4通道
                 label_dir / f"{prefix}_meta.json"
             ]
             
@@ -155,15 +155,30 @@ class NPYBatchDataset(Dataset):
         image_path = self.data_root / "images" / self.mode / f"{prefix}.npy"
         heatmap_path = self.data_root / "labels" / self.mode / f"{prefix}_heatmaps.npy"
         offset_path = self.data_root / "labels" / self.mode / f"{prefix}_offsets.npy"
-        weight_path = self.data_root / "labels" / self.mode / f"{prefix}_weights.npy"
+        # weight_path已移除，权重从图像第4通道提取
         meta_path = self.data_root / "labels" / self.mode / f"{prefix}_meta.json"
         
         # 加载数据
         try:
-            images = np.load(image_path)  # [B, 4, 256, 512]
+            images = np.load(image_path)  # [B, 4, 256, 512] - 第4通道是padding mask
             heatmaps = np.load(heatmap_path)  # [B, 2, 64, 128]
             offsets = np.load(offset_path)  # [B, 4, 64, 128]
-            weights = np.load(weight_path)  # [B, 1, 64, 128]
+            
+            # 从图像第4通道提取权重掩码并下采样到1/4分辨率
+            # padding_mask: [B, 256, 512] -> weights: [B, 1, 64, 128]
+            padding_mask = images[:, 3, :, :]  # 提取第4通道 [B, 256, 512]
+            
+            # 使用平均池化下采样（4x4窗口）
+            batch_size = padding_mask.shape[0]
+            h_out, w_out = 64, 128  # 目标尺寸
+            weights = np.zeros((batch_size, 1, h_out, w_out), dtype=np.float32)
+            
+            for b in range(batch_size):
+                for i in range(h_out):
+                    for j in range(w_out):
+                        # 计算4x4窗口的平均值
+                        window = padding_mask[b, i*4:(i+1)*4, j*4:(j+1)*4]
+                        weights[b, 0, i, j] = np.mean(window)
             
             # 加载元数据
             with open(meta_path, 'r', encoding='utf-8') as f:

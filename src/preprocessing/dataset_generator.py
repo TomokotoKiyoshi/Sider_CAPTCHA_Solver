@@ -75,12 +75,12 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
         
         # 只返回必要的数据，减少序列化开销
         # 注意：result中的数据已经是NumPy数组，不需要再调用.numpy()
+        # 权重掩码已经集成在第4通道，不再单独生成
         return {
             'sample_id': label.get('sample_id', 'unknown'),
-            'input': result['input'],  # 已经是numpy数组
+            'input': result['input'],  # 已经是numpy数组（4通道，第4通道是padding mask）
             'heatmaps': result['heatmaps'],  # 已经是numpy数组
             'offsets': result['offsets'],  # 已经是numpy数组
-            'weight_mask': result['weight_mask'],  # 已经是numpy数组
             'transform_params': result['transform_params'],
             'gap_grid': result['gap_grid'],
             'gap_offset': result['gap_offset'],
@@ -90,7 +90,9 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
             'gap_angle': result.get('gap_angle', 0.0)  # 现在包含实际的旋转角度
         }
     except Exception as e:
+        import traceback
         print(f"Failed to process sample {label.get('sample_id', 'unknown')}: {e}")
+        print(f"Traceback: {traceback.format_exc()}")
         return None
 
 
@@ -200,8 +202,7 @@ class StreamingDatasetGenerator:
         self._buf_images = np.empty((self.batch_size, *self.input_shape), dtype=np.float32)
         self._buf_heatmaps = np.empty((self.batch_size, 2, *self.grid_size), dtype=np.float32)
         self._buf_offsets = np.empty((self.batch_size, 4, *self.grid_size), dtype=np.float32)
-        # 修复：添加通道维度 [B, 1, H, W] - gap和slider共享同一个权重掩码
-        self._buf_weight_masks = np.empty((self.batch_size, 1, *self.grid_size), dtype=np.float32)
+        # 权重掩码已集成在第4通道，不再单独生成
         
         # 元数据缓冲（这些比较小，可以用列表）
         self._buf_metadata = {
@@ -246,8 +247,7 @@ class StreamingDatasetGenerator:
         self._buf_images[idx] = sample['input']
         self._buf_heatmaps[idx] = sample['heatmaps']
         self._buf_offsets[idx] = sample['offsets']
-        # 修复：将2D权重掩码放入正确的通道位置 [1, H, W]
-        self._buf_weight_masks[idx, 0] = sample['weight_mask']
+        # 权重掩码已集成在第4通道，不需要单独处理
         
         # 元数据添加到列表
         self._buf_metadata['sample_ids'].append(sample['sample_id'])
@@ -303,7 +303,7 @@ class StreamingDatasetGenerator:
         np.save(image_path, self._buf_images[:batch_size])
         np.save(heatmap_path, self._buf_heatmaps[:batch_size])
         np.save(offset_path, self._buf_offsets[:batch_size])
-        np.save(weight_path, self._buf_weight_masks[:batch_size])
+        # 权重掩码已集成在第4通道，不再单独保存
         
         # 保存元数据
         metadata = {
@@ -454,7 +454,7 @@ class StreamingDatasetGenerator:
                 'image_file': img_file.name,
                 'heatmap_file': self.file_naming['heatmap_pattern'].format(split=split, batch_id=batch_id),
                 'offset_file': self.file_naming['offset_pattern'].format(split=split, batch_id=batch_id),
-                'weight_file': self.file_naming['weight_pattern'].format(split=split, batch_id=batch_id),
+                # 权重掩码已集成在第4通道，不再单独保存
                 'meta_file': meta_file.name
             }
             index['batches'].append(batch_info)
