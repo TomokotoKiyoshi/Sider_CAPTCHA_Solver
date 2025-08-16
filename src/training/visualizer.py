@@ -201,11 +201,11 @@ class Visualizer:
                        num_best: int = 2,
                        num_worst: int = 2):
         """
-        可视化预测结果（分别显示最佳和最差的预测）
+        可视化预测结果（热力图与原图叠加显示）
         
         Args:
             images: 输入图像 [B, 4, H, W]
-            predictions: 预测结果
+            predictions: 预测结果（包含热力图和坐标）
             targets: 真实标注
             epoch: 当前epoch
             num_samples: 总可视化样本数（兼容旧代码）
@@ -242,70 +242,43 @@ class Visualizer:
         for rank, (idx, avg_err, gap_err, slider_err) in enumerate(worst_indices):
             selected_samples.append((idx, gap_err, slider_err, f"Worst #{rank+1}", (0, 0, 255)))  # 红色标记
         
-        # 可视化选中的样本
+        # 可视化选中的样本（热力图叠加模式）
         for vis_idx, (i, gap_error, slider_error, label, label_color) in enumerate(selected_samples):
-            # 获取图像（去除padding通道）
+            # 获取原始图像（去除padding通道）
             img = images[i, :3].cpu().numpy().transpose(1, 2, 0)
             img = (img * 255).astype(np.uint8)
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            orig_h, orig_w = img.shape[:2]  # 256, 512
             
-            # 创建可视化图像
-            vis_img = img.copy()
+            # 获取并叠加热力图
+            vis_img = self._create_heatmap_overlay(img, predictions, i)
             
-            # 添加质量标签（Best/Worst）
-            cv2.rectangle(vis_img, (5, 5), (120, 30), label_color, -1)
+            # 只保留质量标签（Best/Worst）
+            overlay = vis_img.copy()
+            cv2.rectangle(overlay, (5, 5), (120, 30), label_color, -1)
+            vis_img = cv2.addWeighted(vis_img, 0.7, overlay, 0.3, 0)
             cv2.putText(vis_img, label, 
                        (10, 25),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
-            # 真实缺口位置（绿色）
+            # 不绘制任何位置标记，只显示热力图叠加
+            # 获取误差值用于记录（但不显示在图像上）
             gt_gap = targets['gap_coords'][i].cpu().numpy()
-            cv2.circle(vis_img, tuple(gt_gap.astype(int)), 5, (0, 255, 0), -1)
-            cv2.putText(vis_img, "GT_Gap", 
-                       (int(gt_gap[0])+10, int(gt_gap[1])-10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
-            
-            # 预测缺口位置（红色）
             pred_gap = predictions['gap_coords'][i].cpu().numpy()
-            cv2.circle(vis_img, tuple(pred_gap.astype(int)), 5, (255, 0, 0), -1)
-            cv2.putText(vis_img, "Pred_Gap", 
-                       (int(pred_gap[0])+10, int(pred_gap[1])+10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-            
-            # 真实滑块位置（青色）
             gt_slider = targets['slider_coords'][i].cpu().numpy()
-            cv2.circle(vis_img, tuple(gt_slider.astype(int)), 5, (0, 255, 255), -1)
-            cv2.putText(vis_img, "GT_Slider", 
-                       (int(gt_slider[0])+10, int(gt_slider[1])-10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-            
-            # 预测滑块位置（品红色）
             pred_slider = predictions['slider_coords'][i].cpu().numpy()
-            cv2.circle(vis_img, tuple(pred_slider.astype(int)), 5, (255, 0, 255), -1)
-            cv2.putText(vis_img, "Pred_Slider", 
-                       (int(pred_slider[0])+10, int(pred_slider[1])+10),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
-            
-            # 添加误差信息
-            error_text = f"Gap Error: {gap_error:.2f}px, Slider Error: {slider_error:.2f}px"
-            avg_error = (gap_error + slider_error) / 2.0
-            error_text2 = f"Average Error: {avg_error:.2f}px"
-            
-            cv2.putText(vis_img, error_text, 
-                       (10, vis_img.shape[0] - 25),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            cv2.putText(vis_img, error_text2, 
-                       (10, vis_img.shape[0] - 5),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
             
             # 转换回RGB并添加到TensorBoard
             vis_img = cv2.cvtColor(vis_img, cv2.COLOR_BGR2RGB)
             
-            # 使用更明确的命名
+            # 使用更明确的命名，确保Best和Worst分别显示
             if "Best" in label:
-                tag = f'prediction_best/{label.replace(" ", "_").replace("#", "")}'
+                # Best_1, Best_2, etc.
+                sample_num = label.split("#")[1] if "#" in label else str(vis_idx)
+                tag = f'predictions/best/sample_{sample_num}'
             else:
-                tag = f'prediction_worst/{label.replace(" ", "_").replace("#", "")}'
+                # Worst_1, Worst_2, etc.
+                sample_num = label.split("#")[1] if "#" in label else str(vis_idx)
+                tag = f'predictions/worst/sample_{sample_num}'
             
             self.writer.add_image(
                 tag, 
@@ -625,6 +598,108 @@ class Visualizer:
         seconds = int(eta_seconds % 60)
         
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    
+    def _create_heatmap_overlay(self, img: np.ndarray, predictions: Dict, idx: int) -> np.ndarray:
+        """
+        创建热力图叠加效果
+        
+        Args:
+            img: 原始图像 (H, W, 3)
+            predictions: 预测结果字典
+            idx: 样本索引
+            
+        Returns:
+            叠加后的图像
+        """
+        orig_h, orig_w = img.shape[:2]
+        
+        # 检查是否有热力图输出
+        if 'heatmaps' in predictions and predictions['heatmaps'] is not None:
+            # 从预测中获取热力图
+            if 'gap' in predictions['heatmaps']:
+                gap_heatmap = predictions['heatmaps']['gap'][idx, 0].cpu().numpy()
+            elif 'heatmap_gap' in predictions:
+                gap_heatmap = predictions['heatmap_gap'][idx, 0].cpu().numpy()
+            else:
+                return img
+                
+            if 'slider' in predictions['heatmaps']:
+                slider_heatmap = predictions['heatmaps']['slider'][idx, 0].cpu().numpy()
+            elif 'heatmap_slider' in predictions:
+                slider_heatmap = predictions['heatmap_slider'][idx, 0].cpu().numpy()
+            else:
+                slider_heatmap = gap_heatmap  # 使用相同的热力图
+        elif 'heatmap_gap' in predictions and 'heatmap_slider' in predictions:
+            # 直接从predictions获取
+            gap_heatmap = predictions['heatmap_gap'][idx, 0].cpu().numpy()
+            slider_heatmap = predictions['heatmap_slider'][idx, 0].cpu().numpy()
+        else:
+            # 没有热力图，返回原图
+            return img
+        
+        # 上采样热力图到原图尺寸
+        gap_heatmap_resized = cv2.resize(gap_heatmap, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+        slider_heatmap_resized = cv2.resize(slider_heatmap, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+        
+        # 应用不同的颜色映射
+        gap_heatmap_colored = cv2.applyColorMap((gap_heatmap_resized * 255).astype(np.uint8), cv2.COLORMAP_JET)
+        slider_heatmap_colored = cv2.applyColorMap((slider_heatmap_resized * 255).astype(np.uint8), cv2.COLORMAP_HOT)
+        
+        # 合并两个热力图（取最大值）
+        combined_heatmap = np.maximum(gap_heatmap_colored, slider_heatmap_colored)
+        
+        # 叠加到原图上（半透明）
+        alpha = 0.3  # 透明度 - 30%确保热力图清晰可见
+        overlay_img = cv2.addWeighted(img, 1-alpha, combined_heatmap, alpha, 0)
+        
+        return overlay_img
+    
+    def _draw_crosshair(self, img: np.ndarray, pos: np.ndarray, color: tuple, label: str, size: int = 10):
+        """
+        绘制十字准星标记
+        
+        Args:
+            img: 图像
+            pos: 位置坐标 [x, y]
+            color: 颜色
+            label: 标签文字
+            size: 十字大小
+        """
+        x, y = int(pos[0]), int(pos[1])
+        
+        # 绘制十字
+        cv2.line(img, (x - size, y), (x + size, y), color, 2)
+        cv2.line(img, (x, y - size), (x, y + size), color, 2)
+        
+        # 绘制中心点
+        cv2.circle(img, (x, y), 3, color, -1)
+        
+        # 添加标签
+        label_pos = (x + size + 5, y - 5)
+        cv2.putText(img, label, label_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+    
+    def _draw_box_marker(self, img: np.ndarray, pos: np.ndarray, color: tuple, label: str, size: int = 8):
+        """
+        绘制方框标记
+        
+        Args:
+            img: 图像
+            pos: 位置坐标 [x, y]
+            color: 颜色
+            label: 标签文字
+            size: 方框大小
+        """
+        x, y = int(pos[0]), int(pos[1])
+        
+        # 绘制方框
+        cv2.rectangle(img, (x - size, y - size), (x + size, y + size), color, 2)
+        
+        # 绘制中心点
+        cv2.circle(img, (x, y), 2, color, -1)
+        
+        # 添加标签
+        label_pos = (x + size + 5, y + size + 5)
+        cv2.putText(img, label, label_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
     
     def close(self):
         """关闭TensorBoard writer"""

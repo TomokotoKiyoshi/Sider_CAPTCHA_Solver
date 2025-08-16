@@ -189,12 +189,17 @@ class Validator:
         # 打印验证结果
         self._print_metrics(metrics)
         
-        # 添加可视化数据到metrics
+        # 添加可视化数据到metrics（包含热力图）
         if first_batch_data is not None:
+            # 将热力图数据添加到predictions中
+            enhanced_predictions = first_batch_predictions.copy()
+            enhanced_predictions['heatmap_gap'] = first_batch_outputs['heatmap_gap']
+            enhanced_predictions['heatmap_slider'] = first_batch_outputs['heatmap_slider']
+            
             metrics['vis_data'] = {
                 'images': first_batch_data['image'],
                 'outputs': first_batch_outputs,
-                'predictions': first_batch_predictions,
+                'predictions': enhanced_predictions,
                 'targets': {
                     'gap_coords': first_batch_data['gap_coords'],
                     'slider_coords': first_batch_data['slider_coords']

@@ -22,8 +22,6 @@ from src.training.validator import Validator
 from src.training.visualizer import Visualizer
 import logging
 
-
-
 def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='测试训练脚本 - 使用1/20数据')
