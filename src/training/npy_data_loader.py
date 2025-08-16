@@ -324,19 +324,30 @@ class NPYDataPipeline:
                 )
                 self.num_train_samples = self.train_dataset.total_samples
                 
-                # 创建训练数据加载器（批次已预处理，所以batch_size=1）
-                num_workers = self.config.get('train', {}).get('num_workers', 8)
+                # 创建训练数据加载器（优化：加载多个NPY批次）
+                num_workers = self.config.get('train', {}).get('num_workers', 4)
+                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                
+                # 动态调整batch_size基于NPY文件大小
+                # 如果每个NPY只有128张图，可以加载多个NPY文件
+                npy_batch_size = 128  # 每个NPY文件的实际样本数
+                target_batch_size = self.config.get('train', {}).get('batch_size', 256)
+                dataloader_batch_size = max(1, target_batch_size // npy_batch_size)  # 256/128 = 2
+                
                 self.train_loader = DataLoader(
                     self.train_dataset,
-                    batch_size=1,  # 每次加载一个预处理的批次
+                    batch_size=dataloader_batch_size,  # 加载多个NPY文件以达到目标批次
                     shuffle=True,
                     num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True if num_workers > 0 else False,
-                    prefetch_factor=4 if num_workers > 0 else None,
-                    collate_fn=self._collate_batch
+                    persistent_workers=persistent_workers if num_workers > 0 else False,
+                    prefetch_factor=prefetch_factor if num_workers > 0 else None,
+                    collate_fn=self._collate_multiple_batches if dataloader_batch_size > 1 else self._collate_batch
                 )
                 
+                self.logger.info(f"训练配置: NPY批次={npy_batch_size}, 目标批次={target_batch_size}, DataLoader批次={dataloader_batch_size}")
+                self.logger.info(f"每次加载 {dataloader_batch_size} 个NPY文件，总共 {dataloader_batch_size * npy_batch_size} 个样本")
                 self.logger.info(f"训练样本数: {self.num_train_samples}")
                 self.logger.info(f"训练批次数: {len(self.train_loader)}")
             except Exception as e:
@@ -359,16 +370,24 @@ class NPYDataPipeline:
                 )
                 self.num_train_samples = self.train_dataset.total_samples
                 
-                num_workers = self.config.get('train', {}).get('num_workers', 8)
+                num_workers = self.config.get('train', {}).get('num_workers', 4)
+                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                
+                # 动态调整batch_size
+                npy_batch_size = 128
+                target_batch_size = self.config.get('train', {}).get('batch_size', 512)
+                dataloader_batch_size = max(1, target_batch_size // npy_batch_size)
+                
                 self.train_loader = DataLoader(
                     self.train_dataset,
-                    batch_size=1,
+                    batch_size=dataloader_batch_size,  # 加载多个NPY文件
                     shuffle=True,
                     num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True if num_workers > 0 else False,
-                    prefetch_factor=4 if num_workers > 0 else None,
-                    collate_fn=self._collate_batch
+                    persistent_workers=persistent_workers if num_workers > 0 else False,
+                    prefetch_factor=prefetch_factor if num_workers > 0 else None,
+                    collate_fn=self._collate_multiple_batches if dataloader_batch_size > 1 else self._collate_batch
                 )
                 
                 self.logger.info(f"训练样本数: {self.num_train_samples}")
@@ -385,16 +404,24 @@ class NPYDataPipeline:
                 )
                 self.num_val_samples = self.val_dataset.total_samples
                 
-                num_workers = self.config.get('train', {}).get('num_workers', 8)
+                num_workers = self.config.get('train', {}).get('num_workers', 4)
+                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                
+                # 动态调整batch_size
+                npy_batch_size = 128
+                target_batch_size = self.config.get('train', {}).get('batch_size', 512)
+                dataloader_batch_size = max(1, target_batch_size // npy_batch_size)  # 验证也使用相同策略
+                
                 self.val_loader = DataLoader(
                     self.val_dataset,
-                    batch_size=1,
+                    batch_size=dataloader_batch_size,  # 加载多个NPY文件
                     shuffle=False,
                     num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True if num_workers > 0 else False,
-                    prefetch_factor=4 if num_workers > 0 else None,
-                    collate_fn=self._collate_batch
+                    persistent_workers=persistent_workers if num_workers > 0 else False,
+                    prefetch_factor=prefetch_factor if num_workers > 0 else None,
+                    collate_fn=self._collate_multiple_batches if dataloader_batch_size > 1 else self._collate_batch
                 )
                 
                 self.logger.info(f"验证样本数: {self.num_val_samples}")
@@ -415,16 +442,24 @@ class NPYDataPipeline:
                 )
                 self.num_val_samples = self.val_dataset.total_samples
                 
-                num_workers = self.config.get('train', {}).get('num_workers', 8)
+                num_workers = self.config.get('train', {}).get('num_workers', 4)
+                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                
+                # 动态调整batch_size
+                npy_batch_size = 128
+                target_batch_size = self.config.get('train', {}).get('batch_size', 512)
+                dataloader_batch_size = max(1, target_batch_size // npy_batch_size)  # 验证也使用相同策略
+                
                 self.val_loader = DataLoader(
                     self.val_dataset,
-                    batch_size=1,
+                    batch_size=dataloader_batch_size,  # 加载多个NPY文件
                     shuffle=False,
                     num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True if num_workers > 0 else False,
-                    prefetch_factor=4 if num_workers > 0 else None,
-                    collate_fn=self._collate_batch
+                    persistent_workers=persistent_workers if num_workers > 0 else False,
+                    prefetch_factor=prefetch_factor if num_workers > 0 else None,
+                    collate_fn=self._collate_multiple_batches if dataloader_batch_size > 1 else self._collate_batch
                 )
                 
                 self.logger.info(f"验证样本数: {self.num_val_samples}")
@@ -432,7 +467,7 @@ class NPYDataPipeline:
     
     def _collate_batch(self, batch_list):
         """
-        整理批次数据
+        整理批次数据（旧版本，单批次加载）
         
         由于每个item已经是一个批次，这里只需要解包第一个元素
         """
@@ -457,6 +492,47 @@ class NPYDataPipeline:
             'gap_angles': batch.get('gap_angles'),
             'angle': batch.get('angle')
         }
+    
+    def _collate_multiple_batches(self, batch_list):
+        """
+        整理多个批次数据（优化版本，支持加载多个NPY文件）
+        
+        将多个NPY批次合并成一个大批次
+        """
+        if not batch_list:
+            raise ValueError("batch_list不能为空")
+        
+        # 如果只有一个批次，直接返回
+        if len(batch_list) == 1:
+            return self._collate_batch(batch_list)
+        
+        # 合并多个批次
+        merged_batch = {}
+        
+        # 需要拼接的张量字段
+        tensor_fields = [
+            'image', 'gap_coords', 'slider_coords',
+            'heatmap_gap', 'heatmap_slider',
+            'offset_gap', 'offset_slider',
+            'weight_gap', 'weight_slider',
+            'gap_angles', 'angle'
+        ]
+        
+        # 拼接张量
+        for field in tensor_fields:
+            if field in batch_list[0]:
+                tensors = [batch[field] for batch in batch_list if field in batch]
+                if tensors:
+                    merged_batch[field] = torch.cat(tensors, dim=0)
+        
+        # 处理混淆缺口列表（需要展平）
+        confusing_gaps = []
+        for batch in batch_list:
+            if 'confusing_gaps' in batch:
+                confusing_gaps.extend(batch['confusing_gaps'])
+        merged_batch['confusing_gaps'] = confusing_gaps
+        
+        return merged_batch
     
     def get_train_loader(self) -> DataLoader:
         """获取训练数据加载器"""
@@ -490,16 +566,24 @@ class NPYDataPipeline:
                     index_file=None
                 )
                 
-                num_workers = self.config.get('train', {}).get('num_workers', 8)
+                num_workers = self.config.get('train', {}).get('num_workers', 4)
+                prefetch_factor = self.config.get('train', {}).get('prefetch_factor', 8)
+                persistent_workers = self.config.get('train', {}).get('persistent_workers', True)
+                
+                # 动态调整batch_size
+                npy_batch_size = 128
+                target_batch_size = self.config.get('train', {}).get('batch_size', 512)
+                dataloader_batch_size = max(1, target_batch_size // npy_batch_size)
+                
                 test_loader = DataLoader(
                     test_dataset,
-                    batch_size=1,
+                    batch_size=dataloader_batch_size,  # 加载多个NPY文件
                     shuffle=False,
                     num_workers=num_workers,
                     pin_memory=True,
-                    persistent_workers=True if num_workers > 0 else False,
-                    prefetch_factor=4 if num_workers > 0 else None,
-                    collate_fn=self._collate_batch
+                    persistent_workers=persistent_workers if num_workers > 0 else False,
+                    prefetch_factor=prefetch_factor if num_workers > 0 else None,
+                    collate_fn=self._collate_multiple_batches if dataloader_batch_size > 1 else self._collate_batch
                 )
                 
                 self.logger.info(f"测试样本数: {test_dataset.total_samples}")

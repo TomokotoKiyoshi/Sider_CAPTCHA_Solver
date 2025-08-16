@@ -17,7 +17,7 @@ model:
   
 optimizer:
   name: AdamW
-  lr: 6.0e-4               # global_batch=512 (doubled from 256, so doubled lr)
+  lr: 3.0e-4               # global_batch=512 (doubled from 256, so doubled lr)
   betas: [0.9, 0.999]
   eps: 1.0e-8
   weight_decay: 0.05
@@ -32,13 +32,15 @@ sched:
   patience: 18                     # 早停耐心值
 
 train:
-  batch_size: 512          # 增大批量大小以提高GPU利用率
+  batch_size: 256          # 增大批量大小以提高GPU利用率
   amp: true                # 混合精度：true/bf16(RTX40系列), fp16(旧GPU), false(不启用)
   channels_last: true      # 内存布局优化
-  num_workers: 8           # Windows上减少workers数量避免CPU瓶颈
+  num_workers: 8           # Windows优化：减少到4个workers避免进程开销
   pin_memory: true
   non_blocking: true       # 异步数据传输（H2D）
-  gradient_accumulation_steps: 1   # 梯度累积步数（1=不累积，保持原样）
+  prefetch_factor: 4       # 增加预取因子以减少I/O等待
+  persistent_workers: true # 保持workers进程存活，减少创建开销
+  gradient_accumulation_steps: 2   # 梯度累积：有效批量=4096，更好利用GPU
   compile_model: false      # torch.compile优化（PyTorch 2.0+）- Windows上暂时禁用（需要Triton）
   compile_mode: "default"  # compile模式: default, reduce-overhead, max-autotune(最佳性能)
   

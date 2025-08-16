@@ -255,10 +255,13 @@ class TrainingEngine:
             if self.ema_model is not None:
                 self._update_ema()
             
-            # 累积指标
+            # 累积指标 - 处理tensor
             for key in batch_metrics:
-                if key in metrics:
-                    metrics[key] += batch_metrics[key]
+                if key in metrics and key != 'lr':
+                    if torch.is_tensor(batch_metrics[key]):
+                        metrics[key] += batch_metrics[key].detach()  # detach避免梯度累积
+                    else:
+                        metrics[key] += batch_metrics[key]
             
             # 更新全局步数
             self.global_step += 1
@@ -269,13 +272,14 @@ class TrainingEngine:
             
             # 定期日志
             if (batch_idx + 1) % log_interval == 0:
-                # 计算平均值
+                # 计算平均值 - 只在日志时同步一次
                 batch_count = batch_idx + 1
-                avg_loss = metrics['loss'] / batch_count
-                avg_focal = metrics['focal_loss'] / batch_count
-                avg_offset = metrics['offset_loss'] / batch_count
-                avg_hard_neg = metrics['hard_negative_loss'] / batch_count
-                avg_angle = metrics['angle_loss'] / batch_count
+                # 使用.item()转换为标量，但只在需要打印时
+                avg_loss = (metrics['loss'] / batch_count).item() if torch.is_tensor(metrics['loss']) else metrics['loss'] / batch_count
+                avg_focal = (metrics['focal_loss'] / batch_count).item() if torch.is_tensor(metrics['focal_loss']) else metrics['focal_loss'] / batch_count
+                avg_offset = (metrics['offset_loss'] / batch_count).item() if torch.is_tensor(metrics['offset_loss']) else metrics['offset_loss'] / batch_count
+                avg_hard_neg = (metrics['hard_negative_loss'] / batch_count).item() if torch.is_tensor(metrics['hard_negative_loss']) else metrics['hard_negative_loss'] / batch_count
+                avg_angle = (metrics['angle_loss'] / batch_count).item() if torch.is_tensor(metrics['angle_loss']) else metrics['angle_loss'] / batch_count
                 
                 # 计算时间估计
                 avg_batch_time = sum(batch_times) / len(batch_times)
@@ -317,10 +321,13 @@ class TrainingEngine:
                     self.visualizer.writer.add_scalar('training/speed_samples_per_sec', samples_per_second, self.global_step)
                     self.visualizer.flush()
         
-        # 平均指标
+        # 平均指标 - 最后转换为标量
         for key in metrics:
             if key != 'lr':
-                metrics[key] /= num_batches
+                if torch.is_tensor(metrics[key]):
+                    metrics[key] = (metrics[key] / num_batches).item()
+                else:
+                    metrics[key] /= num_batches
         
         return metrics
     
@@ -362,23 +369,23 @@ class TrainingEngine:
                         
             loss, loss_dict = self._compute_loss(outputs, batch)
         
-        # 计算预测误差（用于监控）
+        # 计算预测误差（用于监控） - 不使用.item()避免GPU同步！
         with torch.no_grad():
             predictions = self.model.decode_predictions(outputs)
             gap_error = torch.abs(
                 predictions['gap_coords'] - batch['gap_coords']
-            ).mean().item()
+            ).mean()  # 保持为tensor，不调用.item()
             slider_error = torch.abs(
                 predictions['slider_coords'] - batch['slider_coords']
-            ).mean().item()
+            ).mean()  # 保持为tensor，不调用.item()
         
-        # 整合指标
+        # 整合指标 - 保持为tensor，延迟同步
         metrics = {
-            'loss': loss.item(),
-            'focal_loss': loss_dict.get('focal_loss', 0.0) if isinstance(loss_dict.get('focal_loss', 0.0), (int, float)) else loss_dict.get('focal_loss', torch.tensor(0.0)).item(),
-            'offset_loss': loss_dict.get('offset_loss', 0.0) if isinstance(loss_dict.get('offset_loss', 0.0), (int, float)) else loss_dict.get('offset_loss', torch.tensor(0.0)).item(),
-            'hard_negative_loss': loss_dict.get('hard_negative_loss', 0.0) if isinstance(loss_dict.get('hard_negative_loss', 0.0), (int, float)) else loss_dict.get('hard_negative_loss', torch.tensor(0.0)).item(),
-            'angle_loss': loss_dict.get('angle_loss', 0.0) if isinstance(loss_dict.get('angle_loss', 0.0), (int, float)) else loss_dict.get('angle_loss', torch.tensor(0.0)).item(),
+            'loss': loss,  # 保持为tensor
+            'focal_loss': loss_dict.get('focal_loss', torch.tensor(0.0, device=self.device)),
+            'offset_loss': loss_dict.get('offset_loss', torch.tensor(0.0, device=self.device)),
+            'hard_negative_loss': loss_dict.get('hard_negative_loss', torch.tensor(0.0, device=self.device)),
+            'angle_loss': loss_dict.get('angle_loss', torch.tensor(0.0, device=self.device)),
             'gap_mae': gap_error,
             'slider_mae': slider_error
         }
@@ -523,12 +530,12 @@ class TrainingEngine:
         # 使用TotalLoss计算损失
         total_loss, loss_dict = self.loss_fn(predictions, loss_targets)
         
-        # 提取各项损失值用于记录
+        # 提取各项损失值用于记录 - 保持为tensor，不调用.item()
         result_dict = {
-            'focal_loss': loss_dict.get('heatmap', 0.0).item() if isinstance(loss_dict.get('heatmap', 0.0), torch.Tensor) else loss_dict.get('heatmap', 0.0),
-            'offset_loss': loss_dict.get('offset', 0.0).item() if isinstance(loss_dict.get('offset', 0.0), torch.Tensor) else loss_dict.get('offset', 0.0),
-            'hard_negative_loss': loss_dict.get('hard_negative', 0.0).item() if isinstance(loss_dict.get('hard_negative', 0.0), torch.Tensor) else loss_dict.get('hard_negative', 0.0),
-            'angle_loss': loss_dict.get('angle', 0.0).item() if isinstance(loss_dict.get('angle', 0.0), torch.Tensor) else loss_dict.get('angle', 0.0)
+            'focal_loss': loss_dict.get('heatmap', torch.tensor(0.0, device=self.device)),
+            'offset_loss': loss_dict.get('offset', torch.tensor(0.0, device=self.device)),
+            'hard_negative_loss': loss_dict.get('hard_negative', torch.tensor(0.0, device=self.device)),
+            'angle_loss': loss_dict.get('angle', torch.tensor(0.0, device=self.device))
         }
         
         return total_loss, result_dict
