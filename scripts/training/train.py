@@ -205,7 +205,7 @@ def train_epoch(model, engine, dataloader, epoch, visualizer):
     Returns:
         训练指标
     """
-    logging.info(f"\n开始训练 Epoch {epoch}")
+    logging.info(f"开始训练 Epoch {epoch}")
     
     # 执行训练
     train_metrics = engine.train_epoch(dataloader, epoch)
@@ -482,9 +482,7 @@ def main():
         start_epoch = load_checkpoint(args.resume, model, engine, validator)
     
     # 训练循环
-    logging.info(f"\n{'='*60}")
     logging.info("开始训练")
-    logging.info(f"{'='*60}")
     
     total_epochs = config['sched']['epochs']
     
@@ -493,6 +491,7 @@ def main():
     
     if show_progress:
         from tqdm import tqdm
+        print()  # 在进度条之前添加空行
         epoch_iterator = tqdm(range(start_epoch, total_epochs + 1), 
                              desc="Training Progress", 
                              unit="epoch",
@@ -613,9 +612,7 @@ def main():
         visualizer.flush()
     
     # 训练结束
-    logging.info(f"\n{'='*60}")
     logging.info("训练完成！")
-    logging.info(f"{'='*60}")
     
     # 获取最佳指标
     best_metrics = validator.get_best_metrics()
