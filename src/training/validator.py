@@ -104,6 +104,11 @@ class Validator:
         
         self.logger.info(f"开始验证 Epoch {epoch}...")
         
+        # 用于可视化的数据（只保存第一个批次）
+        first_batch_data = None
+        first_batch_outputs = None
+        first_batch_predictions = None
+        
         with torch.no_grad():
             for batch_idx, batch in enumerate(dataloader):
                 # 数据传输到设备
@@ -114,6 +119,12 @@ class Validator:
                 
                 # 解码预测
                 predictions = model.decode_predictions(outputs)
+                
+                # 保存第一个批次用于可视化
+                if batch_idx == 0:
+                    first_batch_data = batch
+                    first_batch_outputs = outputs
+                    first_batch_predictions = predictions
                 
                 # 计算误差
                 gap_errors, slider_errors = self._calculate_errors(
@@ -177,6 +188,18 @@ class Validator:
         
         # 打印验证结果
         self._print_metrics(metrics)
+        
+        # 添加可视化数据到metrics
+        if first_batch_data is not None:
+            metrics['vis_data'] = {
+                'images': first_batch_data['image'],
+                'outputs': first_batch_outputs,
+                'predictions': first_batch_predictions,
+                'targets': {
+                    'gap_coords': first_batch_data['gap_coords'],
+                    'slider_coords': first_batch_data['slider_coords']
+                }
+            }
         
         return metrics
     

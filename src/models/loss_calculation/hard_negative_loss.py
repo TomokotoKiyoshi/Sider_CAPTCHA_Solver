@@ -6,7 +6,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 
 class HardNegativeLoss(nn.Module):
@@ -41,7 +41,7 @@ class HardNegativeLoss(nn.Module):
                 heatmap: torch.Tensor,
                 true_centers: torch.Tensor,
                 fake_centers: List[torch.Tensor],
-                mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+                mask: torch.Tensor) -> torch.Tensor:
         """
         前向传播计算硬负样本损失
         
@@ -49,7 +49,7 @@ class HardNegativeLoss(nn.Module):
             heatmap: 预测的缺口热力图 [B, 1, H, W]
             true_centers: 真实缺口中心坐标 [B, 2]，格式(u_g, v_g)
             fake_centers: 假缺口中心坐标列表，每个元素 [B, 2]
-            mask: 有效区域掩码（W_1/4）
+            mask: 有效区域掩码（W_1/4）[B,1,H,W]（必需）
         
         Returns:
             标量损失值
@@ -82,11 +82,8 @@ class HardNegativeLoss(nn.Module):
             min=0
         )  # [B, K]
         
-        # 只在有效区域计算损失
-        if mask is not None:
-            # 检查中心点是否在有效区域
-            # 这里简化处理：假设传入的中心点都在有效区域
-            pass
+        # mask已经在采样时通过grid_sample的padding_mode='zeros'处理
+        # 不需要额外处理
         
         # 归约：1/K * Σ
         loss = losses.sum(dim=1) / K  # [B]

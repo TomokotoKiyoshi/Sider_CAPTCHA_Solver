@@ -6,7 +6,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import GradScaler, autocast
+from torch.cuda.amp import GradScaler
+from torch.amp import autocast
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 from typing import Dict, Any, Optional, Tuple, List
@@ -40,7 +41,8 @@ class TrainingEngine:
     def __init__(self, 
                  model: nn.Module, 
                  config: Dict, 
-                 device: torch.device):
+                 device: torch.device,
+                 visualizer=None):
         """
         初始化训练引擎
         
@@ -48,10 +50,12 @@ class TrainingEngine:
             model: 模型
             config: 配置字典
             device: 训练设备
+            visualizer: 可视化器（可选）
         """
         self.model = model.to(device)
         self.config = config
         self.device = device
+        self.visualizer = visualizer
         self.logger = logging.getLogger('TrainingEngine')
         
         # 加载损失函数配置并创建总损失函数
@@ -63,14 +67,25 @@ class TrainingEngine:
         # 学习率调度器
         self.scheduler = self._setup_scheduler()
         
-        # 混合精度训练
-        self.use_amp = config['train'].get('amp', 'none') == 'bf16'
-        if self.use_amp:
-            # BFloat16需要特殊处理
-            self.scaler = GradScaler(enabled=False)  # BFloat16不需要GradScaler
+        # 混合精度训练 - 支持布尔值和字符串配置
+        amp_config = config['train'].get('amp', False)
+        
+        # 智能解析AMP配置
+        if amp_config == True or amp_config == 'true' or amp_config == 'bf16':
+            # RTX 40/50系列优先使用BFloat16
+            self.use_amp = True
             self.amp_dtype = torch.bfloat16
+            self.scaler = GradScaler(enabled=False)  # BFloat16不需要GradScaler
             self.logger.info("使用BFloat16混合精度训练")
+        elif amp_config == 'fp16':
+            # 兼容旧GPU的FP16模式
+            self.use_amp = True
+            self.amp_dtype = torch.float16
+            self.scaler = GradScaler(enabled=True)  # FP16需要GradScaler
+            self.logger.info("使用FP16混合精度训练")
         else:
+            # 不使用混合精度
+            self.use_amp = False
             self.scaler = None
             self.amp_dtype = None
             self.logger.info("不使用混合精度训练")
@@ -219,8 +234,14 @@ class TrainingEngine:
         num_batches = len(dataloader)
         log_interval = self.config['logging'].get('log_interval', 10)
         
+        # 时间追踪
+        import time
+        epoch_start_time = time.time()
+        batch_times = []
+        
         # 批次循环
         for batch_idx, batch in enumerate(dataloader):
+            batch_start_time = time.time()
             # 数据传输到设备
             batch = self._batch_to_device(batch)
             
@@ -242,13 +263,59 @@ class TrainingEngine:
             # 更新全局步数
             self.global_step += 1
             
+            # 记录批次时间
+            batch_time = time.time() - batch_start_time
+            batch_times.append(batch_time)
+            
             # 定期日志
             if (batch_idx + 1) % log_interval == 0:
-                avg_loss = metrics['loss'] / (batch_idx + 1)
+                # 计算平均值
+                batch_count = batch_idx + 1
+                avg_loss = metrics['loss'] / batch_count
+                avg_focal = metrics['focal_loss'] / batch_count
+                avg_offset = metrics['offset_loss'] / batch_count
+                avg_hard_neg = metrics['hard_negative_loss'] / batch_count
+                avg_angle = metrics['angle_loss'] / batch_count
+                
+                # 计算时间估计
+                avg_batch_time = sum(batch_times) / len(batch_times)
+                remaining_batches = num_batches - batch_count
+                eta_seconds = remaining_batches * avg_batch_time
+                
+                # 格式化ETA
+                if eta_seconds < 60:
+                    eta_str = f"{eta_seconds:.0f}s"
+                elif eta_seconds < 3600:
+                    eta_str = f"{eta_seconds/60:.1f}min"
+                else:
+                    hours = int(eta_seconds // 3600)
+                    minutes = int((eta_seconds % 3600) // 60)
+                    eta_str = f"{hours}h{minutes}m"
+                
+                # 计算速度
+                samples_per_second = self.config['train']['batch_size'] / avg_batch_time
+                
                 self.logger.info(
                     f"Epoch {epoch} [{batch_idx+1}/{num_batches}] "
-                    f"Loss: {avg_loss:.4f}, LR: {metrics['lr']:.6f}"
+                    f"Loss: {avg_loss:.4f}, "
+                    f"Focal: {avg_focal:.4f}, "
+                    f"Offset: {avg_offset:.4f}, "
+                    f"HardNeg: {avg_hard_neg:.4f}, "
+                    f"Angle: {avg_angle:.4f}, "
+                    f"LR: {metrics['lr']:.6f} | "
+                    f"ETA: {eta_str} | "
+                    f"Speed: {samples_per_second:.0f} samples/s"
                 )
+                
+                # 如果有visualizer，记录到TensorBoard
+                if hasattr(self, 'visualizer') and self.visualizer is not None:
+                    self.visualizer.writer.add_scalar('batch/loss', avg_loss, self.global_step)
+                    self.visualizer.writer.add_scalar('batch/focal_loss', avg_focal, self.global_step)
+                    self.visualizer.writer.add_scalar('batch/offset_loss', avg_offset, self.global_step)
+                    self.visualizer.writer.add_scalar('batch/hard_negative_loss', avg_hard_neg, self.global_step)
+                    self.visualizer.writer.add_scalar('batch/angle_loss', avg_angle, self.global_step)
+                    self.visualizer.writer.add_scalar('training/speed_samples_per_sec', samples_per_second, self.global_step)
+                    self.visualizer.flush()
         
         # 平均指标
         for key in metrics:
@@ -288,9 +355,11 @@ class TrainingEngine:
             # 使用新版本PyTorch的autocast API
             with autocast(device_type='cuda', dtype=self.amp_dtype):
                 outputs = self.model(batch['image'])
+                            
                 loss, loss_dict = self._compute_loss(outputs, batch)
         else:
             outputs = self.model(batch['image'])
+                        
             loss, loss_dict = self._compute_loss(outputs, batch)
         
         # 计算预测误差（用于监控）
@@ -306,10 +375,10 @@ class TrainingEngine:
         # 整合指标
         metrics = {
             'loss': loss.item(),
-            'focal_loss': loss_dict.get('focal_loss', 0.0),
-            'offset_loss': loss_dict.get('offset_loss', 0.0),
-            'hard_negative_loss': loss_dict.get('hard_negative_loss', 0.0),
-            'angle_loss': loss_dict.get('angle_loss', 0.0),
+            'focal_loss': loss_dict.get('focal_loss', 0.0) if isinstance(loss_dict.get('focal_loss', 0.0), (int, float)) else loss_dict.get('focal_loss', torch.tensor(0.0)).item(),
+            'offset_loss': loss_dict.get('offset_loss', 0.0) if isinstance(loss_dict.get('offset_loss', 0.0), (int, float)) else loss_dict.get('offset_loss', torch.tensor(0.0)).item(),
+            'hard_negative_loss': loss_dict.get('hard_negative_loss', 0.0) if isinstance(loss_dict.get('hard_negative_loss', 0.0), (int, float)) else loss_dict.get('hard_negative_loss', torch.tensor(0.0)).item(),
+            'angle_loss': loss_dict.get('angle_loss', 0.0) if isinstance(loss_dict.get('angle_loss', 0.0), (int, float)) else loss_dict.get('angle_loss', torch.tensor(0.0)).item(),
             'gap_mae': gap_error,
             'slider_mae': slider_error
         }
@@ -357,12 +426,14 @@ class TrainingEngine:
             ], dim=1)
         }
         
-        # 添加权重掩码（如果有）
-        if 'weight_gap' in targets and 'weight_slider' in targets:
-            # 使用gap和slider权重的平均值作为统一掩码
-            loss_targets['mask'] = (targets['weight_gap'] + targets['weight_slider']) / 2.0
-            if loss_targets['mask'].dim() == 3:  # [B, H, W]
-                loss_targets['mask'] = loss_targets['mask'].unsqueeze(1)  # [B, 1, H, W]
+        # 添加权重掩码（必须存在，因为输入是4通道包含padding mask）
+        if 'weight_gap' not in targets or 'weight_slider' not in targets:
+            raise ValueError("数据批次缺少权重掩码（weight_gap/weight_slider），这是必需的因为输入包含padding mask通道")
+        
+        # 使用gap和slider权重的平均值作为统一掩码
+        loss_targets['mask'] = (targets['weight_gap'] + targets['weight_slider']) / 2.0
+        if loss_targets['mask'].dim() == 3:  # [B, H, W]
+            loss_targets['mask'] = loss_targets['mask'].unsqueeze(1)  # [B, 1, H, W]
         
         # 准备混淆缺口信息（用于硬负样本损失）
         batch_size = predictions['heatmap_gap'].shape[0]
@@ -382,12 +453,72 @@ class TrainingEngine:
         # 提取混淆缺口坐标（必须存在）
         if 'confusing_gaps' not in targets:
             raise ValueError("数据批次缺少 'confusing_gaps' 字段，无法计算硬负样本损失。请确保数据预处理正确生成了混淆缺口信息。")
-        loss_targets['fake_centers'] = targets['confusing_gaps']
+        
+        # 转换混淆缺口格式：从嵌套列表转换为张量列表
+        # confusing_gaps: [[样本1的假缺口], [样本2的假缺口], ...]
+        # 需要转换为：[所有样本的第1个假缺口张量, 所有样本的第2个假缺口张量, ...]
+        confusing_gaps = targets['confusing_gaps']
+        batch_size = len(confusing_gaps)
+        
+        # 找出最大的假缺口数量
+        max_fake_gaps = max(len(gaps) for gaps in confusing_gaps) if confusing_gaps else 0
+        
+        # 构建张量列表
+        fake_centers_list = []
+        
+        if max_fake_gaps > 0:
+            for gap_idx in range(max_fake_gaps):
+                batch_fake_centers = []
+                for sample_idx in range(batch_size):
+                    if gap_idx < len(confusing_gaps[sample_idx]):
+                        # 该样本有这个假缺口
+                        batch_fake_centers.append(confusing_gaps[sample_idx][gap_idx])
+                    else:
+                        # 该样本没有这个假缺口，使用一个远离的点或重复最后一个
+                        if len(confusing_gaps[sample_idx]) > 0:
+                            batch_fake_centers.append(confusing_gaps[sample_idx][-1])
+                        else:
+                            # 没有假缺口的样本，使用一个默认值（远离实际缺口的位置）
+                            batch_fake_centers.append([0.0, 0.0])
+                
+                # 转换为张量 [B, 2]
+                fake_centers_tensor = torch.tensor(batch_fake_centers, dtype=torch.float32, device=self.device)
+                fake_centers_list.append(fake_centers_tensor)
+        
+        loss_targets['fake_centers'] = fake_centers_list
         
         # 提取角度信息（必须存在）
         if 'angle' not in targets and 'gap_angles' not in targets:
             raise ValueError("数据批次缺少 'angle' 或 'gap_angles' 字段，无法计算角度损失。请确保数据预处理正确生成了角度信息。")
-        loss_targets['angle'] = targets.get('angle', targets.get('gap_angles'))  # 支持两种命名
+        
+        # 获取角度值（1维张量，每个样本一个角度）
+        angle_values = targets.get('angle', targets.get('gap_angles'))  # [B]
+        
+        # 检查是否有非零角度
+        has_rotation = (angle_values != 0).any()
+        
+        if has_rotation:
+            # 只有在有旋转角度时才准备角度张量
+            # 将角度值转换为4维张量 [B, 2, H, W]
+            # 角度表示为 (sin(θ), cos(θ))
+            batch_size = angle_values.shape[0]
+            height, width = predictions['heatmap_gap'].shape[2:]  # 特征图尺寸
+            
+            # 计算sin和cos
+            sin_values = torch.sin(angle_values)  # [B]
+            cos_values = torch.cos(angle_values)  # [B]
+            
+            # 扩展为4维张量
+            sin_map = sin_values.view(batch_size, 1, 1, 1).expand(batch_size, 1, height, width)
+            cos_map = cos_values.view(batch_size, 1, 1, 1).expand(batch_size, 1, height, width)
+            
+            # 合并为 [B, 2, H, W]
+            angle_tensor = torch.cat([sin_map, cos_map], dim=1)
+            
+            loss_targets['angle'] = angle_tensor  # 传递4维角度张量
+        else:
+            # 没有旋转角度，不计算角度损失
+            loss_targets['angle'] = None
         
         # 使用TotalLoss计算损失
         total_loss, loss_dict = self.loss_fn(predictions, loss_targets)
@@ -548,8 +679,8 @@ class TrainingEngine:
         # 累积计数器
         self.accumulation_counter += 1
         
-        if self.use_amp and self.amp_dtype != torch.bfloat16:
-            # 标准混合精度（FP16）
+        if self.use_amp and self.amp_dtype == torch.float16:
+            # FP16模式需要使用GradScaler
             self.scaler.scale(loss).backward()
             
             # 只在累积完成时更新权重
@@ -560,7 +691,7 @@ class TrainingEngine:
                 self.scaler.update()
                 self.optimizer.zero_grad()
         else:
-            # BFloat16或FP32
+            # BFloat16或FP32模式
             loss.backward()
             
             # 只在累积完成时更新权重

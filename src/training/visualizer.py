@@ -105,6 +105,8 @@ class Visualizer:
         self.writer.add_scalar('loss/train', metrics['loss'], epoch)
         self.writer.add_scalar('loss/focal', metrics['focal_loss'], epoch)
         self.writer.add_scalar('loss/offset', metrics['offset_loss'], epoch)
+        self.writer.add_scalar('loss/hard_negative', metrics.get('hard_negative_loss', 0.0), epoch)
+        self.writer.add_scalar('loss/angle', metrics.get('angle_loss', 0.0), epoch)
         
         # MAE
         self.writer.add_scalar('train/gap_mae', metrics['gap_mae'], epoch)
@@ -114,6 +116,9 @@ class Visualizer:
         
         # 学习率
         self.writer.add_scalar('lr/current', metrics['lr'], epoch)
+        
+        # 确保数据被写入
+        self.writer.flush()
     
     def log_validation_metrics(self, metrics: Dict[str, float], epoch: int):
         """
@@ -140,6 +145,9 @@ class Visualizer:
         self.writer.add_scalar('val/mae_std', metrics['mae_std'], epoch)
         self.writer.add_scalar('val/mae_max', metrics['mae_max'], epoch)
         self.writer.add_scalar('val/mae_median', metrics['mae_median'], epoch)
+        
+        # 确保数据被写入
+        self.writer.flush()
     
     def log_learning_rate(self, lr: float, step: int):
         """
@@ -189,21 +197,53 @@ class Visualizer:
                        predictions: Dict[str, torch.Tensor],
                        targets: Dict[str, torch.Tensor],
                        epoch: int,
-                       num_samples: int = 4):
+                       num_samples: int = 4,
+                       num_best: int = 2,
+                       num_worst: int = 2):
         """
-        可视化预测结果
+        可视化预测结果（分别显示最佳和最差的预测）
         
         Args:
             images: 输入图像 [B, 4, H, W]
             predictions: 预测结果
             targets: 真实标注
             epoch: 当前epoch
-            num_samples: 可视化样本数
+            num_samples: 总可视化样本数（兼容旧代码）
+            num_best: 显示最佳预测的数量
+            num_worst: 显示最差预测的数量
         """
-        # 选择前N个样本
-        num_vis = min(num_samples, images.size(0))
+        batch_size = images.size(0)
         
-        for i in range(num_vis):
+        # 计算所有样本的误差
+        errors = []
+        for i in range(batch_size):
+            pred_gap = predictions['gap_coords'][i].cpu().numpy()
+            gt_gap = targets['gap_coords'][i].cpu().numpy()
+            pred_slider = predictions['slider_coords'][i].cpu().numpy()
+            gt_slider = targets['slider_coords'][i].cpu().numpy()
+            
+            gap_error = np.linalg.norm(pred_gap - gt_gap)
+            slider_error = np.linalg.norm(pred_slider - gt_slider)
+            avg_error = (gap_error + slider_error) / 2.0
+            
+            errors.append((i, avg_error, gap_error, slider_error))
+        
+        # 按误差排序
+        errors.sort(key=lambda x: x[1])
+        
+        # 选择最佳和最差的样本
+        best_indices = errors[:min(num_best, len(errors))]
+        worst_indices = errors[-min(num_worst, len(errors)):][::-1]  # 反转使最差的在前
+        
+        # 合并并创建标签
+        selected_samples = []
+        for rank, (idx, avg_err, gap_err, slider_err) in enumerate(best_indices):
+            selected_samples.append((idx, gap_err, slider_err, f"Best #{rank+1}", (0, 255, 0)))  # 绿色标记
+        for rank, (idx, avg_err, gap_err, slider_err) in enumerate(worst_indices):
+            selected_samples.append((idx, gap_err, slider_err, f"Worst #{rank+1}", (0, 0, 255)))  # 红色标记
+        
+        # 可视化选中的样本
+        for vis_idx, (i, gap_error, slider_error, label, label_color) in enumerate(selected_samples):
             # 获取图像（去除padding通道）
             img = images[i, :3].cpu().numpy().transpose(1, 2, 0)
             img = (img * 255).astype(np.uint8)
@@ -211,6 +251,12 @@ class Visualizer:
             
             # 创建可视化图像
             vis_img = img.copy()
+            
+            # 添加质量标签（Best/Worst）
+            cv2.rectangle(vis_img, (5, 5), (120, 30), label_color, -1)
+            cv2.putText(vis_img, label, 
+                       (10, 25),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
             
             # 真实缺口位置（绿色）
             gt_gap = targets['gap_coords'][i].cpu().numpy()
@@ -240,60 +286,134 @@ class Visualizer:
                        (int(pred_slider[0])+10, int(pred_slider[1])+10),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
             
-            # 计算误差
-            gap_error = np.linalg.norm(pred_gap - gt_gap)
-            slider_error = np.linalg.norm(pred_slider - gt_slider)
-            
             # 添加误差信息
             error_text = f"Gap Error: {gap_error:.2f}px, Slider Error: {slider_error:.2f}px"
+            avg_error = (gap_error + slider_error) / 2.0
+            error_text2 = f"Average Error: {avg_error:.2f}px"
+            
             cv2.putText(vis_img, error_text, 
-                       (10, 20),
+                       (10, vis_img.shape[0] - 25),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            cv2.putText(vis_img, error_text2, 
+                       (10, vis_img.shape[0] - 5),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
             
             # 转换回RGB并添加到TensorBoard
             vis_img = cv2.cvtColor(vis_img, cv2.COLOR_BGR2RGB)
+            
+            # 使用更明确的命名
+            if "Best" in label:
+                tag = f'prediction_best/{label.replace(" ", "_").replace("#", "")}'
+            else:
+                tag = f'prediction_worst/{label.replace(" ", "_").replace("#", "")}'
+            
             self.writer.add_image(
-                f'prediction/sample_{i}', 
+                tag, 
                 vis_img.transpose(2, 0, 1), 
                 epoch
             )
+        
+        # 确保数据被写入
+        self.writer.flush()
     
     def log_heatmaps(self,
                     heatmaps: Dict[str, torch.Tensor],
                     epoch: int,
-                    num_samples: int = 2):
+                    num_samples: int = 2,
+                    images: Optional[torch.Tensor] = None):
         """
-        可视化热力图
+        可视化热力图（可选择与原图叠加）
         
         Args:
             heatmaps: 热力图字典（包含gap和slider）
             epoch: 当前epoch
             num_samples: 可视化样本数
+            images: 原始图像 [B, 4, H, W]（可选，用于叠加显示）
         """
-        num_vis = min(num_samples, heatmaps['heatmap_gap'].size(0))
+        # 检查key名称并适配
+        gap_key = 'heatmap_gap' if 'heatmap_gap' in heatmaps else 'gap_heatmap'
+        slider_key = 'heatmap_slider' if 'heatmap_slider' in heatmaps else 'slider_heatmap'
+        
+        num_vis = min(num_samples, heatmaps[gap_key].size(0))
         
         for i in range(num_vis):
-            # 缺口热力图
-            gap_heatmap = heatmaps['heatmap_gap'][i, 0].cpu().numpy()
-            gap_heatmap = (gap_heatmap * 255).astype(np.uint8)
-            gap_heatmap = cv2.applyColorMap(gap_heatmap, cv2.COLORMAP_JET)
+            # 获取原图（如果提供）
+            if images is not None and i < images.size(0):
+                # 获取RGB图像（去除padding通道）
+                orig_img = images[i, :3].cpu().numpy().transpose(1, 2, 0)
+                orig_img = (orig_img * 255).astype(np.uint8)
+                orig_h, orig_w = orig_img.shape[:2]  # 256, 512
+            else:
+                orig_img = None
+                orig_h, orig_w = 256, 512  # 默认尺寸
             
+            # 处理缺口热力图
+            gap_heatmap = heatmaps[gap_key][i, 0].cpu().numpy()
+            
+            if orig_img is not None:
+                # 上采样热力图到原图尺寸
+                gap_heatmap_resized = cv2.resize(gap_heatmap, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+                
+                # 应用颜色映射
+                gap_heatmap_colored = cv2.applyColorMap((gap_heatmap_resized * 255).astype(np.uint8), cv2.COLORMAP_JET)
+                
+                # 叠加到原图上（半透明）
+                alpha = 0.5  # 透明度
+                gap_overlay = cv2.addWeighted(orig_img, 1-alpha, gap_heatmap_colored, alpha, 0)
+                
+                # 添加标题
+                cv2.putText(gap_overlay, "Gap Heatmap", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                
+                self.writer.add_image(
+                    f'heatmap_overlay/gap_{i}',
+                    gap_overlay.transpose(2, 0, 1),
+                    epoch
+                )
+            
+            # 也保存原始热力图（不叠加）
+            gap_heatmap_raw = (gap_heatmap * 255).astype(np.uint8)
+            gap_heatmap_raw_colored = cv2.applyColorMap(gap_heatmap_raw, cv2.COLORMAP_JET)
             self.writer.add_image(
-                f'heatmap/gap_{i}',
-                gap_heatmap.transpose(2, 0, 1),
+                f'heatmap_raw/gap_{i}',
+                gap_heatmap_raw_colored.transpose(2, 0, 1),
                 epoch
             )
             
-            # 滑块热力图
-            slider_heatmap = heatmaps['heatmap_slider'][i, 0].cpu().numpy()
-            slider_heatmap = (slider_heatmap * 255).astype(np.uint8)
-            slider_heatmap = cv2.applyColorMap(slider_heatmap, cv2.COLORMAP_JET)
+            # 处理滑块热力图
+            slider_heatmap = heatmaps[slider_key][i, 0].cpu().numpy()
             
+            if orig_img is not None:
+                # 上采样热力图到原图尺寸
+                slider_heatmap_resized = cv2.resize(slider_heatmap, (orig_w, orig_h), interpolation=cv2.INTER_CUBIC)
+                
+                # 应用颜色映射
+                slider_heatmap_colored = cv2.applyColorMap((slider_heatmap_resized * 255).astype(np.uint8), cv2.COLORMAP_JET)
+                
+                # 叠加到原图上（半透明）
+                slider_overlay = cv2.addWeighted(orig_img, 1-alpha, slider_heatmap_colored, alpha, 0)
+                
+                # 添加标题
+                cv2.putText(slider_overlay, "Slider Heatmap", (10, 30), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                
+                self.writer.add_image(
+                    f'heatmap_overlay/slider_{i}',
+                    slider_overlay.transpose(2, 0, 1),
+                    epoch
+                )
+            
+            # 也保存原始热力图（不叠加）
+            slider_heatmap_raw = (slider_heatmap * 255).astype(np.uint8)
+            slider_heatmap_raw_colored = cv2.applyColorMap(slider_heatmap_raw, cv2.COLORMAP_JET)
             self.writer.add_image(
-                f'heatmap/slider_{i}',
-                slider_heatmap.transpose(2, 0, 1),
+                f'heatmap_raw/slider_{i}',
+                slider_heatmap_raw_colored.transpose(2, 0, 1),
                 epoch
             )
+        
+        # 确保数据被写入
+        self.writer.flush()
     
     def log_failure_cases(self, 
                          failures: List[Dict], 

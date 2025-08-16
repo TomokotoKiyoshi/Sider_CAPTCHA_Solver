@@ -5,7 +5,7 @@
 """
 import torch
 import torch.nn as nn
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, List
 from .focal_loss import create_focal_loss
 from .offset_loss import create_offset_loss
 from .hard_negative_loss import create_hard_negative_loss
@@ -67,7 +67,7 @@ class TotalLoss(nn.Module):
                 - 'heatmap_piece': 滑块高斯热图 [B, 1, H, W]
                 - 'offset': 目标偏移 [B, 4, H, W]
                 - 'angle': 目标角度 [B, 2, H, W]（可选）
-                - 'mask': 有效区域掩码 [B, 1, H, W]（可选）
+                - 'mask': 有效区域掩码 [B, 1, H, W]（必需）
                 - 'gap_center': 真实缺口中心 [B, 2]
                 - 'fake_centers': 假缺口中心列表
         
@@ -76,7 +76,10 @@ class TotalLoss(nn.Module):
             loss_dict: 各子损失的值（用于日志记录）
         """
         loss_dict = {}
-        mask = targets.get('mask', None)
+        # mask是必需的，因为输入包含padding mask通道
+        if 'mask' not in targets:
+            raise ValueError("targets缺少必需的'mask'字段")
+        mask = targets['mask']
         
         # ========== 1. 热力图损失（Focal Loss） ==========
         loss_heat_gap = self.focal_loss(
@@ -109,39 +112,72 @@ class TotalLoss(nn.Module):
         )
         loss_dict['offset'] = loss_offset
         
-        # ========== 3. 硬负样本损失 ==========
-        loss_hard_neg = self.hard_negative_loss(
-            predictions['heatmap_gap'],
-            targets['gap_center'],
-            targets['fake_centers'],
-            mask
-        )
+        # ========== 3. 硬负样本损失（可选） ==========
+        # 只有在有混淆缺口时才计算硬负样本损失
+        if 'fake_centers' in targets and targets['fake_centers'] and len(targets['fake_centers']) > 0:
+            try:
+                loss_hard_neg = self.hard_negative_loss(
+                    predictions['heatmap_gap'],
+                    targets['gap_center'],
+                    targets['fake_centers'],
+                    mask
+                )
+                # 检查是否有效
+                if torch.isnan(loss_hard_neg) or torch.isinf(loss_hard_neg):
+                    loss_hard_neg = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+            except Exception as e:
+                loss_hard_neg = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+        else:
+            # 没有混淆缺口时，硬负样本损失为0
+            loss_hard_neg = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+        
         loss_dict['hard_negative'] = loss_hard_neg
         
         # ========== 4. 角度损失（可选） ==========
-        if self.use_angle and 'angle' in predictions and 'angle' in targets:
-            loss_angle = self.angle_loss(
-                predictions['angle'],
-                targets['angle'],
-                targets['heatmap_gap'],  # 使用缺口热力图作为监督区域
-                mask
-            )
-            loss_dict['angle'] = loss_angle
+        if self.use_angle and 'angle' in predictions and 'angle' in targets and targets['angle'] is not None:
+            try:
+                # 只有在有角度信息时才计算角度损失
+                loss_angle = self.angle_loss(
+                    predictions['angle'],
+                    targets['angle'],
+                    targets['heatmap_gap'],  # 使用缺口热力图作为监督区域
+                    mask
+                )
+                # 检查是否有效
+                if torch.isnan(loss_angle) or torch.isinf(loss_angle):
+                    loss_angle = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+            except Exception as e:
+                loss_angle = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
         else:
-            # 不使用角度损失时，设为0但不加入总损失计算
-            loss_angle = torch.tensor(0.0, device=predictions['heatmap_gap'].device)
-            loss_dict['angle'] = loss_angle
+            # 不使用角度损失时，或没有旋转角度时，设为0
+            loss_angle = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+        
+        loss_dict['angle'] = loss_angle
         
         # ========== 5. 计算总损失 ==========
-        total_loss = (
-            self.weights['heatmap'] * loss_heatmap +
-            self.weights['offset'] * loss_offset +
-            self.weights['hard_negative'] * loss_hard_neg
-        )
+        valid_losses = []
         
-        # 只在使用角度损失时才加入总损失
-        if self.use_angle and 'angle' in predictions and 'angle' in targets:
-            total_loss = total_loss + self.weights['angle'] * loss_angle
+        # 必须有的损失（focal和offset）
+        if not torch.isnan(loss_heatmap) and not torch.isinf(loss_heatmap):
+            valid_losses.append(self.weights['heatmap'] * loss_heatmap)
+            
+        if not torch.isnan(loss_offset) and not torch.isinf(loss_offset):
+            valid_losses.append(self.weights['offset'] * loss_offset)
+        
+        # 可选损失（hard_negative和angle）
+        # 只有非零时才加入
+        if loss_hard_neg.item() > 0 and not torch.isnan(loss_hard_neg) and not torch.isinf(loss_hard_neg):
+            valid_losses.append(self.weights['hard_negative'] * loss_hard_neg)
+            
+        if self.use_angle and loss_angle.item() > 0 and not torch.isnan(loss_angle) and not torch.isinf(loss_angle):
+            valid_losses.append(self.weights['angle'] * loss_angle)
+        
+        # 计算总损失
+        if len(valid_losses) > 0:
+            total_loss = sum(valid_losses)
+        else:
+            # 所有损失都无效时返回默认值
+            total_loss = torch.tensor(1.0, device=predictions['heatmap_gap'].device, requires_grad=True)
         
         loss_dict['total'] = total_loss
         

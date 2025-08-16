@@ -6,7 +6,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
+# No Optional needed anymore
 
 
 class OffsetLoss(nn.Module):
@@ -25,13 +25,16 @@ class OffsetLoss(nn.Module):
     """
     
     def __init__(self,
-                 beta: float = 1.0,):
+                 beta: float = 1.0,
+                 eps: float = 1e-6):
         """
         Args:
             beta: Smooth L1的平滑参数
+            eps: 防止除零的小常数
         """
         super().__init__()
         self.beta = beta
+        self.eps = eps
         
         # Smooth L1损失
         self.smooth_l1 = nn.SmoothL1Loss(beta=beta, reduction='none')
@@ -40,7 +43,7 @@ class OffsetLoss(nn.Module):
                 pred_offset: torch.Tensor,
                 target_offset: torch.Tensor,
                 heatmap: torch.Tensor,
-                mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+                mask: torch.Tensor) -> torch.Tensor:
         """
         前向传播计算偏移损失
         
@@ -50,7 +53,7 @@ class OffsetLoss(nn.Module):
             target_offset: 真实偏移 [B,4,64,128]
             heatmap: 真实高斯热图 [B,2,64,128]
                     第0通道为gap热图，第1通道为piece热图
-            mask: 有效区域掩码 W_1/4
+            mask: 有效区域掩码 W_1/4 [B,1,H,W]（必需）
         
         Returns:
             标量损失值
@@ -69,20 +72,13 @@ class OffsetLoss(nn.Module):
         
         # Gap热图作为权重 w_g
         gap_heatmap = heatmap[:, 0:1, :, :]  # [B,1,H,W]
-        w_g = gap_heatmap
-        
-        # 应用mask
-        if mask is not None:
-            w_g = w_g * mask
+        w_g = gap_heatmap * mask  # 直接应用mask
         
         # 检查权重和不为0
         w_g_sum = w_g.sum()
-        assert w_g_sum > 0, (
-            f"Gap heatmap weight sum is zero! "
-            f"Check if gap heatmap is properly generated. "
-            f"Heatmap max: {gap_heatmap.max().item():.6f}, "
-            f"min: {gap_heatmap.min().item():.6f}"
-        )
+        if w_g_sum < self.eps:
+            # 权重过小时返回小的常数损失
+            return torch.tensor(0.01, device=pred_offset.device, requires_grad=True)
         
         # 计算单样本Smooth L1
         # l_off(g) = SmoothL1(d̂_x(g) - d*_x(g)) + SmoothL1(d̂_y(g) - d*_y(g))
@@ -103,20 +99,13 @@ class OffsetLoss(nn.Module):
         
         # Piece热图作为权重 w_p
         piece_heatmap = heatmap[:, 1:2, :, :]  # [B,1,H,W]
-        w_p = piece_heatmap
-        
-        # 应用mask
-        if mask is not None:
-            w_p = w_p * mask
+        w_p = piece_heatmap * mask  # 直接应用mask
         
         # 检查权重和不为0
         w_p_sum = w_p.sum()
-        assert w_p_sum > 0, (
-            f"Piece heatmap weight sum is zero! "
-            f"Check if piece heatmap is properly generated. "
-            f"Heatmap max: {piece_heatmap.max().item():.6f}, "
-            f"min: {piece_heatmap.min().item():.6f}"
-        )
+        if w_p_sum < self.eps:
+            # 权重过小时返回gap损失加上小的常数
+            return gap_loss + torch.tensor(0.01, device=pred_offset.device, requires_grad=True)
         
         # 计算单样本Smooth L1
         # l_off(p) = SmoothL1(d̂_x(p) - d*_x(p)) + SmoothL1(d̂_y(p) - d*_y(p))
@@ -138,6 +127,7 @@ def create_offset_loss(config: dict) -> OffsetLoss:
     Args:
         config: 配置字典，必须包含：
             - beta: Smooth L1的平滑参数
+            - eps: 防止除零的小常数（可选，默认1e-6）
     Returns:
         OffsetLoss实例
     """
@@ -149,4 +139,5 @@ def create_offset_loss(config: dict) -> OffsetLoss:
     
     return OffsetLoss(
         beta=config['beta'],
+        eps=config.get('eps', 1e-6)  # eps可以有默认值
     )

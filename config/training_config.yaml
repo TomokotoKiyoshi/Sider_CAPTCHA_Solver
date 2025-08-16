@@ -17,7 +17,7 @@ model:
   
 optimizer:
   name: AdamW
-  lr: 3.0e-4               # global_batch=256
+  lr: 6.0e-4               # global_batch=512 (doubled from 256, so doubled lr)
   betas: [0.9, 0.999]
   eps: 1.0e-8
   weight_decay: 0.05
@@ -32,21 +32,29 @@ sched:
   patience: 18                     # 早停耐心值
 
 train:
-  batch_size: 256
-  amp: bf16                # bfloat16混合精度
+  batch_size: 512          # 增大批量大小以提高GPU利用率
+  amp: true                # 混合精度：true/bf16(RTX40系列), fp16(旧GPU), false(不启用)
   channels_last: true      # 内存布局优化
-  num_workers: 24
+  num_workers: 8           # Windows上减少workers数量避免CPU瓶颈
   pin_memory: true
   non_blocking: true       # 异步数据传输（H2D）
   gradient_accumulation_steps: 1   # 梯度累积步数（1=不累积，保持原样）
-  compile_model: false     # torch.compile优化（PyTorch 2.0+）
-  compile_mode: "default"  # compile模式: default, reduce-overhead, max-autotune
+  compile_model: false      # torch.compile优化（PyTorch 2.0+）- Windows上暂时禁用（需要Triton）
+  compile_mode: "default"  # compile模式: default, reduce-overhead, max-autotune(最佳性能)
   
 eval:
   metrics: [mae_px, rmse_px, hit_le_2px, hit_le_5px]
   select_by: hit_le_5px               # 以5px内命中率选择最佳模型
   vis_fail_k: 10                      # 可视化前10个失败案例
   eval_interval: 1                    # 每个epoch评估一次
+  
+  # 可视化配置
+  visualization:
+    num_heatmap_samples: 6           # 热力图可视化样本数
+    num_best_samples: 3              # 显示最佳预测样本数
+    num_worst_samples: 3             # 显示最差预测样本数
+    save_predictions: true            # 是否保存预测图像
+    save_heatmaps: true              # 是否保存热力图
   early_stopping:
     min_epochs: 100                   # 最少训练100个epoch后才考虑早停
     patience: 18                      # 连续18个epoch无改善则停止
@@ -57,7 +65,7 @@ eval:
  
 
 checkpoints:
-  save_dir: "checkpoints/1.1.0"
+  save_dir: "src/checkpoints/1.1.0"
   save_interval: 1                   # 每个epoch保存
   save_best: true                    # 保存最佳模型
   
@@ -123,7 +131,7 @@ monitoring:
   # 性能监控
   profile:
     enabled: false
-    wait: 1                         # 完全不采集数据，只是让模型和硬件进入稳定状态
-    warmup: 1                       # 预热epoch
-    active: 1                       # 每 10 步的数据会被保存下来，用来分析
+    wait: 0                         # 完全不采集数据，只是让模型和硬件进入稳定状态
+    warmup: 0                       # 预热epoch
+    active: 0                       # 每 10 步的数据会被保存下来，用来分析
     repeat: 1                       # 为了减少偶然波动，可以重复多轮测量再取平均。

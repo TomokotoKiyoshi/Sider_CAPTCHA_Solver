@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Lite-HRNet-18+LiteFPN 训练主脚本
-滑块验证码识别模型训练入口
+测试版训练脚本 - 使用1/20数据进行快速测试
+基于train.py但只使用5%的数据
 """
 import argparse
 import torch
@@ -25,30 +25,12 @@ import logging
 import time
 from datetime import datetime
 import json
-
-
-# 限制批次数量的DataLoader包装器（用于测试或部分数据训练）
-class LimitedDataLoader:
-    """限制批次数量的DataLoader包装器"""
-    def __init__(self, loader, max_batches):
-        self.loader = loader
-        self.max_batches = max_batches
-        
-    def __iter__(self):
-        count = 0
-        for batch in self.loader:
-            if count >= self.max_batches:
-                break
-            yield batch
-            count += 1
-            
-    def __len__(self):
-        return self.max_batches
+import random
 
 
 def parse_args():
     """解析命令行参数"""
-    parser = argparse.ArgumentParser(description='训练Lite-HRNet-18+LiteFPN滑块验证码识别模型')
+    parser = argparse.ArgumentParser(description='测试训练脚本 - 使用1/20数据')
     
     # 基础参数
     parser.add_argument('--config', type=str, 
@@ -59,6 +41,11 @@ def parse_args():
     parser.add_argument('--eval-only', action='store_true',
                        help='仅执行评估')
     
+    # 测试专用参数
+    parser.add_argument('--data-fraction', type=float, default=0.05,
+                       help='使用的数据比例 (默认0.05 = 1/20)')
+    parser.add_argument('--quick-test', action='store_true',
+                       help='快速测试模式（仅3个epoch）')
     
     # 覆盖配置参数
     parser.add_argument('--batch-size', type=int, default=None,
@@ -71,8 +58,8 @@ def parse_args():
     # 其他参数
     parser.add_argument('--seed', type=int, default=42,
                        help='随机种子')
-    parser.add_argument('--name', type=str, default=None,
-                       help='实验名称')
+    parser.add_argument('--name', type=str, default='test_run',
+                       help='实验名称（默认test_run）')
     
     return parser.parse_args()
 
@@ -85,11 +72,18 @@ def set_seed(seed: int):
     np.random.seed(seed)
     import random
     random.seed(seed)
-    # Note: CuDNN settings are now handled by config_manager.apply_hardware_optimizations()
 
 
 def override_config(config: dict, args):
     """根据命令行参数覆盖配置"""
+    # 测试模式特殊配置
+    if args.quick_test:
+        config['sched']['epochs'] = 3
+        config['sched']['min_epochs'] = 1
+        config['eval']['early_stopping']['min_epochs'] = 1
+        config['eval']['early_stopping']['patience'] = 2
+        logging.info("快速测试模式：3个epoch")
+    
     if args.batch_size is not None:
         config['train']['batch_size'] = args.batch_size
         logging.info(f"覆盖batch_size: {args.batch_size}")
@@ -102,30 +96,26 @@ def override_config(config: dict, args):
         config['sched']['epochs'] = args.epochs
         logging.info(f"覆盖训练轮数: {args.epochs}")
     
-    if args.name is not None:
-        # 使用name参数作为子目录后缀
-        base_checkpoint_dir = config['checkpoints']['save_dir'].rsplit('/', 1)[0]
-        base_log_dir = config['logging']['log_dir'].rsplit('-', 1)[0]
-        base_tb_dir = config['logging']['tensorboard_dir'].rsplit('/', 1)[0]
-        
-        config['checkpoints']['save_dir'] = f"{base_checkpoint_dir}/{args.name}"
-        config['logging']['log_dir'] = f"{base_log_dir}-{args.name}"
-        config['logging']['tensorboard_dir'] = f"{base_tb_dir}/{args.name}"
-        logging.info(f"实验名称: {args.name}")
+    # 强制使用测试目录
+    test_name = args.name if args.name else 'test_run'
+    # 基于配置文件中的基础路径构建测试路径
+    base_checkpoint_dir = config['checkpoints']['save_dir'].rsplit('/', 1)[0]
+    config['checkpoints']['save_dir'] = f"{base_checkpoint_dir}/test/{test_name}"
+    config['logging']['log_dir'] = f"logs/test/log-{test_name}"
+    config['logging']['tensorboard_dir'] = f"logs/test/tensorboard/{test_name}"
+    logging.info(f"测试实验名称: {test_name}")
+    
+    # 减少日志频率以加快测试
+    config['logging']['log_interval'] = 5
+    config['checkpoints']['save_interval'] = 1
+    
+    # 测试模式使用单进程加载数据以避免pickle问题
+    config['train']['num_workers'] = 0
+    logging.info("测试模式：使用单进程数据加载（num_workers=0）")
 
 
 def save_checkpoint(model, engine, validator, epoch, config, is_best=False):
-    """
-    保存检查点
-    
-    Args:
-        model: 模型
-        engine: 训练引擎
-        validator: 验证器
-        epoch: 当前epoch
-        config: 配置
-        is_best: 是否为最佳模型
-    """
+    """保存检查点"""
     checkpoint_dir = Path(config['checkpoints']['save_dir'])
     
     # 获取检查点数据
@@ -135,6 +125,7 @@ def save_checkpoint(model, engine, validator, epoch, config, is_best=False):
     checkpoint['epoch'] = epoch
     checkpoint['best_metric'] = validator.best_metric
     checkpoint['config'] = config
+    checkpoint['is_test_run'] = True  # 标记为测试运行
     
     # 保存当前epoch检查点
     if epoch % config['checkpoints'].get('save_interval', 1) == 0:
@@ -156,26 +147,20 @@ def save_checkpoint(model, engine, validator, epoch, config, is_best=False):
         model_only_path = checkpoint_dir / "best_model_weights.pth"
         torch.save({
             'model_state_dict': model.state_dict(),
-            'config': config
+            'config': config,
+            'is_test_run': True
         }, model_only_path)
 
 
 def load_checkpoint(checkpoint_path, model, engine, validator=None):
-    """
-    加载检查点
-    
-    Args:
-        checkpoint_path: 检查点路径
-        model: 模型
-        engine: 训练引擎
-        validator: 验证器（可选）
-    
-    Returns:
-        起始epoch
-    """
+    """加载检查点"""
     logging.info(f"加载检查点: {checkpoint_path}")
     
     checkpoint = torch.load(checkpoint_path, map_location='cpu')
+    
+    # 检查是否为测试运行
+    if checkpoint.get('is_test_run', False):
+        logging.warning("加载的是测试运行的检查点")
     
     # 加载模型和优化器状态
     engine.load_checkpoint(checkpoint)
@@ -192,19 +177,7 @@ def load_checkpoint(checkpoint_path, model, engine, validator=None):
 
 
 def train_epoch(model, engine, dataloader, epoch, visualizer):
-    """
-    训练一个epoch
-    
-    Args:
-        model: 模型
-        engine: 训练引擎
-        dataloader: 数据加载器
-        epoch: 当前epoch
-        visualizer: 可视化器
-    
-    Returns:
-        训练指标
-    """
+    """训练一个epoch"""
     logging.info(f"\n开始训练 Epoch {epoch}")
     
     # 执行训练
@@ -221,20 +194,7 @@ def train_epoch(model, engine, dataloader, epoch, visualizer):
 
 
 def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=False):
-    """
-    验证一个epoch
-    
-    Args:
-        model: 模型（或EMA模型）
-        validator: 验证器
-        dataloader: 数据加载器
-        epoch: 当前epoch
-        visualizer: 可视化器
-        use_ema: 是否使用EMA模型
-    
-    Returns:
-        验证指标
-    """
+    """验证一个epoch"""
     logging.info(f"开始验证 Epoch {epoch}")
     
     # 执行验证
@@ -284,10 +244,96 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, use_ema=Fals
     return val_metrics
 
 
+# 限制批次数量的DataLoader包装器（定义在模块级别以支持pickle）
+class LimitedDataLoader:
+    """限制批次数量的DataLoader包装器"""
+    def __init__(self, loader, max_batches):
+        self.loader = loader
+        self.max_batches = max_batches
+        
+    def __iter__(self):
+        count = 0
+        for batch in self.loader:
+            if count >= self.max_batches:
+                break
+            yield batch
+            count += 1
+            
+    def __len__(self):
+        return self.max_batches
+
+
+# 创建自定义的NPY数据加载器（限制数据量）
+class LimitedNPYDataPipeline:
+    """限制数据量的NPY数据加载器"""
+    
+    def __init__(self, config, data_fraction=0.05):
+        """
+        Args:
+            config: 配置字典
+            data_fraction: 使用的数据比例（0.05 = 1/20）
+        """
+        from src.training.npy_data_loader import NPYDataPipeline
+        self.base_pipeline = NPYDataPipeline(config)
+        self.data_fraction = data_fraction
+        self.logger = logging.getLogger('LimitedNPYDataPipeline')
+        
+    def setup(self):
+        """设置数据管道"""
+        self.base_pipeline.setup()
+        
+        # 获取原始批次信息
+        original_info = self.base_pipeline.get_batch_info()
+        
+        # 计算限制后的批次数
+        self.train_batches = max(1, int(original_info['train_batches'] * self.data_fraction))
+        self.val_batches = max(1, int(original_info['val_batches'] * self.data_fraction))
+        
+        self.logger.info(f"数据限制: 使用 {self.data_fraction*100:.1f}% 的数据")
+        self.logger.info(f"训练批次: {original_info['train_batches']} -> {self.train_batches}")
+        self.logger.info(f"验证批次: {original_info['val_batches']} -> {self.val_batches}")
+        
+    def get_train_loader(self):
+        """获取限制后的训练数据加载器"""
+        # 直接返回原始的训练数据加载器，但限制迭代次数
+        original_loader = self.base_pipeline.get_train_loader()
+        return LimitedDataLoader(original_loader, self.train_batches)
+    
+    def get_val_loader(self):
+        """获取限制后的验证数据加载器"""
+        # 直接返回原始的验证数据加载器，但限制迭代次数
+        original_loader = self.base_pipeline.get_val_loader()
+        return LimitedDataLoader(original_loader, self.val_batches)
+    
+    def get_test_loader(self):
+        """获取限制后的测试数据加载器（如果存在）"""
+        if hasattr(self.base_pipeline, 'get_test_loader'):
+            original_loader = self.base_pipeline.get_test_loader()
+            if original_loader is None:
+                return None
+            test_batches = max(1, int(len(original_loader) * self.data_fraction))
+            return LimitedDataLoader(original_loader, test_batches)
+        return None
+    
+    def get_batch_info(self):
+        """获取批次信息"""
+        return {
+            'train_batches': self.train_batches,
+            'val_batches': self.val_batches,
+            'data_fraction': self.data_fraction
+        }
+
+
 def main():
     """主训练函数"""
     # 解析参数
     args = parse_args()
+    
+    # 打印测试模式提示
+    print("\n" + "="*60)
+    print("测试训练模式 - 使用1/20数据")
+    print(f"数据比例: {args.data_fraction*100:.1f}%")
+    print("="*60 + "\n")
     
     # 设置随机种子
     set_seed(args.seed)
@@ -299,16 +345,23 @@ def main():
     # 覆盖配置（如果有命令行参数）
     override_config(config, args)
     
-    # 保存最终配置
-    config_manager.save_config()
-    
-    # 获取设备
+    # 获取设备并应用硬件优化
     device = config_manager.get_device()
-    
-    # 应用硬件优化（TF32、cuDNN等）
     if device.type == 'cuda':
         config_manager.apply_hardware_optimizations()
         logging.info("硬件优化已应用（TF32、cuDNN自动调优）")
+    
+    # 创建测试目录（如果不存在）
+    from pathlib import Path
+    checkpoint_dir = Path(config['checkpoints']['save_dir'])
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    log_dir = Path(config['logging']['log_dir'])
+    log_dir.mkdir(parents=True, exist_ok=True)
+    tb_dir = Path(config['logging']['tensorboard_dir'])
+    tb_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 保存最终配置
+    config_manager.save_config()
     
     # 创建模型
     logging.info("创建模型...")
@@ -334,10 +387,10 @@ def main():
         model.load_state_dict(checkpoint['model_state_dict'])
         model = model.to(device)
         
-        # 创建数据管道 (仅支持NPY格式)
-        from src.training.npy_data_loader import NPYDataPipeline
+        # 创建数据管道 (使用限制版本)
         processed_dir_eval = config.get('data', {}).get('processed_dir', 'data/processed')
-        data_pipeline = NPYDataPipeline(config)
+        config['data']['processed_dir'] = processed_dir_eval
+        data_pipeline = LimitedNPYDataPipeline(config, args.data_fraction)
         data_pipeline.setup()
         
         # 创建验证器
@@ -357,9 +410,8 @@ def main():
     # 获取数据路径
     processed_dir = config.get('data', {}).get('processed_dir', 'data/processed')
     
-    # 使用NPY批次数据加载器（唯一支持的格式）
-    logging.info("加载NPY批次格式数据...")
-    from src.training.npy_data_loader import NPYDataPipeline
+    # 使用限制版NPY批次数据加载器
+    logging.info(f"加载NPY批次格式数据（使用{args.data_fraction*100:.1f}%）...")
     
     # 检查数据目录是否存在
     npy_train_dir = Path(processed_dir) / "images" / "train"
@@ -381,7 +433,7 @@ def main():
         )
     
     config['data']['processed_dir'] = processed_dir
-    data_pipeline = NPYDataPipeline(config)
+    data_pipeline = LimitedNPYDataPipeline(config, args.data_fraction)
     data_pipeline.setup()
     
     logging.info(f"使用NPY数据目录: {processed_dir}")
@@ -396,8 +448,8 @@ def main():
     
     # 获取批次信息
     batch_info = data_pipeline.get_batch_info()
-    logging.info(f"训练批次数: {batch_info['train_batches']}")
-    logging.info(f"验证批次数: {batch_info['val_batches']}")
+    logging.info(f"训练批次数: {batch_info['train_batches']} (原始数据的{batch_info['data_fraction']*100:.1f}%)")
+    logging.info(f"验证批次数: {batch_info['val_batches']} (原始数据的{batch_info['data_fraction']*100:.1f}%)")
     
     # 创建可视化器（先创建，以便传递给训练引擎）
     logging.info("创建可视化器...")
@@ -475,7 +527,8 @@ def main():
     
     # 训练循环
     logging.info(f"\n{'='*60}")
-    logging.info("开始训练")
+    logging.info("开始测试训练")
+    logging.info(f"数据比例: {args.data_fraction*100:.1f}%")
     logging.info(f"{'='*60}")
     
     total_epochs = config['sched']['epochs']
@@ -496,7 +549,7 @@ def main():
         epoch_start_time = time.time()
         
         print(f"\n{'='*50}")
-        print(f"Epoch {epoch}/{total_epochs}")
+        print(f"Epoch {epoch}/{total_epochs} [测试模式]")
         print(f"学习率: {engine.get_lr():.6f}")
         print(f"{'='*50}")
         
@@ -548,11 +601,11 @@ def main():
         eta_string = visualizer.get_eta_string(epoch)
         
         # 打印关键指标（包含ETA）
-        print(f"\n训练损失: {train_metrics['loss']:.4f}")
-        print(f"验证MAE: {val_metrics['mae_px']:.3f}px")
-        print(f"验证Hit@2px: {val_metrics['hit_le_2px']:.2f}%")
-        print(f"验证Hit@5px: {val_metrics['hit_le_5px']:.2f}%")
-        print(f"预计剩余时间: {eta_string}")
+        print(f"\n[测试模式] 训练损失: {train_metrics['loss']:.4f}")
+        print(f"[测试模式] 验证MAE: {val_metrics['mae_px']:.3f}px")
+        print(f"[测试模式] 验证Hit@2px: {val_metrics['hit_le_2px']:.2f}%")
+        print(f"[测试模式] 验证Hit@5px: {val_metrics['hit_le_5px']:.2f}%")
+        print(f"[测试模式] 预计剩余时间: {eta_string}")
         
         # 更新进度条描述（如果使用tqdm）
         if show_progress and hasattr(epoch_iterator, 'set_postfix'):
@@ -572,7 +625,8 @@ def main():
     
     # 训练结束
     logging.info(f"\n{'='*60}")
-    logging.info("训练完成！")
+    logging.info("测试训练完成！")
+    logging.info(f"使用了 {args.data_fraction*100:.1f}% 的数据")
     logging.info(f"{'='*60}")
     
     # 获取最佳指标
@@ -595,7 +649,9 @@ def main():
         'lr': config['optimizer']['lr'],
         'weight_decay': config['optimizer']['weight_decay'],
         'epochs': epoch,
-        'seed': args.seed
+        'seed': args.seed,
+        'data_fraction': args.data_fraction,
+        'is_test_run': True
     }
     
     final_metrics = {
@@ -618,10 +674,7 @@ def main():
         best_checkpoint_path = Path(config['checkpoints']['save_dir']) / "best_model.pth"
         if best_checkpoint_path.exists():
             # 创建测试数据加载器
-            test_config = config.copy()
-            test_pipeline = NPYDataPipeline(test_config)
-            # 设置为测试模式
-            test_loader = test_pipeline.get_test_loader() if hasattr(test_pipeline, 'get_test_loader') else None
+            test_loader = data_pipeline.get_test_loader()
             
             if test_loader:
                 # 加载最佳模型
@@ -646,15 +699,19 @@ def main():
         else:
             logging.warning("未找到最佳模型检查点，跳过测试集评估")
     else:
-        logging.info("未找到测试集NPY数据，跳过测试集评佐")
+        logging.info("未找到测试集NPY数据，跳过测试集评估")
     
     # 关闭可视化器
     visualizer.close()
     
-    logging.info(f"\n检查点保存在: {config['checkpoints']['save_dir']}")
-    logging.info(f"TensorBoard日志: {config['logging']['tensorboard_dir']}")
-    logging.info(f"运行以下命令查看TensorBoard:")
-    logging.info(f"  tensorboard --logdir {config['logging']['tensorboard_dir']}")
+    print(f"\n{'='*60}")
+    print("测试训练完成！")
+    print(f"数据使用量: {args.data_fraction*100:.1f}%")
+    print(f"检查点保存在: {config['checkpoints']['save_dir']}")
+    print(f"TensorBoard日志: {config['logging']['tensorboard_dir']}")
+    print(f"运行以下命令查看TensorBoard:")
+    print(f"  tensorboard --logdir {config['logging']['tensorboard_dir']}")
+    print(f"{'='*60}\n")
 
 
 if __name__ == "__main__":
