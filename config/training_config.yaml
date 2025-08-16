@@ -33,7 +33,7 @@ train:
   batch_size: 128          # 增大批量大小以提高GPU利用率
   amp: true                # 混合精度：true/bf16(RTX40系列), fp16(旧GPU), false(不启用)
   channels_last: true      # 内存布局优化
-  num_workers: 24          # Windows优化：减少到4个workers避免进程开销
+  num_workers: 8           # Windows优化：减少到4个workers避免进程开销
   pin_memory: true
   non_blocking: true       # 异步数据传输（H2D）
   prefetch_factor: 8       # 增加预取因子以减少I/O等待

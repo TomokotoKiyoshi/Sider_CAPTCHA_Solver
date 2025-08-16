@@ -168,17 +168,15 @@ class NPYBatchDataset(Dataset):
             # padding_mask: [B, 256, 512] -> weights: [B, 1, 64, 128]
             padding_mask = images[:, 3, :, :]  # 提取第4通道 [B, 256, 512]
             
-            # 使用平均池化下采样（4x4窗口）
+            # 使用向量化操作进行平均池化下采样（4x4窗口）- 性能优化
             batch_size = padding_mask.shape[0]
             h_out, w_out = 64, 128  # 目标尺寸
-            weights = np.zeros((batch_size, 1, h_out, w_out), dtype=np.float32)
             
-            for b in range(batch_size):
-                for i in range(h_out):
-                    for j in range(w_out):
-                        # 计算4x4窗口的平均值
-                        window = padding_mask[b, i*4:(i+1)*4, j*4:(j+1)*4]
-                        weights[b, 0, i, j] = np.mean(window)
+            # 向量化下采样：将图像重塑为4x4块，然后计算每块的平均值
+            # padding_mask: [B, 256, 512] -> [B, 64, 4, 128, 4] -> [B, 64, 128]
+            reshaped = padding_mask.reshape(batch_size, h_out, 4, w_out, 4)
+            downsampled = reshaped.mean(axis=(2, 4))  # 在4x4块维度上求平均
+            weights = downsampled[:, np.newaxis, :, :]  # 添加通道维度 [B, 1, 64, 128]
             
             # 加载元数据
             with open(meta_path, 'r', encoding='utf-8') as f:
