@@ -619,9 +619,8 @@ def main():
         logging.info(f"  Hit@2px: {best_metrics['hit_le_2px']:.2f}%")
         logging.info(f"  Hit@5px: {best_metrics['hit_le_5px']:.2f}%")
     
-    # 保存指标历史
-    metrics_history_path = Path(config['checkpoints']['save_dir']) / 'metrics_history.json'
-    validator.save_metrics_history(metrics_history_path)
+    # 指标历史现在通过日志解析器生成
+    # 使用方法: python src/utils/log_parser.py logs/log-1.1.0/training_*.log --output src/checkpoints/1.1.0
     
     # 记录超参数
     hparams = {

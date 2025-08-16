@@ -9,6 +9,23 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import logging
 from pathlib import Path
+import json
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """自定义JSON编码器，处理NumPy和PyTorch类型"""
+    def default(self, obj):
+        if isinstance(obj, (np.float32, np.float64, np.float16)):
+            return float(obj)
+        elif isinstance(obj, (np.int32, np.int64, np.int16, np.int8)):
+            return int(obj)
+        elif isinstance(obj, (np.bool_, bool)):
+            return bool(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif torch.is_tensor(obj):
+            return obj.cpu().numpy().tolist()
+        return super().default(obj)
 
 
 class Validator:
@@ -59,8 +76,7 @@ class Validator:
             self.second_guard_enabled = True
             self.logger.info(f"启用第二道防护: {self.second_guard_metric} ({self.second_guard_mode})")
         
-        # 指标历史
-        self.metrics_history = []
+        # 最佳epoch跟踪
         self.best_epoch = 0
         
         # 失败案例收集
@@ -164,8 +180,7 @@ class Validator:
         # 添加epoch信息
         metrics['epoch'] = epoch
         
-        # 保存指标历史
-        self.metrics_history.append(metrics)
+        # 指标历史现在通过日志文件生成，不再内存中保存
         
         # 更新失败案例
         self.failure_cases = epoch_failures[:self.vis_fail_k]
@@ -422,36 +437,16 @@ class Validator:
     
     def get_best_metrics(self) -> Optional[Dict[str, float]]:
         """获取最佳指标"""
-        if not self.metrics_history:
-            return None
-        
-        # 找到最佳epoch的指标
-        for metrics in self.metrics_history:
-            if metrics['epoch'] == self.best_epoch:
-                return metrics
-        
-        return None
+        # 返回缓存的最佳指标
+        return self.best_metrics if hasattr(self, 'best_metrics') and isinstance(self.best_metrics, dict) else None
     
     def get_failure_cases(self) -> List[Dict]:
         """获取失败案例"""
         return self.failure_cases
     
-    def save_metrics_history(self, path: str):
-        """
-        保存指标历史
-        
-        Args:
-            path: 保存路径
-        """
-        import json
-        
-        save_path = Path(path)
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(save_path, 'w', encoding='utf-8') as f:
-            json.dump(self.metrics_history, f, indent=2)
-        
-        self.logger.info(f"指标历史已保存到: {save_path}")
+    # save_metrics_history 方法已移除
+    # 指标历史现在通过 src.utils.log_parser.TrainingLogParser 从日志文件生成
+    # 使用方法: python src/utils/log_parser.py <log_file> --output <checkpoint_dir>
 
 
 if __name__ == "__main__":
