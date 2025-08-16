@@ -120,26 +120,26 @@ class Visualizer:
         # 确保数据被写入
         self.writer.flush()
     
-    def log_validation_metrics(self, metrics: Dict[str, float], epoch: int):
+    def log_validation_metrics(self, metrics: Dict[str, float], step: int):
         """
         记录验证指标
         
         Args:
             metrics: 验证指标
-            epoch: 当前epoch
+            step: 当前步数（global_step）
         """
         # 只记录需要的指标
         # 分别的MAE
-        self.writer.add_scalar('val/gap_mae', metrics['gap_mae'], epoch)
-        self.writer.add_scalar('val/slider_mae', metrics['slider_mae'], epoch)
+        self.writer.add_scalar('val/gap_mae', metrics['gap_mae'], step)
+        self.writer.add_scalar('val/slider_mae', metrics['slider_mae'], step)
         
         # 命中率
-        self.writer.add_scalar('val/hit_le_2px', metrics['hit_le_2px'], epoch)
-        self.writer.add_scalar('val/hit_le_5px', metrics['hit_le_5px'], epoch)
+        self.writer.add_scalar('val/hit_le_2px', metrics['hit_le_2px'], step)
+        self.writer.add_scalar('val/hit_le_5px', metrics['hit_le_5px'], step)
         
         # 综合指标
-        self.writer.add_scalar('val/mae_px', metrics['mae_px'], epoch)
-        self.writer.add_scalar('val/rmse_px', metrics['rmse_px'], epoch)
+        self.writer.add_scalar('val/mae_px', metrics['mae_px'], step)
+        self.writer.add_scalar('val/rmse_px', metrics['rmse_px'], step)
         
         # 确保数据被写入
         self.writer.flush()
@@ -560,6 +560,9 @@ class Visualizer:
         #     # 记录进度百分比
         #     progress_percent = (epoch / self.total_epochs) * 100
         #     self.writer.add_scalar('time/progress_percent', progress_percent, epoch)
+        
+        # 计算进度百分比
+        progress_percent = (epoch / self.total_epochs) * 100
         
         # 打印到控制台
         if self.time_tracking_config.get('display_eta', True):

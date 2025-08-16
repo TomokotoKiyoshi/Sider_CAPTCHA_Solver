@@ -162,7 +162,7 @@ class TestEvaluator:
                 
                 # 模型预测
                 outputs = model(images)
-                predictions = model.decode_predictions(outputs)
+                predictions = model.decode_predictions(outputs, input_images=images)
                 
                 # 收集预测和目标
                 pred_gap = predictions['gap_coords'].cpu().numpy()

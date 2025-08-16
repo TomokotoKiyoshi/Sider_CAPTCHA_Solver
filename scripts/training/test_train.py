@@ -577,9 +577,11 @@ def main():
                 epoch, visualizer,
                 use_ema=True
             )
-            # 记录EMA指标
-            for key, value in ema_metrics.items():
-                visualizer.writer.add_scalar(f'ema/{key}', value, epoch)
+            # 只记录指定的EMA指标
+            ema_keys_to_log = ['hit_le_2px', 'hit_le_5px', 'gap_mae', 'slider_mae']
+            for key in ema_keys_to_log:
+                if key in ema_metrics:
+                    visualizer.writer.add_scalar(f'ema/{key}', ema_metrics[key], epoch)
         
         # 更新学习率
         engine.step_scheduler()

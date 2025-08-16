@@ -91,10 +91,9 @@ class Validator:
         all_slider_errors = []
         all_combined_errors = []
         
-        # 用于计算命中率
+        # 用于计算命中率（移除1px）
         total_samples = 0
         hit_counts = {
-            1: 0,  # ≤1px
             2: 0,  # ≤2px
             5: 0   # ≤5px
         }
@@ -117,8 +116,8 @@ class Validator:
                 # 前向传播
                 outputs = model(batch['image'])
                 
-                # 解码预测
-                predictions = model.decode_predictions(outputs)
+                # 解码预测（传入输入图像以使用padding mask）
+                predictions = model.decode_predictions(outputs, input_images=batch['image'])
                 
                 # 保存第一个批次用于可视化
                 if batch_idx == 0:
@@ -280,8 +279,7 @@ class Validator:
             'gap_rmse': np.sqrt(np.mean(gap_errors ** 2)),
             'slider_rmse': np.sqrt(np.mean(slider_errors ** 2)),
             
-            # 命中率
-            'hit_le_1px': (hit_counts[1] / total_samples) * 100,
+            # 命中率（移除1px）
             'hit_le_2px': (hit_counts[2] / total_samples) * 100,
             'hit_le_5px': (hit_counts[5] / total_samples) * 100,
             
@@ -408,7 +406,6 @@ class Validator:
             f"Epoch {metrics['epoch']} 验证结果: "
             f"MAE={metrics['mae_px']:.3f}px, "
             f"RMSE={metrics['rmse_px']:.3f}px, "
-            f"Hit@1px={metrics['hit_le_1px']:.2f}%, "
             f"Hit@2px={metrics['hit_le_2px']:.2f}%, "
             f"Hit@5px={metrics['hit_le_5px']:.2f}%"
         )

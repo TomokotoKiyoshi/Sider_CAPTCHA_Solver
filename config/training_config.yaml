@@ -64,6 +64,13 @@ eval:
       metric: mae_px                  # 监控MAE指标
       mode: min                       # 越小越好
       min_delta: 0.05                 # MAE（缺口和滑块误差的综合平均值）至少改善0.05px才算"有进步"
+  
+  # 测试集可视化配置
+  test_visualization:
+    enabled: false                    # 启用测试集可视化
+    output_dir: "test_output/results_visualization"  # 输出目录
+    max_samples: 1000                 # 每个epoch最多保存1000张图片
+    save_format: "jpg"                # 保存格式（jpg/png）
  
 
 checkpoints:
@@ -93,7 +100,7 @@ logging:
     time_format: "hours"              # 时间显示格式: seconds, minutes, hours
     show_progress_bar: true           # 显示进度条
   
-  # TensorBoard监控项
+  # TensorBoard监控项（移除时间相关）
   tb_items:
     - "loss/train"
     - "loss/val"
@@ -109,11 +116,6 @@ logging:
     - "hist/angle_loss"           # 角度损失直方图
     - "hist/slider_loss"          # 滑块损失直方图
     - "hist/gap_loss"             # 缺口损失直方图
-    - "time/epoch_duration"       # 每个epoch训练时间
-    - "time/total_elapsed"        # 总训练时间
-    - "time/eta_hours"            # 预计剩余时间（小时）
-    - "time/avg_epoch_time"       # 平均每epoch时间
-    - "time/estimated_total"      # 预计总训练时间
 
 hardware:
   device: "cuda"                     # cuda/cpu

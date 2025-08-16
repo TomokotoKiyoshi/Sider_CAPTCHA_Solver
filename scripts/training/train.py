@@ -24,6 +24,7 @@ from src.training.config_manager import ConfigManager
 from src.training.training_engine import TrainingEngine
 from src.training.validator import Validator
 from src.training.visualizer import Visualizer
+from src.training.test_visualizer import TestVisualizer
 import logging
 
 # 限制批次数量的DataLoader包装器（用于测试或部分数据训练）
@@ -240,9 +241,15 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, global_step=
     # 执行验证
     val_metrics = validator.validate(model, dataloader, epoch, use_ema)
     
-    # 记录到TensorBoard - 使用global_step代替epoch
-    step_to_use = global_step if global_step is not None else epoch
-    visualizer.log_validation_metrics(val_metrics, step_to_use)
+    # 记录到TensorBoard - 使用epoch作为主要x轴（避免锯齿）
+    visualizer.log_validation_metrics(val_metrics, epoch)
+    
+    # 如果提供了global_step，额外记录一份与训练同步的版本
+    if global_step is not None and not use_ema:
+        # 记录与训练同步的版本（带_sync后缀）
+        for key in ['gap_mae', 'slider_mae', 'mae_px', 'hit_le_2px', 'hit_le_5px']:
+            if key in val_metrics:
+                visualizer.writer.add_scalar(f'val_sync/{key}', val_metrics[key], global_step)
     
     # 如果有可视化数据，记录预测和热力图
     if 'vis_data' in val_metrics:
@@ -258,7 +265,7 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, global_step=
                 vis_data['images'],
                 vis_data['predictions'],
                 vis_data['targets'],
-                step_to_use,
+                epoch,  # 使用epoch而不是step_to_use
                 num_samples=num_pred_samples,
                 num_best=num_best,
                 num_worst=num_worst
@@ -269,7 +276,7 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, global_step=
             num_heatmap_samples = vis_config.get('num_heatmap_samples', 2)
             visualizer.log_heatmaps(
                 vis_data['outputs'],
-                step_to_use,
+                epoch,  # 使用epoch而不是step_to_use
                 num_samples=num_heatmap_samples,
                 images=vis_data['images']  # 传入原图以启用叠加显示
             )
@@ -280,7 +287,7 @@ def validate_epoch(model, validator, dataloader, epoch, visualizer, global_step=
     # 记录失败案例
     failures = validator.get_failure_cases()
     if failures:
-        visualizer.log_failure_cases(failures, step_to_use)
+        visualizer.log_failure_cases(failures, epoch)
     
     return val_metrics
 
@@ -527,9 +534,11 @@ def main():
                 global_step=engine.global_step,
                 use_ema=True
             )
-            # 记录EMA指标 - 使用global_step
-            for key, value in ema_metrics.items():
-                visualizer.writer.add_scalar(f'ema/{key}', value, engine.global_step)
+            # 只记录指定的EMA指标 - 使用epoch作为x轴（避免锯齿）
+            ema_keys_to_log = ['hit_le_2px', 'hit_le_5px', 'gap_mae', 'slider_mae']
+            for key in ema_keys_to_log:
+                if key in ema_metrics:
+                    visualizer.writer.add_scalar(f'ema/{key}', ema_metrics[key], epoch)
         
         # 更新学习率
         engine.step_scheduler()
@@ -539,6 +548,36 @@ def main():
             model, engine, validator, epoch, config,
             is_best=val_metrics.get('is_best', False)
         )
+        
+        # 测试集可视化（每个epoch保存1000张预测图片）
+        test_vis_config = config.get('eval', {}).get('test_visualization', {})
+        if test_vis_config.get('enabled', True):
+            # 检查测试集是否存在
+            test_loader = data_pipeline.get_test_loader() if hasattr(data_pipeline, 'get_test_loader') else None
+            
+            if test_loader is not None:
+                logging.info(f"开始保存Epoch {epoch} 的测试集预测图片...")
+                
+                # 创建测试集可视化器
+                test_output_dir = test_vis_config.get('output_dir', 'test_output/results_visualization')
+                test_visualizer = TestVisualizer(test_output_dir)
+                
+                # 保存预测图片
+                max_samples = test_vis_config.get('max_samples', 1000)
+                save_format = test_vis_config.get('save_format', 'jpg')
+                
+                num_saved = test_visualizer.visualize_epoch_predictions(
+                    model, 
+                    test_loader,
+                    epoch,
+                    device,
+                    max_samples=max_samples,
+                    save_format=save_format
+                )
+                
+                logging.info(f"Epoch {epoch}: 成功保存 {num_saved} 张测试集预测图片")
+            else:
+                logging.debug("测试集数据加载器不可用，跳过测试集可视化")
         
         # 记录epoch时间
         epoch_time = time.time() - epoch_start_time
@@ -584,7 +623,6 @@ def main():
         logging.info(f"\n最佳模型 (Epoch {validator.best_epoch}):")
         logging.info(f"  MAE: {best_metrics['mae_px']:.3f}px")
         logging.info(f"  RMSE: {best_metrics['rmse_px']:.3f}px")
-        logging.info(f"  Hit@1px: {best_metrics['hit_le_1px']:.2f}%")
         logging.info(f"  Hit@2px: {best_metrics['hit_le_2px']:.2f}%")
         logging.info(f"  Hit@5px: {best_metrics['hit_le_5px']:.2f}%")
     

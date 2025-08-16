@@ -313,11 +313,24 @@ class TrainingEngine:
                 
                 # 如果有visualizer，记录到TensorBoard
                 if hasattr(self, 'visualizer') and self.visualizer is not None:
-                    self.visualizer.writer.add_scalar('batch/loss', avg_loss, self.global_step)
-                    self.visualizer.writer.add_scalar('batch/focal_loss', avg_focal, self.global_step)
-                    self.visualizer.writer.add_scalar('batch/offset_loss', avg_offset, self.global_step)
-                    self.visualizer.writer.add_scalar('batch/hard_negative_loss', avg_hard_neg, self.global_step)
-                    self.visualizer.writer.add_scalar('batch/angle_loss', avg_angle, self.global_step)
+                    # 使用epoch内的批次索引作为步数，确保每个epoch图表重新开始
+                    epoch_batch_step = batch_idx + 1  # 从1开始
+                    
+                    # 批次级别的损失（每个epoch重新绘制）
+                    self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/loss', avg_loss, epoch_batch_step)
+                    self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/focal_loss', avg_focal, epoch_batch_step)
+                    self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/offset_loss', avg_offset, epoch_batch_step)
+                    self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/hard_negative_loss', avg_hard_neg, epoch_batch_step)
+                    self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/angle_loss', avg_angle, epoch_batch_step)
+                    
+                    # 全局步数的损失（连续图表）
+                    self.visualizer.writer.add_scalar('batch_global/loss', avg_loss, self.global_step)
+                    self.visualizer.writer.add_scalar('batch_global/focal_loss', avg_focal, self.global_step)
+                    self.visualizer.writer.add_scalar('batch_global/offset_loss', avg_offset, self.global_step)
+                    self.visualizer.writer.add_scalar('batch_global/hard_negative_loss', avg_hard_neg, self.global_step)
+                    self.visualizer.writer.add_scalar('batch_global/angle_loss', avg_angle, self.global_step)
+                    
+                    # 训练速度
                     self.visualizer.writer.add_scalar('training/speed_samples_per_sec', samples_per_second, self.global_step)
                     self.visualizer.flush()
         
@@ -371,7 +384,7 @@ class TrainingEngine:
         
         # 计算预测误差（用于监控） - 不使用.item()避免GPU同步！
         with torch.no_grad():
-            predictions = self.model.decode_predictions(outputs)
+            predictions = self.model.decode_predictions(outputs, input_images=batch['image'])
             gap_error = torch.abs(
                 predictions['gap_coords'] - batch['gap_coords']
             ).mean()  # 保持为tensor，不调用.item()

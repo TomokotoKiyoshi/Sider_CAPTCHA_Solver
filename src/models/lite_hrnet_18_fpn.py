@@ -218,13 +218,15 @@ class LiteHRNet18FPN(nn.Module):
         return outputs
     
     def decode_predictions(self, outputs: Dict[str, torch.Tensor], 
-                          threshold: float = 0.1) -> Dict[str, torch.Tensor]:
+                          threshold: float = 0.1,
+                          input_images: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         """
         从模型输出解码坐标预测（用于推理）
         
         Args:
             outputs: 模型输出字典
             threshold: 热力图阈值
+            input_images: 输入图像 [B, 4, H, W]，第4通道是padding mask
             
         Returns:
             解码后的坐标字典：
@@ -244,14 +246,22 @@ class LiteHRNet18FPN(nn.Module):
         gap_offset = outputs['offset_gap']      # [B, 2, 64, 128]
         slider_offset = outputs['offset_slider'] # [B, 2, 64, 128]
         
+        # 如果提供了输入图像，从第4通道提取padding mask并下采样到1/4分辨率
+        mask_1_4 = None
+        if input_images is not None:
+            # 提取padding mask（第4通道）: padding=1, 有效=0
+            padding_mask = input_images[:, 3:4, :, :]  # [B, 1, 256, 512]
+            # 下采样到1/4分辨率 (64, 128)
+            mask_1_4 = F.avg_pool2d(padding_mask, kernel_size=4, stride=4).squeeze(1)  # [B, 64, 128]
+        
         # 解码缺口坐标
         gap_coords, gap_scores = self._decode_single_point(
-            gap_heatmap, gap_offset, threshold
+            gap_heatmap, gap_offset, mask_1_4
         )
         
         # 解码滑块坐标
         slider_coords, slider_scores = self._decode_single_point(
-            slider_heatmap, slider_offset, threshold
+            slider_heatmap, slider_offset, mask_1_4
         )
         
         return {
@@ -262,14 +272,14 @@ class LiteHRNet18FPN(nn.Module):
         }
     
     def _decode_single_point(self, heatmap: torch.Tensor, offset: torch.Tensor,
-                            threshold: float = 0.1) -> Tuple[torch.Tensor, torch.Tensor]:
+                            mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         解码单个点的坐标
         
         Args:
             heatmap: 热力图 [B, H, W]
             offset: 偏移量 [B, 2, H, W]
-            threshold: 热力图阈值
+            mask: padding mask [B, H, W]，padding=1，有效=0
             
         Returns:
             coords: 坐标 [B, 2]
@@ -278,6 +288,11 @@ class LiteHRNet18FPN(nn.Module):
         batch_size = heatmap.size(0)
         height, width = heatmap.size(1), heatmap.size(2)
         device = heatmap.device
+        
+        # 如果有mask，将padding区域的热力图值设为-inf，确保不会被选为最大值
+        if mask is not None:
+            # padding区域（mask>0.5）设为-inf
+            heatmap = heatmap.masked_fill(mask > 0.5, float('-inf'))
         
         # 应用阈值并找到峰值
         heatmap_flat = heatmap.view(batch_size, -1)
