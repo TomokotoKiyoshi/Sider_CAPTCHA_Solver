@@ -17,8 +17,11 @@ data/
 test_output/
 
 # Model checkpoints (except versioned best_model.pth)
-src/checkpoints/**/*
+# 忽略checkpoints目录下的所有文件，但保留best_model.pth
+src/checkpoints/**/*.pth
 !src/checkpoints/**/best_model.pth
+src/checkpoints/**/*.yaml
+src/checkpoints/**/*.json
 
 # Byte-compiled / optimized / DLL files
 *.so
