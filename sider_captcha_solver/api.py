@@ -93,35 +93,35 @@ def visualize(image_path: Union[str, Path, np.ndarray],
              result: Optional[Dict] = None,
              save_path: Optional[str] = None,
              show: bool = True) -> Optional[np.ndarray]:
-    """可视化预测结果
+    """Visualize prediction results
     
     Args:
-        image_path: 输入图片
-        result: 预测结果（可选，不提供则自动预测）
-        save_path: 保存路径（可选）
-        show: 是否显示（默认True）
+        image_path: Input image
+        result: Prediction result (optional, auto-predict if not provided)
+        save_path: Save path (optional)
+        show: Whether to display (default True)
     
     Returns:
-        可视化后的图像数组（如果save_path=None且show=False）
+        Visualized image array (if save_path=None and show=False)
     
     Example:
-        >>> visualize("captcha.png")  # 显示可视化
-        >>> visualize("captcha.png", save_path="result.png")  # 保存
-        >>> img = visualize("captcha.png", show=False)  # 返回图像数组
+        >>> visualize("captcha.png")  # Display visualization
+        >>> visualize("captcha.png", save_path="result.png")  # Save
+        >>> img = visualize("captcha.png", show=False)  # Return image array
     """
     try:
-        # 如果没有提供result，自动预测
+        # If no result provided, auto-predict
         if result is None:
             result = solve(image_path, detailed=True)
             if result is None:
-                print("预测失败，无法可视化")
+                print("Prediction failed, cannot visualize")
                 return None
         
         # 读取图像
         if isinstance(image_path, (str, Path)):
             image = cv2.imread(str(image_path))
             if image is None:
-                print(f"无法读取图像: {image_path}")
+                print(f"Cannot read image: {image_path}")
                 return None
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         else:
@@ -129,52 +129,47 @@ def visualize(image_path: Union[str, Path, np.ndarray],
             if len(image.shape) == 2:
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
         
-        # 创建可视化副本
-        vis_image = image.copy()
-        
-        # 提取坐标
+        # Extract coordinates
         gap_x, gap_y = result['gap']
         slider_x, slider_y = result['slider']
         distance = result['distance']
         confidence = result['confidence']
         
-        # 绘制缺口位置（红色矩形）
+        # 直接在原图上绘制，不添加header
+        vis_image = image.copy()
+        
+        # Draw gap position (red rectangle) - 不添加文字标签
         cv2.rectangle(vis_image, 
                      (int(gap_x - 20), int(gap_y - 20)),
                      (int(gap_x + 20), int(gap_y + 20)),
                      (255, 0, 0), 2)
-        cv2.putText(vis_image, "Gap", 
-                   (int(gap_x - 20), int(gap_y - 25)),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
         
-        # 绘制滑块位置（绿色矩形）
+        # Draw slider position (green rectangle) - 不添加文字标签
         cv2.rectangle(vis_image,
                      (int(slider_x - 20), int(slider_y - 20)),
                      (int(slider_x + 20), int(slider_y + 20)),
                      (0, 255, 0), 2)
-        cv2.putText(vis_image, "Slider",
-                   (int(slider_x - 20), int(slider_y - 25)),
-                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
         
-        # 添加文字信息（顶部）
-        info_text = f"Distance: {distance:.1f}px | Confidence: {confidence:.2%}"
-        cv2.rectangle(vis_image, (0, 0), (len(info_text) * 9, 30), (255, 255, 255), -1)
-        cv2.putText(vis_image, info_text,
-                   (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
+        # Draw connection line (yellow) - 可选，帮助可视化距离
+        cv2.line(vis_image,
+                (int(slider_x), int(slider_y)),
+                (int(gap_x), int(gap_y)),
+                (255, 255, 0), 1)
         
         # 保存图像
         if save_path:
             # 转换回BGR格式保存
             save_image = cv2.cvtColor(vis_image, cv2.COLOR_RGB2BGR)
             cv2.imwrite(str(save_path), save_image)
-            print(f"可视化已保存: {save_path}")
+            print(f"Visualization saved: {save_path}")
+            print(f"Distance: {distance:.1f}px | Confidence: {confidence:.2%}")
         
         # 显示图像
         if show:
             import matplotlib.pyplot as plt
             plt.figure(figsize=(10, 5))
             plt.imshow(vis_image)
-            plt.title(f"滑动距离: {distance:.1f}px | 置信度: {confidence:.2%}")
+            plt.title(f"Distance: {distance:.1f}px | Confidence: {confidence:.2%}")
             plt.axis('off')
             plt.tight_layout()
             plt.show()
@@ -186,7 +181,7 @@ def visualize(image_path: Union[str, Path, np.ndarray],
         return vis_image if not show else None
         
     except Exception as e:
-        print(f"可视化失败: {e}")
+        print(f"Visualization failed: {e}")
         return None
 
 

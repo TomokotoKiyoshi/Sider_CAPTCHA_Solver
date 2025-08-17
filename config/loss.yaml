@@ -14,7 +14,7 @@ offset_loss:
 
 # Hard Negative Loss Configuration (False gap suppression)
 hard_negative_loss:
-  margin: 0.2              # Margin for ranking loss (m=0.2~0.3)
+  margin: 0.5              # Margin for ranking loss (提高到0.5以更好地区分真假缺口)
   reduction: mean          # Options: mean, sum
 
 # Angle Loss Configuration (Micro-rotation prediction)
@@ -28,7 +28,7 @@ total_loss:
   weights:
     heatmap: 1.0         # Weight for heatmap losses (gap + piece)
     offset: 1.0          # Weight for offset loss (λ=1.0 from documentation)
-    hard_negative: 0.5   # Weight for hard negative loss
+    hard_negative: 1.5   # Weight for hard negative loss (提高到1.5以强化假缺口抑制)
     angle: 0.5           # Weight for angle loss
   
   # Feature flags
@@ -51,7 +51,7 @@ stage_configs:
     offset_loss:
       beta: 1.0
     hard_negative_loss:
-      margin: 0.2
+      margin: 0.5          # 提高margin以更好地区分真假缺口
       reduction: mean
     angle_loss:
       pos_threshold: 0.7
@@ -60,6 +60,6 @@ stage_configs:
       weights:
         heatmap: 1.0
         offset: 1.0
-        hard_negative: 0.5
+        hard_negative: 1.5    # 提高权重以强化假缺口抑制
         angle: 0.5
       use_angle: true

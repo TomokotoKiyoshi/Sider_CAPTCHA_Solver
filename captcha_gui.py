@@ -124,7 +124,7 @@ class CaptchaGUI:
         self.processing = False
         self.cache: Dict[int, PredictionResult] = {}
         self.current_model_path = None
-        self.default_model_dir = Path("D:/Hacker/Sider_CAPTCHA_Solver/src/checkpoints/1.1.0")
+        self.default_model_dir = Path("src/checkpoints/1.1.0")
         
         # 创建UI组件
         self.create_widgets()
@@ -178,14 +178,26 @@ class CaptchaGUI:
         # 目录选择按钮
         ttk.Button(
             toolbar, 
-            text="📁 选择captchas目录",
+            text="📁 选择目录",
+            command=self.open_custom_directory
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(
+            toolbar, 
+            text="📁 测试数据集",
             command=lambda: self.load_directory('data/captchas')
         ).pack(side=tk.LEFT, padx=5)
         
         ttk.Button(
             toolbar,
-            text="📁 选择real_captchas目录", 
+            text="📁 真实数据集", 
             command=lambda: self.load_directory('data/real_captchas/annotated')
+        ).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(
+            toolbar,
+            text="📁 Site2数据集",
+            command=lambda: self.load_directory('data/real_captchas/merged/site2')
         ).pack(side=tk.LEFT, padx=5)
         
         # 分隔符
@@ -197,6 +209,13 @@ class CaptchaGUI:
             text="🤖 选择模型",
             command=self.select_model
         ).pack(side=tk.LEFT, padx=5)
+        
+        # 重新加载模型按钮（强制重新导入模块）
+        ttk.Button(
+            toolbar,
+            text="🔄 重载模型",
+            command=self.reload_model
+        ).pack(side=tk.LEFT, padx=2)
         
         # 当前模型标签
         self.current_model_label = ttk.Label(toolbar, text="模型: 未选择", style='Info.TLabel')
@@ -366,6 +385,40 @@ class CaptchaGUI:
                 else:
                     self.load_model(str(pth_files[0]))
     
+    def reload_model(self):
+        """重新加载当前模型（强制重新导入模块）"""
+        if not self.current_model_path:
+            messagebox.showwarning("警告", "请先选择一个模型")
+            return
+            
+        # 重新导入相关模块以使用最新代码
+        import importlib
+        import sys
+        
+        # 需要重新加载的模块列表
+        modules_to_reload = [
+            'src.models.lite_hrnet_18_fpn',
+            'src.models.stem',
+            'src.models.modules.conv_bn_act',
+            'src.preprocessing.preprocessor',
+            'sider_captcha_solver.predictor'
+        ]
+        
+        for module_name in modules_to_reload:
+            if module_name in sys.modules:
+                try:
+                    importlib.reload(sys.modules[module_name])
+                except Exception as e:
+                    print(f"警告：无法重载模块 {module_name}: {e}")
+        
+        # 清除缓存
+        self.cache.clear()
+        
+        # 重新加载模型
+        self.update_status("重新加载模型...")
+        self.load_model(str(self.current_model_path))
+        messagebox.showinfo("成功", "模型已重新加载！\n代码更改已生效。")
+    
     def load_model(self, model_path: str):
         """加载指定的模型文件"""
         self.current_model_path = Path(model_path)
@@ -409,8 +462,8 @@ class CaptchaGUI:
     
     def load_directory(self, default_path: str):
         """加载图片目录"""
-        # 构建完整路径
-        full_path = Path(self.root.winfo_toplevel().winfo_pathname(self.root.winfo_id())).parent / default_path
+        # 直接使用相对路径
+        full_path = Path(default_path)
         
         if not full_path.exists():
             # 如果默认路径不存在，打开文件对话框
@@ -590,7 +643,7 @@ class CaptchaGUI:
     
     def predict_current(self):
         """对当前图片进行推理"""
-        if not self.predictor or not self.current_image is not None or self.processing:
+        if not self.predictor or self.current_image is None or self.processing:
             return
         
         if self.current_index in self.cache:
@@ -667,9 +720,6 @@ class CaptchaGUI:
         
         if result.success:
             text = f"""
-╔════════════════════════════════╗
-║      🎯 预测结果               ║
-╚════════════════════════════════╝
 
 📏 滑动距离: {result.sliding_distance:.2f} px
 
@@ -683,8 +733,6 @@ class CaptchaGUI:
 
 📊 置信度: {result.confidence:.3f}
 ⏱️ 处理时间: {result.processing_time_ms:.1f} ms
-
-═══════════════════════════════════
             """
             self.result_text.insert(1.0, text)
             
@@ -693,10 +741,7 @@ class CaptchaGUI:
             self.result_text.tag_config("distance", foreground="#00ff00", font=('Consolas', 12, 'bold'))
         else:
             text = f"""
-╔════════════════════════════════╗
-║      ❌ 预测失败               ║
-╚════════════════════════════════╝
-
+❌ 推理失败
 错误信息:
 {result.error}
             """
@@ -769,10 +814,6 @@ class CaptchaGUI:
     def show_welcome(self):
         """显示欢迎信息"""
         welcome_text = """
-╔══════════════════════════════════════╗
-║   🔍 滑块验证码智能识别系统          ║
-║      Powered by Lite-HRNet-18        ║
-╚══════════════════════════════════════╝
 
 📌 快捷键说明:
   • ← / → : 切换上一张/下一张图片

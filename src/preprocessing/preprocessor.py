@@ -545,45 +545,6 @@ class InferencePreprocessor:
         # 推理时返回NumPy数组，避免在多进程中创建PyTorch张量
         return input_tensor.astype(np.float32), transform_params
     
-    def postprocess(self, predictions: Dict[str, Tuple[Tuple[int, int], Tuple[float, float]]],
-                   transform_params: Dict) -> Dict[str, Tuple[float, float]]:
-        """
-        将网络预测映射回原始坐标
-        
-        Args:
-            predictions: 网络预测，格式为 {
-                'gap': ((grid_y, grid_x), (offset_v, offset_u)),
-                'slider': ((grid_y, grid_x), (offset_v, offset_u))
-            }
-            transform_params: letterbox变换参数
-        
-        Returns:
-            原始坐标，格式为 {'gap': (x, y), 'slider': (x, y)}
-        """
-        results = {}
-        
-        for key in ['gap', 'slider']:
-            if key not in predictions:
-                continue
-            
-            grid_coords, offsets = predictions[key]
-            # 注意：grid_coords是(y, x)格式，需要转换
-            grid_y, grid_x = grid_coords
-            offset_v, offset_u = offsets if offsets else (0, 0)
-            
-            # 1/4栅格 → 像素坐标
-            x_prime, y_prime = self.coord_transform.grid_to_pixel(
-                (grid_x, grid_y), (offset_u, offset_v)
-            )
-            
-            # 像素坐标 → 原始坐标
-            x, y = self.coord_transform.input_to_original(
-                (x_prime, y_prime), transform_params
-            )
-            
-            results[key] = (x, y)
-        
-        return results
     
     def verify_precision(self, original_coord: Tuple[float, float],
                         transform_params: Dict) -> Dict[str, float]:

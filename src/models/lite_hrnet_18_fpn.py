@@ -248,22 +248,37 @@ class LiteHRNet18FPN(nn.Module):
         
         # 如果提供了输入图像，从第4通道提取padding mask并下采样到1/4分辨率
         mask_1_4 = None
+        valid_mask_1_4 = None  # 保存有效mask供坐标裁剪使用
         if input_images is not None:
-            # 提取padding mask（第4通道）: padding=0, 有效=1（根据PREPROCESSING_OUTPUT.md）
+            # 提取valid mask（第4通道）: valid=1, padding=0
             valid_mask = input_images[:, 3:4, :, :]  # [B, 1, 256, 512]
-            # 下采样到1/4分辨率 (64, 128)
-            valid_mask_1_4 = F.avg_pool2d(valid_mask, kernel_size=4, stride=4).squeeze(1)  # [B, 64, 128]
-            # 转换为padding mask：padding=1, 有效=0（用于masked_fill）
+            
+            # 使用最小池化下采样valid mask到1/4分辨率
+            # min_pool确保任何包含padding(0)的网格都被标记为无效(0)
+            # 由于PyTorch没有min_pool2d，使用-max_pool2d(-x)来实现
+            valid_mask_1_4 = -F.max_pool2d(-valid_mask, kernel_size=4, stride=4).squeeze(1)  # [B, 64, 128]
+            
+            # 创建padding mask用于masked_fill (padding=1, valid=0)
             mask_1_4 = 1 - valid_mask_1_4
+            
+            # 直接在热力图上屏蔽padding区域！
+            # 将padding区域的热力图值设为负无穷，确保不会被选为峰值
+            gap_heatmap = gap_heatmap.masked_fill(mask_1_4 > 0.01, float('-inf'))
+            slider_heatmap = slider_heatmap.masked_fill(mask_1_4 > 0.01, float('-inf'))
+            
+            # 同时将padding区域的偏移量归零
+            valid_mask_expanded = valid_mask_1_4.unsqueeze(1)  # [B, 1, 64, 128]
+            gap_offset = gap_offset * valid_mask_expanded
+            slider_offset = slider_offset * valid_mask_expanded
         
         # 解码缺口坐标
         gap_coords, gap_scores = self._decode_single_point(
-            gap_heatmap, gap_offset, mask_1_4
+            gap_heatmap, gap_offset
         )
         
         # 解码滑块坐标
         slider_coords, slider_scores = self._decode_single_point(
-            slider_heatmap, slider_offset, mask_1_4
+            slider_heatmap, slider_offset
         )
         
         return {
@@ -273,15 +288,14 @@ class LiteHRNet18FPN(nn.Module):
             'slider_score': slider_scores    # [B]
         }
     
-    def _decode_single_point(self, heatmap: torch.Tensor, offset: torch.Tensor,
-                            mask: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _decode_single_point(self, heatmap: torch.Tensor, offset: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         解码单个点的坐标
+        注意：热力图和偏移量的mask处理已在decode_predictions中完成
         
         Args:
-            heatmap: 热力图 [B, H, W]
-            offset: 偏移量 [B, 2, H, W]
-            mask: padding mask [B, H, W]，padding=1，有效=0
+            heatmap: 热力图 [B, H, W]（已经过mask处理）
+            offset: 偏移量 [B, 2, H, W]（已经过mask处理）
             
         Returns:
             coords: 坐标 [B, 2]
@@ -290,11 +304,6 @@ class LiteHRNet18FPN(nn.Module):
         batch_size = heatmap.size(0)
         height, width = heatmap.size(1), heatmap.size(2)
         device = heatmap.device
-        
-        # 如果有mask，将padding区域的热力图值设为-inf，确保不会被选为最大值
-        if mask is not None:
-            # padding区域（mask>0.5）设为-inf
-            heatmap = heatmap.masked_fill(mask > 0.5, float('-inf'))
         
         # 应用阈值并找到峰值
         heatmap_flat = heatmap.view(batch_size, -1)
@@ -312,6 +321,11 @@ class LiteHRNet18FPN(nn.Module):
         # 计算最终坐标（上采样4倍）
         coords_x = (x.float() + 0.5 + offset_x) * 4.0
         coords_y = (y.float() + 0.5 + offset_y) * 4.0
+        
+        # 改进3：坐标范围裁剪（确保在有效图像范围内）
+        # 网络输入尺寸是512x256，有效坐标范围应该在[0, 512]和[0, 256]
+        coords_x = torch.clamp(coords_x, min=0, max=512)
+        coords_y = torch.clamp(coords_y, min=0, max=256)
         
         coords = torch.stack([coords_x, coords_y], dim=1)  # [B, 2]
         

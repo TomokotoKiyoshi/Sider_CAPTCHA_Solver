@@ -15,9 +15,9 @@ import base64
 app = Flask(__name__)
 
 # Configuration
-INPUT_DIR = Path("../../data/real_captchas/merged/site1")
-OUTPUT_DIR = Path("../../data/real_captchas/annotated")
-MAX_IMAGES = 100
+INPUT_DIR = Path("data/real_captchas/merged/site2")
+OUTPUT_DIR = Path("data/real_captchas/annotated/site2")
+MAX_IMAGES = 200
 
 # Global state
 current_index = 0
@@ -208,8 +208,19 @@ def index():
                 addMarker(x, y, 'slider');
                 updateStatus();
             } else if (!gapPos) {
-                gapPos = {x: x, y: y};
-                addMarker(x, y, 'gap');
+                // 缺口的Y坐标必须与滑块相同
+                gapPos = {x: x, y: sliderPos.y};  // 使用滑块的Y坐标
+                addMarker(x, sliderPos.y, 'gap');  // 在滑块的Y位置显示标记
+                
+                // 画一条水平线显示Y坐标对齐
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(0, sliderPos.y);
+                ctx.lineTo(canvas.width, sliderPos.y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
                 updateStatus();
             }
         });
@@ -234,14 +245,14 @@ def index():
         // Update status
         function updateStatus() {
             if (!sliderPos) {
-                document.getElementById('status').textContent = 'Click to mark SLIDER position (Red)';
+                document.getElementById('status').textContent = '点击标记滑块中心位置 (红色)';
                 document.getElementById('saveBtn').disabled = true;
             } else if (!gapPos) {
-                document.getElementById('status').textContent = 'Click to mark GAP position (Blue)';
+                document.getElementById('status').textContent = `点击标记缺口X位置 (Y自动对齐到${sliderPos.y})`;
                 document.getElementById('saveBtn').disabled = true;
             } else {
                 document.getElementById('status').textContent = 
-                    `Slider: (${sliderPos.x}, ${sliderPos.y}), Gap: (${gapPos.x}, ${gapPos.y})`;
+                    `滑块: (${sliderPos.x}, ${sliderPos.y}), 缺口: (${gapPos.x}, ${gapPos.y})`;
                 document.getElementById('saveBtn').disabled = false;
             }
         }

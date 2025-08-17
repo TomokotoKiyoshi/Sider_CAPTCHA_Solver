@@ -15,8 +15,8 @@ from matplotlib.widgets import Button
 import cv2
 
 class MatplotlibAnnotator:
-    def __init__(self, input_dir="data/real_captchas/merged/site1", 
-                 output_dir="data/real_captchas/annotated", max_images=100):
+    def __init__(self, input_dir="data/real_captchas/merged/site2", 
+                 output_dir="data/real_captchas/annotated/site2", max_images=100):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.max_images = max_images
@@ -38,6 +38,7 @@ class MatplotlibAnnotator:
         # Setup plot
         self.fig, self.ax = plt.subplots(figsize=(12, 8))
         self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+        self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
         
         # Add buttons
         self.setup_buttons()
@@ -57,6 +58,14 @@ class MatplotlibAnnotator:
         self.btn_skip.on_clicked(self.skip_image)
         self.btn_reset.on_clicked(self.reset_annotation)
     
+    def load_current_image_only(self):
+        """只重新显示当前图像（用于重置）"""
+        if self.current_image is not None:
+            self.ax.clear()
+            self.ax.imshow(self.current_image)
+            self.ax.set_title(f"Image {self.current_index + 1}/{len(self.images)}: {self.current_path.name}")
+            self.ax.axis('off')
+    
     def load_image(self):
         """Load current image"""
         if self.current_index >= len(self.images):
@@ -69,9 +78,11 @@ class MatplotlibAnnotator:
         
         # Reset state
         self.clicks = []
+        
+        # 先清除标记，再清除画布
         self.clear_markers()
         
-        # Display image
+        # Display image（clear会清除所有内容）
         self.ax.clear()
         self.ax.imshow(self.current_image)
         self.ax.set_title(f"Image {self.current_index + 1}/{len(self.images)}: {self.current_path.name}")
@@ -79,19 +90,36 @@ class MatplotlibAnnotator:
         
         # Add instructions
         self.update_instructions()
+        
+        # 强制刷新画布
+        self.fig.canvas.draw_idle()
         plt.draw()
     
     def update_instructions(self):
         """Update instruction text"""
         if len(self.clicks) == 0:
-            instruction = "Click SLIDER center (will be marked in RED)"
+            instruction = "点击滑块中心 (红色) | 快捷键: 空格=下一张, R=重置"
         elif len(self.clicks) == 1:
-            instruction = "Click GAP center (will be marked in BLUE)"
+            instruction = f"点击缺口X位置 (Y自动对齐到{self.clicks[0][1]}) | 快捷键: 空格=下一张, R=重置"
         else:
-            instruction = f"Slider: {self.clicks[0]}, Gap: {self.clicks[1]} - Click Save to continue"
+            instruction = f"滑块: {self.clicks[0]}, 缺口: {self.clicks[1]} - 按空格保存并下一张"
         
         self.fig.suptitle(instruction, fontsize=14)
         plt.draw()
+    
+    def on_key_press(self, event):
+        """Handle keyboard shortcuts"""
+        if event.key == ' ':  # 空格键
+            # 如果已经标记了两个点，保存并进入下一张
+            if len(self.clicks) == 2:
+                self.save_annotation(None)
+            # 否则跳过当前图片
+            else:
+                self.skip_image(None)
+        elif event.key == 'r':  # R键重置
+            self.reset_annotation(None)
+        elif event.key == 'escape':  # ESC键退出
+            plt.close('all')
     
     def on_click(self, event):
         """Handle mouse click"""
@@ -102,30 +130,52 @@ class MatplotlibAnnotator:
             return
         
         x, y = int(event.xdata), int(event.ydata)
-        self.clicks.append((x, y))
         
-        # Draw marker
+        # 第二次点击（缺口）时，强制使用滑块的Y坐标
         if len(self.clicks) == 1:
+            # 缺口的Y必须与滑块的Y相同
+            slider_y = self.clicks[0][1]
+            self.clicks.append((x, slider_y))  # 使用滑块的Y坐标
+            
+            # Gap - Blue，使用滑块的Y坐标
+            circle = patches.Circle((x, slider_y), 8, color='blue', fill=True, alpha=0.7)
+            self.ax.add_patch(circle)
+            text = self.ax.text(x, slider_y-15, 'G', color='blue', fontsize=12, ha='center', weight='bold')
+            self.markers.append(circle)
+            self.markers.append(text)
+            
+            # 画一条水平线显示Y坐标对齐
+            line = self.ax.axhline(y=slider_y, color='green', linestyle='--', alpha=0.3)
+            self.markers.append(line)
+        else:
+            # 第一次点击 - Slider
+            self.clicks.append((x, y))
+            
             # Slider - Red
             circle = patches.Circle((x, y), 8, color='red', fill=True, alpha=0.7)
             self.ax.add_patch(circle)
-            self.ax.text(x, y-15, 'S', color='red', fontsize=12, ha='center', weight='bold')
-            self.markers.extend([circle, self.ax.texts[-1]])
-        else:
-            # Gap - Blue
-            circle = patches.Circle((x, y), 8, color='blue', fill=True, alpha=0.7)
-            self.ax.add_patch(circle)
-            self.ax.text(x, y-15, 'G', color='blue', fontsize=12, ha='center', weight='bold')
-            self.markers.extend([circle, self.ax.texts[-1]])
+            text = self.ax.text(x, y-15, 'S', color='red', fontsize=12, ha='center', weight='bold')
+            self.markers.append(circle)
+            self.markers.append(text)
         
         self.update_instructions()
         plt.draw()
     
     def clear_markers(self):
         """Clear all markers"""
+        # 清除所有标记
         for marker in self.markers:
             if hasattr(marker, 'remove'):
                 marker.remove()
+        
+        # 清除所有文本（确保文本也被清除）
+        for text in self.ax.texts[:]:  # 使用切片创建副本避免修改列表时的问题
+            text.remove()
+        
+        # 清除所有patches（圆圈等）
+        for patch in self.ax.patches[:]:
+            patch.remove()
+        
         self.markers = []
     
     def save_annotation(self, event):
@@ -160,6 +210,9 @@ class MatplotlibAnnotator:
         # Save JSON
         self.save_json()
         
+        # 在加载下一张图片前，先执行reset功能彻底清除
+        self.reset_annotation(None)
+        
         # Next image
         self.current_index += 1
         self.load_image()
@@ -167,20 +220,44 @@ class MatplotlibAnnotator:
     def skip_image(self, event):
         """Skip current image"""
         print(f"Skipped: {self.current_path.name}")
+        
+        # 执行reset功能彻底清除
+        self.reset_annotation(None)
+        
         self.current_index += 1
         self.load_image()
     
     def reset_annotation(self, event):
-        """Reset current annotation"""
+        """Reset current annotation - 彻底清除所有标记"""
+        # 重置点击记录
         self.clicks = []
+        
+        # 清除所有标记
         self.clear_markers()
         
-        # Redraw image
+        # 清除所有axes上的内容并重新显示图像
         self.ax.clear()
-        self.ax.imshow(self.current_image)
-        self.ax.set_title(f"Image {self.current_index + 1}/{len(self.images)}: {self.current_path.name}")
-        self.ax.axis('off')
+        
+        # 清除所有残留的artists
+        for artist in self.ax.get_children():
+            if hasattr(artist, 'remove'):
+                try:
+                    artist.remove()
+                except:
+                    pass
+        
+        # 重新显示当前图像
+        if self.current_image is not None:
+            self.ax.imshow(self.current_image)
+            self.ax.set_title(f"Image {self.current_index + 1}/{len(self.images)}: {self.current_path.name}")
+            self.ax.axis('off')
+        
+        # 更新指令
         self.update_instructions()
+        
+        # 强制刷新画布
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
         plt.draw()
     
     def save_json(self):

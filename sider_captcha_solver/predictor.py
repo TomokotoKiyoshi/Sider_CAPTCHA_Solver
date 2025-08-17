@@ -136,7 +136,7 @@ class CaptchaPredictor:
             # 推理
             with torch.no_grad():
                 outputs = self.model(image_tensor)
-                predictions = self.model.decode_predictions(outputs, image_tensor)
+                predictions = self.model.decode_predictions(outputs, input_images=image_tensor)
             
             # 后处理
             result = self._format_result(predictions)
@@ -184,15 +184,16 @@ class CaptchaPredictor:
         # 应用Letterbox变换 - 等比缩放 + 居中填充
         image_letterboxed, self.transform_params = self.letterbox.apply(image)
         
-        # 生成padding mask (padding区域=1, 原图区域=0)
-        padding_mask = self.letterbox.create_padding_mask(self.transform_params)
+        # 生成valid mask (valid区域=1, padding区域=0)
+        valid_mask = self.letterbox.create_padding_mask(self.transform_params)
         
         # 转换为tensor并归一化 [0, 255] -> [0, 1]
         image_tensor = torch.from_numpy(image_letterboxed).float().permute(2, 0, 1) / 255.0
-        padding_mask_tensor = torch.from_numpy(padding_mask).float().unsqueeze(0)
+        valid_mask_tensor = torch.from_numpy(valid_mask).float().unsqueeze(0)
         
-        # 组合4通道输入 [RGB(3) + Padding_Mask(1)]
-        image_tensor = torch.cat([image_tensor, padding_mask_tensor], dim=0)
+        # 组合4通道输入 [RGB(3) + Valid_Mask(1)]  
+        # 第4通道: 1=有效区域, 0=padding区域
+        image_tensor = torch.cat([image_tensor, valid_mask_tensor], dim=0)
         
         # 添加batch维度 [1, 4, 256, 512]
         image_tensor = image_tensor.unsqueeze(0).to(self.device)
@@ -200,7 +201,11 @@ class CaptchaPredictor:
         return image_tensor
     
     def _format_result(self, predictions: Dict) -> Dict:
-        """格式化输出结果 - 将坐标映射回原始图像空间"""
+        """格式化输出结果 - 直接使用模型解码的坐标"""
+        # 注意：模型已经在decode_predictions中完成了所有处理
+        # 包括padding mask屏蔽和坐标clamp到[0,512]x[0,256]
+        # 这里只需要提取并映射回原始图像空间
+        
         # 提取网络输出的坐标（在512x256空间中）
         gap_x_net = predictions['gap_coords'][0, 0].item()
         gap_y_net = predictions['gap_coords'][0, 1].item()
