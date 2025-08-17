@@ -15,6 +15,7 @@ data/
 
 # Test output directory (contains test images)
 test_output/
+extracted_features/
 
 # Logs
 logs/
