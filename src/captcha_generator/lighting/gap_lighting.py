@@ -8,7 +8,7 @@ import numpy as np
 
 def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
                       base_darkness=40, edge_darkness=50, directional_darkness=20,
-                      outer_edge_darkness=0):
+                      outer_edge_darkness=0, edge_lightness=0, edge_width=6, decay_factor=2.0):
     """
     为拼图缺口应用3D光照效果
     
@@ -21,6 +21,12 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
         edge_darkness: 边缘暗度（边缘额外的变暗程度）
         directional_darkness: 方向性暗度（左上和右下的额外变暗程度）
         outer_edge_darkness: 外边缘暗度（缺口外围的阴影强度）
+        edge_lightness: 边缘亮度（边缘额外的变亮程度），范围0-100
+                       0: 不应用边缘高光，使用edge_darkness创建阴影边缘效果
+                       1-100: 应用边缘高光效果，数值越大边缘越亮
+                       当此值 > 0 时，将覆盖 edge_darkness，通过白色叠加创建高光边缘效果
+        edge_width: 受光照影响的边缘宽度（像素），默认6
+        decay_factor: 衰减系数，控制从边缘到中心的透明度衰减速度，默认2.0
     
     Returns:
         应用光照效果后的背景
@@ -54,15 +60,20 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
     # 整个缺口区域都比背景暗
     base_shadow = np.full((mask_h, mask_w), base_darkness, dtype=np.float32)
     
-    # 3. 创建边缘阴影渐变
-    # 边缘最暗，向中心逐渐变亮
+    # 3. 创建边缘效果（阴影或高光 - 互斥）
     if dist_transform.max() > 0:
         # 归一化距离（0-1）
         norm_dist = dist_transform / dist_transform.max()
-        # 边缘阴影强度：边缘(0)最暗，中心(1)最亮
-        edge_shadow = (1.0 - norm_dist) * edge_darkness
+        
+        if edge_lightness > 0:
+            # 边缘高光模式：不应用边缘阴影，稍后通过白色叠加实现高光
+            edge_shadow = np.zeros((mask_h, mask_w), dtype=np.float32)
+        else:
+            # 边缘阴影模式：边缘变暗，中心较亮
+            edge_shadow = (1.0 - norm_dist) * edge_darkness  # 边缘暗，中心亮
     else:
         edge_shadow = np.zeros((mask_h, mask_w), dtype=np.float32)
+        norm_dist = np.zeros((mask_h, mask_w), dtype=np.float32)  # 为后续高光使用
     
     # 4. 创建方向性光照
     # 左上和右下更暗（模拟光线被遮挡）
@@ -85,18 +96,23 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
     directional_factor = np.maximum(left_top_factor, right_bottom_factor)
     directional_shadow = directional_factor * directional_darkness  # 方向性阴影强度
     
-    # 5. 组合所有阴影效果
-    total_shadow = base_shadow + edge_shadow + directional_shadow
+    # 5. 组合所有阴影效果（高光模式下不包含边缘阴影）
+    if edge_lightness > 0:
+        # 高光模式：只应用基础阴影和方向性阴影
+        total_shadow = base_shadow + directional_shadow
+    else:
+        # 阴影模式：正常累加所有阴影
+        total_shadow = base_shadow + edge_shadow + directional_shadow
     
     # 6. 在缺口区域应用阴影效果并真正挖空
     # 重要：只在alpha > 0的区域创建缺口，保留hollow效果
     # 先保存原始背景区域
     original_region = result[y:y+mask_h, x:x+mask_w].copy()
     
-    # 创建一个阴影层
+    # 创建阴影层
     shadow_layer = np.zeros((mask_h, mask_w, 3), dtype=np.float32)
     for c in range(3):
-        shadow_layer[:, :, c] = -total_shadow
+        shadow_layer[:, :, c] = -total_shadow  # 负值表示变暗
     
     # 对于缺口实体部分（alpha > 128）：应用强阴影模拟深度
     # 对于缺口边缘（0 < alpha <= 128）：应用渐变阴影
@@ -105,16 +121,58 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
         channel = result[y:y+mask_h, x:x+mask_w, c].astype(np.float32)
         
         # 根据alpha值混合：
-        # - alpha=255: 完全应用阴影（模拟深缺口）
+        # - alpha=255: 完全应用效果
         # - alpha=0 (hollow): 保持原背景
         # - 中间值: 渐变过渡
         mask_factor = mask_alpha / 255.0
         
-        # 应用阴影创建深度效果
+        # 应用阴影效果
         result[y:y+mask_h, x:x+mask_w, c] = np.clip(
             channel + shadow_layer[:, :, c] * mask_factor, 
             0, 255
         ).astype(np.uint8)
+    
+    # 7. 【新增】当edge_lightness > 0时，叠加白色边缘高光
+    if edge_lightness > 0 and dist_transform.max() > 0:
+        # 将edge_lightness映射到不透明度（0-100映射到0-0.7）
+        max_opacity = min(edge_lightness / 100.0 * 0.7, 0.7)
+        
+        # 创建边缘蒙版透明度（限制影响区域）
+        edge_opacity = np.zeros((mask_h, mask_w), dtype=np.float32)
+        
+        # 只在边缘宽度范围内应用效果
+        edge_mask = dist_transform <= edge_width
+        
+        # 在边缘区域内，使用非线性衰减
+        # 距离归一化到0-1（0是边缘，1是edge_width处）
+        edge_distances = np.clip(dist_transform / edge_width, 0, 1)
+        
+        # 使用tanh函数创建S型衰减曲线
+        shift = 0.5
+        steepness = 4.0 * decay_factor
+        
+        # 计算衰减曲线
+        x_decay = (edge_distances - shift) * steepness
+        decay_curve = (1.0 - np.tanh(x_decay)) * 0.5
+        
+        # 应用最大不透明度
+        opacity_map = decay_curve * max_opacity
+        
+        # 应用到边缘区域
+        edge_opacity[edge_mask] = opacity_map[edge_mask]
+        
+        # 在缺口区域叠加白色
+        for c in range(3):
+            channel = result[y:y+mask_h, x:x+mask_w, c].astype(np.float32)
+            white = 255.0
+            
+            # 根据mask_alpha混合
+            mask_factor = mask_alpha / 255.0
+            effective_opacity = edge_opacity * mask_factor
+            
+            # Alpha混合：result = original * (1 - α) + white * α
+            blended = channel * (1 - effective_opacity) + white * effective_opacity
+            result[y:y+mask_h, x:x+mask_w, c] = np.clip(blended, 0, 255).astype(np.uint8)
     
     # 8. 在缺口边缘外添加微弱的阴影（增强3D效果）
     # 只有当outer_edge_darkness > 0时才处理
@@ -151,7 +209,7 @@ def apply_gap_lighting(background, x, y, mask_alpha, mask_h, mask_w,
 
 def apply_gap_highlighting(background, x, y, mask_alpha, mask_h, mask_w,
                           base_lightness=40, edge_lightness=60, directional_lightness=30,
-                          outer_edge_lightness=20):
+                          outer_edge_lightness=0):
     """
     为拼图缺口应用3D高光效果（变亮而非变暗）
     

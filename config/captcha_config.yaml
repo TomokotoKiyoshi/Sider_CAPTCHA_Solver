@@ -26,11 +26,12 @@ dataset:
   confusion_counts:
     none: 30
     rotation: 10
-    perlin_noise: 10
+    perlin_noise: 5
     highlight: 10
-    confusing_gap: 10
-    hollow_center: 10
-    combined: 20
+    confusing_gap: 20
+    hollow_center: 5
+    gap_edge_highlight: 10  # 缺口边缘高光混淆，每张图生成10张
+    combined: 10  # 减少combined数量，保持总数100
   
   # Shape configuration
   shapes:
@@ -39,7 +40,7 @@ dataset:
   
   # Puzzle sizes
   puzzle_sizes:
-    all_sizes: [40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60]
+    all_sizes: [46, 48, 50, 52, 54, 56, 58, 60, 62, 64]
     sizes_per_image: 4
   
   # Grid-based position generation
@@ -152,6 +153,18 @@ confusion_strategies:
       min: 0.3
       max: 0.4
   
+  # Gap Edge Highlight (缺口边缘高光)
+  gap_edge_highlight:
+    edge_lightness:
+      min: 90     # 边缘亮度最小值（0-100）
+      max: 100     # 边缘亮度最大值（0-100）
+    edge_width:
+      min: 6      # 边缘宽度最小值（像素）
+      max: 7      # 边缘宽度最大值（像素）
+    decay_factor:
+      min: 2.0    # 衰减系数最小值
+      max: 2.5    # 衰减系数最大值
+  
   # Combined
   combined:
     num_strategies: [2, 3]
@@ -161,6 +174,7 @@ confusion_strategies:
       - 'highlight'
       - 'hollow_center'
       - 'confusing_gap'
+      - 'gap_edge_highlight'  # 添加到组合策略可用列表
 
 # ============================================================
 # Lighting Effects Configuration

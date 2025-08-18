@@ -16,6 +16,7 @@ import json
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
+import argparse  # 用于命令行参数解析
 from typing import List, Dict, Any, Tuple, Optional
 from collections import defaultdict
 
@@ -38,7 +39,8 @@ from src.captcha_generator.confusion_system.strategies import (
     RotationConfusion,
     HighlightConfusion,
     ConfusingGapConfusion,
-    HollowCenterConfusion
+    HollowCenterConfusion,
+    GapEdgeHighlightConfusion  # 缺口边缘高光混淆策略
 )
 
 # 导入配置
@@ -355,6 +357,11 @@ def create_confusion_strategies(
                 strategies.append(HollowCenterConfusion(
                     ConfusionConfig.get_hollow_center_params(rng)
                 ))
+            elif s == 'gap_edge_highlight':
+                # 缺口边缘高光混淆
+                strategies.append(GapEdgeHighlightConfusion(
+                    ConfusionConfig.get_gap_edge_highlight_params(rng)
+                ))
     
     else:
         # 单一混淆策略
@@ -377,6 +384,11 @@ def create_confusion_strategies(
         elif strategy_type == 'hollow_center':
             strategies.append(HollowCenterConfusion(
                 ConfusionConfig.get_hollow_center_params(rng)
+            ))
+        elif strategy_type == 'gap_edge_highlight':
+            # 缺口边缘高光混淆（单一策略）
+            strategies.append(GapEdgeHighlightConfusion(
+                ConfusionConfig.get_gap_edge_highlight_params(rng)
             ))
     
     return strategies
@@ -957,6 +969,14 @@ def generate_dataset_parallel(
 def main():
     """主函数 - 所有配置从DatasetConfig读取"""
     
+    # 添加命令行参数解析
+    parser = argparse.ArgumentParser(description='生成验证码数据集')
+    parser.add_argument('--max-images', type=int, default=None, 
+                       help='限制处理的图片数量（用于测试）')
+    parser.add_argument('--test-mode', action='store_true',
+                       help='测试模式：默认只处理10张图片（生成1000张验证码）')
+    args = parser.parse_args()
+    
     # 验证配置
     if not DatasetConfig.validate():
         print("Configuration validation failed!")
@@ -968,6 +988,26 @@ def main():
     input_dir = project_root / DatasetConfig.INPUT_DIR
     output_dir = project_root / DatasetConfig.OUTPUT_DIR
     
+    # 确定最终的 max_images 值
+    max_images_to_use = DatasetConfig.MAX_IMAGES  # 默认从配置文件
+    
+    # 如果启用测试模式
+    if args.test_mode:
+        max_images_to_use = 10  # 测试模式默认10张
+        print("\n" + "="*60)
+        print("测试模式已启用")
+        print(f"  - 将处理最多 10 张图片")
+        print(f"  - 每张图片生成 {DatasetConfig.CAPTCHAS_PER_IMAGE} 个验证码")
+        print(f"  - 预计总共生成 {10 * DatasetConfig.CAPTCHAS_PER_IMAGE} 个验证码")
+        print("="*60 + "\n")
+    
+    # 命令行参数具有最高优先级
+    if args.max_images is not None:
+        max_images_to_use = args.max_images  # 命令行参数最高优先级
+        if not args.test_mode:  # 如果不是测试模式，也显示限制信息
+            print(f"\n限制模式：最多处理 {args.max_images} 张图片")
+            print(f"预计生成 {args.max_images * DatasetConfig.CAPTCHAS_PER_IMAGE} 个验证码\n")
+    
     # 打印配置信息
     print("=" * 60)
     print("CAPTCHA Dataset Generation")
@@ -976,7 +1016,7 @@ def main():
     print(f"Input directory: {input_dir}")
     print(f"Output directory: {output_dir}")
     print(f"Workers: {DatasetConfig.MAX_WORKERS or 'auto'}")
-    print(f"Max images: {DatasetConfig.MAX_IMAGES or 'all'}")
+    print(f"Max images: {max_images_to_use or 'all'}")  # 使用处理后的值
     print(f"Random seed: {DatasetConfig.RANDOM_SEED or 'random'}")
     print(f"Save components: {DatasetConfig.SAVE_COMPONENTS}")
     print("=" * 60)
@@ -986,7 +1026,7 @@ def main():
         input_dir=input_dir,
         output_dir=output_dir,
         max_workers=DatasetConfig.MAX_WORKERS,
-        max_images=DatasetConfig.MAX_IMAGES,
+        max_images=max_images_to_use,  # 使用处理后的值
         seed=DatasetConfig.RANDOM_SEED,
         save_components=DatasetConfig.SAVE_COMPONENTS
     )

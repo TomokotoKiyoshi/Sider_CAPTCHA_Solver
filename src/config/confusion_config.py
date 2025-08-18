@@ -220,6 +220,45 @@ class ConfusionConfig:
             }
         }
         
+        # ========== 缺口边缘高光 (Gap Edge Highlight) ==========
+        geh_lightness_min = self.loader.get(f'{base_path}.gap_edge_highlight.edge_lightness.min')
+        geh_lightness_max = self.loader.get(f'{base_path}.gap_edge_highlight.edge_lightness.max')
+        geh_width_min = self.loader.get(f'{base_path}.gap_edge_highlight.edge_width.min')
+        geh_width_max = self.loader.get(f'{base_path}.gap_edge_highlight.edge_width.max')
+        geh_decay_min = self.loader.get(f'{base_path}.gap_edge_highlight.decay_factor.min')
+        geh_decay_max = self.loader.get(f'{base_path}.gap_edge_highlight.decay_factor.max')
+        
+        if geh_lightness_min is None:
+            raise ValueError(f"Must configure {base_path}.gap_edge_highlight.edge_lightness.min in captcha_config.yaml")
+        if geh_lightness_max is None:
+            raise ValueError(f"Must configure {base_path}.gap_edge_highlight.edge_lightness.max in captcha_config.yaml")
+        if geh_width_min is None:
+            raise ValueError(f"Must configure {base_path}.gap_edge_highlight.edge_width.min in captcha_config.yaml")
+        if geh_width_max is None:
+            raise ValueError(f"Must configure {base_path}.gap_edge_highlight.edge_width.max in captcha_config.yaml")
+        if geh_decay_min is None:
+            raise ValueError(f"Must configure {base_path}.gap_edge_highlight.decay_factor.min in captcha_config.yaml")
+        if geh_decay_max is None:
+            raise ValueError(f"Must configure {base_path}.gap_edge_highlight.decay_factor.max in captcha_config.yaml")
+        
+        self.GAP_EDGE_HIGHLIGHT = {
+            'edge_lightness': {
+                'min': geh_lightness_min,
+                'max': geh_lightness_max,
+                'description': '边缘亮度（0-100），数值越大边缘越亮'
+            },
+            'edge_width': {
+                'min': geh_width_min,
+                'max': geh_width_max,
+                'description': '边缘宽度（像素），影响高光的范围'
+            },
+            'decay_factor': {
+                'min': geh_decay_min,
+                'max': geh_decay_max,
+                'description': '衰减系数，控制从边缘到中心的亮度衰减速度'
+            }
+        }
+        
         # ========== 组合混淆 (Combined) ==========
         cb_num = self.loader.get(f'{base_path}.combined.num_strategies')
         cb_avail = self.loader.get(f'{base_path}.combined.available_strategies')
@@ -374,6 +413,23 @@ class ConfusionConfig:
             'hollow_ratio': rng.uniform(
                 self.HOLLOW_CENTER['scale']['min'],
                 self.HOLLOW_CENTER['scale']['max']
+            )
+        }
+    
+    def get_gap_edge_highlight_params(self, rng):
+        """获取缺口边缘高光参数"""
+        return {
+            'edge_lightness': rng.randint(
+                self.GAP_EDGE_HIGHLIGHT['edge_lightness']['min'],
+                self.GAP_EDGE_HIGHLIGHT['edge_lightness']['max']
+            ),
+            'edge_width': rng.randint(
+                self.GAP_EDGE_HIGHLIGHT['edge_width']['min'],
+                self.GAP_EDGE_HIGHLIGHT['edge_width']['max']
+            ),
+            'decay_factor': rng.uniform(
+                self.GAP_EDGE_HIGHLIGHT['decay_factor']['min'],
+                self.GAP_EDGE_HIGHLIGHT['decay_factor']['max']
             )
         }
     

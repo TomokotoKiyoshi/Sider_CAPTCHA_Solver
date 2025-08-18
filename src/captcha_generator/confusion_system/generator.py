@@ -62,6 +62,8 @@ class CaptchaGenerator:
         all_additional_gaps = []
         has_highlight = False
         highlight_params = None
+        has_gap_edge_highlight = False  # 缺口边缘高光标记
+        gap_edge_highlight_params = None  # 缺口边缘高光参数
         has_rotation = False
         rotated_piece_for_background = None
         
@@ -98,9 +100,15 @@ class CaptchaGenerator:
                     if has_rotation and rotated_piece_for_background:
                         rotated_piece_for_background = strategy.apply_to_gap(rotated_piece_for_background)
                     confusion_metadata[strategy.name] = strategy.get_metadata()
+                elif strategy.name == 'gap_edge_highlight':
+                    # 缺口边缘高光策略：标记需要应用边缘高光效果
+                    # 该策略不修改滑块，只影响背景缺口的渲染
+                    has_gap_edge_highlight = True
+                    gap_edge_highlight_params = strategy.get_metadata()
+                    confusion_metadata[strategy.name] = strategy.get_metadata()
                 else:
                     # 检查是否是已知的策略
-                    known_strategies = ['perlin_noise', 'rotation', 'highlight', 'confusing_gap', 'hollow_center']
+                    known_strategies = ['perlin_noise', 'rotation', 'highlight', 'confusing_gap', 'hollow_center', 'gap_edge_highlight']
                     if strategy.name not in known_strategies:
                         raise ValueError(f"Unknown confusion strategy: {strategy.name}. Known strategies are: {', '.join(known_strategies)}")
                     
@@ -136,6 +144,8 @@ class CaptchaGenerator:
         background = self._create_gap_background(
             img, background_mask, gap_position, all_additional_gaps,
             has_highlight=has_highlight, highlight_params=highlight_params,
+            has_gap_edge_highlight=has_gap_edge_highlight,  # 传递边缘高光标记
+            gap_edge_highlight_params=gap_edge_highlight_params,  # 传递边缘高光参数
             rotated_piece_for_background=piece_for_background
         )
         
@@ -321,6 +331,8 @@ class CaptchaGenerator:
                               additional_gaps: List[Dict[str, Any]] = None,
                               has_highlight: bool = False,
                               highlight_params: Dict[str, Any] = None,
+                              has_gap_edge_highlight: bool = False,  # 缺口边缘高光标记
+                              gap_edge_highlight_params: Dict[str, Any] = None,  # 缺口边缘高光参数
                               rotated_piece_for_background: Optional['GapImage'] = None) -> np.ndarray:
         """创建带缺口的背景"""
         background = img.copy()
@@ -372,6 +384,19 @@ class CaptchaGenerator:
                 directional_lightness=highlight_params.get('directional_lightness', 20),
                 outer_edge_lightness=0  # 不使用外边缘效果
             )
+        elif has_gap_edge_highlight and gap_edge_highlight_params:
+            # 应用缺口边缘高光效果（通过edge_lightness参数）
+            # 这会在保持基础阴影的同时，为边缘添加白色高光
+            background = apply_gap_lighting(
+                background, x1, y1, 
+                alpha_channel, actual_h, actual_w,
+                base_darkness=40,  # 保持基础阴影
+                edge_darkness=0,   # 不应用边缘阴影（因为要应用边缘高光）
+                directional_darkness=20,
+                edge_lightness=gap_edge_highlight_params.get('edge_lightness', 50),  # 边缘高光强度
+                edge_width=gap_edge_highlight_params.get('edge_width', 6),  # 边缘宽度
+                decay_factor=gap_edge_highlight_params.get('decay_factor', 2.0)  # 衰减系数
+            )
         else:
             # 应用阴影效果
             background = apply_gap_lighting(
@@ -415,6 +440,18 @@ class CaptchaGenerator:
                         edge_lightness=highlight_params.get('edge_lightness', 45),
                         directional_lightness=highlight_params.get('directional_lightness', 20),
                         outer_edge_lightness=0  # 不使用外边缘效果
+                    )
+                elif has_gap_edge_highlight and gap_edge_highlight_params:
+                    # 混淆缺口也应用边缘高光效果
+                    background = apply_gap_lighting(
+                        background, x1, y1, 
+                        alpha_channel, h, w,
+                        base_darkness=40,
+                        edge_darkness=0,  # 不应用边缘阴影
+                        directional_darkness=20,
+                        edge_lightness=gap_edge_highlight_params.get('edge_lightness', 50),
+                        edge_width=gap_edge_highlight_params.get('edge_width', 6),
+                        decay_factor=gap_edge_highlight_params.get('decay_factor', 2.0)
                     )
                 else:
                     # 应用阴影效果

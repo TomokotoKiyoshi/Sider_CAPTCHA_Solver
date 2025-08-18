@@ -187,22 +187,52 @@ L_ang = Σ[1 - (sin̂θ*sinθ_g + coŝθ*cosθ_g)] * M_ang * W_1/4 / Σ(M_ang*W
 
 ---
 
-## 5️⃣ 总损失函数
+## 5️⃣ 滑块和背景缺口不同y轴损失
 
-### 损失组合
-```
-L_total = L_focal(H_gap, Ĥ_gap) + L_focal(H_piece, Ĥ_piece)
-        + λ_off * L_offset
-        + λ_hn * L_hard_negative  (可选)
-        + λ_ang * L_angle  (可选)
-```
+### 0) 前置（两张热力图 → 行分布）
+
+$s_g(y)=\frac{1}{W_s}\sum_x H_g(y,x)$,
+$s_p(y)=\tfrac{1}{W_s}\sum_x H_p(y,x)$
+$p_g(y)=\frac{e^{s_g(y)/\tau}}{\sum_t e^{s_g(t)/\tau}}$,
+$p_p(y)=\frac{e^{s_p(y)/\tau}}{\sum_t e^{s_p(t)/\tau}}$
+
+建议 $τ=1.0$ ；若多峰跳动，试 0.8。若有上下 padding 行，先把对应 $s(⋅)$ 置为 $−∞$。
+
+$\mathcal{L}_{\text{rowCE}}=-logp_g(y)p_p(y)$
+
+### 1) 一维 Wasserstein-1 / EMD
+
+$F_g​(y)=∑​^{y}_{t=0}p_g​(t),F_p​(y)=∑^y_{t=0}​p_p​(t)$
+
+$\mathcal{L}_{EMD}=\frac{1}{H_s}\sum_{y=0}^{H_s-1}\lvert{F_g(y)-F_p(y)}\lvert$
+
+这里 $H_s=64$（1/4 尺度的行数）。
+
+### 2)总不同y轴损失
+
+$\mathcal{L}_y=\lambda_{row}\mathcal{L}_{\text{rowCE}}+\lambda_{dist}\mathcal{L}_{\text{KL-sym}}$
+
+**推荐权重**：
+
+$\lambda_{\text{row}}=1.0$
+
+$\lambda_{\text{dist}}=0.2\sim0.5$
+
+
+## 总损失组合
+
+$$
+L=w_h⋅(L_{heat}^{gap}+L_{heat}^{piece})+w_o⋅L_{off}+w_a⋅L_{ang}+w_{hn}·L_{hn}+\lambda_{row}\mathcal{L}_{\text{rowCE}}+\lambda_{dist}\mathcal{L}_{\text{KL-sym}}
+$$
 
 其中：
 - `L_focal`：CenterNet风格热力图损失，α=1.5, β=4.0
 - `L_offset`：子像素偏移损失，使用热图值加权
 - `L_hard_negative`：Margin Ranking损失，抑制假缺口
 - `L_angle`：角度损失，用于微旋转
-- 权重：λ_off=1.0, λ_hn=0.5, λ_ang=0.5
+- `L_rowCE`：行分类损失 Row‑CE，抑制模型预测出的滑块和缺口的y值不同行
+- `L_KL-sym`：一维 Wasserstein-1 / EMD ，抑制错位/双峰造成的“假同行”。
+- 权重：$$λ_{off}=1.0, λ_{hn}=0.5, λ_{ang}=0.5$$
 
 ---
 
