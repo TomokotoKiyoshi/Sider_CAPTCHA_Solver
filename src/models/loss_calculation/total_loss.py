@@ -165,8 +165,8 @@ class TotalLoss(nn.Module):
             valid_losses.append(self.weights['offset'] * loss_offset)
         
         # 可选损失（hard_negative和angle）
-        # 只有非零时才加入
-        if loss_hard_neg.item() > 0 and not torch.isnan(loss_hard_neg) and not torch.isinf(loss_hard_neg):
+        # 修复：移除.item() > 0的检查，让hard_negative_loss始终被应用
+        if not torch.isnan(loss_hard_neg) and not torch.isinf(loss_hard_neg):
             valid_losses.append(self.weights['hard_negative'] * loss_hard_neg)
             
         if self.use_angle and loss_angle.item() > 0 and not torch.isnan(loss_angle) and not torch.isinf(loss_angle):
