@@ -29,6 +29,7 @@ class ConfusingGapConfusion(ConfusionStrategy):
         # 简化的配置参数
         self.num_confusing_gaps = self.config.get('num_confusing_gaps')
         self.confusing_type = self.config.get('confusing_type')
+        self.different_y_no_transform_prob = self.config.get('different_y_no_transform_prob', 0.0)
         
         assert self.num_confusing_gaps is not None, "num_confusing_gaps must be provided in config"
         assert self.confusing_type is not None, "confusing_type must be provided in config"
@@ -225,11 +226,17 @@ class ConfusingGapConfusion(ConfusionStrategy):
                 gap_type = 'same_y' if i % 2 == 0 else 'different_y'
             
             # 生成变换参数
-            # 旋转角度：10-30度，随机选择正负
-            rotation = self.rng.uniform(10, 30)
-            if self.rng.random() < 0.5:
-                rotation = -rotation  # 50%概率变为负值
-            scale = self.rng.uniform(0.7, 1.3)
+            # different_y类型根据配置概率决定是否变换
+            if gap_type == 'different_y' and self.rng.random() < self.different_y_no_transform_prob:
+                # different_y类型，按配置概率不变换
+                rotation = 0
+                scale = 1.0
+            else:
+                # same_y类型总是变换，different_y类型按概率变换
+                rotation = self.rng.uniform(10, 30)
+                if self.rng.random() < 0.5:
+                    rotation = -rotation  # 50%概率变为负值
+                scale = self.rng.uniform(0.7, 1.3)
             
             # same_y类型已经通过生成10-30度旋转确保了有明显变换
             

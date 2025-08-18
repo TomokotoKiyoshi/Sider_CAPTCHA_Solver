@@ -133,6 +133,7 @@ confusion_strategies:
     scale_range:
       min: 0.8
       max: 1.2
+    different_y_no_transform_prob: 0.5  # different_y类型不变换的概率(0-1)
   
   # Circular Confusing Gap (圆形专用混淆缺口)
   circular_confusing_gap:

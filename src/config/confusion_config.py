@@ -115,6 +115,7 @@ class ConfusionConfig:
         cg_rot_max = self.loader.get(f'{base_path}.confusing_gap.rotation_range.max')
         cg_scale_min = self.loader.get(f'{base_path}.confusing_gap.scale_range.min')
         cg_scale_max = self.loader.get(f'{base_path}.confusing_gap.scale_range.max')
+        cg_no_transform_prob = self.loader.get(f'{base_path}.confusing_gap.different_y_no_transform_prob', 0.0)
         
         if cg_num is None:
             raise ValueError(f"Must configure {base_path}.confusing_gap.num_confusing_gaps in captcha_config.yaml")
@@ -148,6 +149,10 @@ class ConfusionConfig:
                 'min': cg_scale_min,
                 'max': cg_scale_max,
                 'description': '混淆缺口的缩放比例范围'
+            },
+            'different_y_no_transform_prob': {
+                'value': cg_no_transform_prob,
+                'description': 'different_y类型不进行变换的概率(0-1)'
             }
         }
         
@@ -390,7 +395,8 @@ class ConfusionConfig:
             'scale_range': (
                 self.CONFUSING_GAP['scale_range']['min'],
                 self.CONFUSING_GAP['scale_range']['max']
-            )
+            ),
+            'different_y_no_transform_prob': self.CONFUSING_GAP['different_y_no_transform_prob']['value']
         }
     
     def get_circular_confusing_gap_params(self, rng):
