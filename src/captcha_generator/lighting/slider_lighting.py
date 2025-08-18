@@ -94,14 +94,21 @@ def apply_slider_lighting(puzzle_piece, highlight_strength=0, edge_highlight=100
         
         # 左上方向（约-135度）和右下方向（约45度）
         # 使用更尖锐的函数创建更明显的方向性
-        # 将余弦函数的结果进行幂运算以增强对比度
+        # 左上角：-135度 = -3π/4
         left_top_factor = np.maximum(0, np.cos(angles + 3*np.pi/4))
+        # 右下角：45度 = π/4
+        # 为了获得更对称的效果，我们使用相同的余弦响应强度
+        # 但是需要考虑角度的对称性
         right_bottom_factor = np.maximum(0, np.cos(angles - np.pi/4))
         
         # 使用幂函数增强方向性（值越大，方向性越明显）
         sharpness = 3.0
         left_top_factor = left_top_factor ** sharpness
         right_bottom_factor = right_bottom_factor ** sharpness
+        
+        # 增强右下角的高光强度，使其与左上角更平衡
+        # 由于形状和角度分布的原因，右下角通常需要更强的补偿
+        right_bottom_factor = right_bottom_factor * 1.2  # 增强20%
         
         # 组合两个方向的高光，并确保最大值为1
         directional_factor = np.minimum(1.0, left_top_factor + right_bottom_factor)

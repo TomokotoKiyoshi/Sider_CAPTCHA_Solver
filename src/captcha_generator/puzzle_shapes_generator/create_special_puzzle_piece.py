@@ -47,11 +47,53 @@ def create_special_puzzle_piece(shape_type: str, size: int = 60) -> np.ndarray:
         cv2.circle(canvas, (center, center), radius, (255, 255, 255, 255), -1)
         
     elif shape_type == 'square':
-        # 正方形：边长等于可用尺寸
+        # 圆角矩形：边长等于可用尺寸，圆角半径为边长的15%
         half_size = usable_size // 2
-        top_left = (center - half_size, center - half_size)
-        bottom_right = (center + half_size, center + half_size)
-        cv2.rectangle(canvas, top_left, bottom_right, (255, 255, 255, 255), -1)
+        corner_radius = int(usable_size * 0.15)  # 圆角半径
+        
+        # 创建圆角矩形的点集
+        # 重要：需要留出2像素边框供距离变换正确计算
+        # 原本会画到(1,1)-(59,59)，现在改为(3,3)-(56,56)
+        x1, y1 = center - half_size + 2, center - half_size + 2
+        x2, y2 = center + half_size - 2, center + half_size - 2
+        
+        # 画主体矩形（去掉角落）
+        # 水平矩形（去掉四个角） - 注意终点坐标+1
+        cv2.rectangle(canvas, 
+                     (x1 + corner_radius, y1), 
+                     (x2 - corner_radius + 1, y2 + 1), 
+                     (255, 255, 255, 255), -1)
+        # 垂直矩形（去掉四个角） - 注意终点坐标+1
+        cv2.rectangle(canvas, 
+                     (x1, y1 + corner_radius), 
+                     (x2 + 1, y2 - corner_radius + 1), 
+                     (255, 255, 255, 255), -1)
+        
+        # 画四个圆角
+        # 左上角
+        cv2.ellipse(canvas, 
+                   (x1 + corner_radius, y1 + corner_radius),
+                   (corner_radius, corner_radius), 
+                   0, 180, 270, 
+                   (255, 255, 255, 255), -1)
+        # 右上角 - 调整中心点位置
+        cv2.ellipse(canvas, 
+                   (x2 - corner_radius + 1, y1 + corner_radius),
+                   (corner_radius, corner_radius), 
+                   0, 270, 360, 
+                   (255, 255, 255, 255), -1)
+        # 左下角 - 调整中心点位置
+        cv2.ellipse(canvas, 
+                   (x1 + corner_radius, y2 - corner_radius + 1),
+                   (corner_radius, corner_radius), 
+                   0, 90, 180, 
+                   (255, 255, 255, 255), -1)
+        # 右下角 - 调整中心点位置
+        cv2.ellipse(canvas, 
+                   (x2 - corner_radius + 1, y2 - corner_radius + 1),
+                   (corner_radius, corner_radius), 
+                   0, 0, 90, 
+                   (255, 255, 255, 255), -1)
         
     elif shape_type == 'triangle':
         # 等边三角形：底边等于可用尺寸，高度为 sqrt(3)/2 * 底边
