@@ -172,7 +172,7 @@ confusion_strategies:
       - 'perlin_noise'
       - 'rotation'
       - 'highlight'
-      - 'hollow_center'
+      # - 'hollow_center'  # 从组合策略中移除，确保精确控制数量为5个
       - 'confusing_gap'
       - 'gap_edge_highlight'  # 添加到组合策略可用列表
 

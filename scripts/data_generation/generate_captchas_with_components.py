@@ -311,7 +311,9 @@ def generate_confusion_plan(pic_index: int, confusion_counts: Dict[str, int]) ->
 
 def create_confusion_strategies(
     strategy_type: str,
-    rng: Optional[np.random.RandomState] = None
+    rng: Optional[np.random.RandomState] = None,
+    shape: Optional[str] = None,
+    hollow_center_remaining: Optional[int] = None
 ) -> List:
     """
     创建混淆策略（支持单一和组合）
@@ -319,6 +321,8 @@ def create_confusion_strategies(
     Args:
         strategy_type: 策略类型
         rng: 随机数生成器（用于可重现性）
+        shape: 拼图形状（用于判断是否应用特定策略）
+        hollow_center_remaining: 剩余的hollow_center配额（用于控制总数）
         
     Returns:
         策略实例列表
@@ -328,12 +332,22 @@ def create_confusion_strategies(
     
     strategies = []
     
+    # 判断是否为特殊形状（需要应用hollow_center的形状）
+    is_special_shape = False
+    if shape is not None:
+        # 特殊形状：圆形、方形、三角形、六边形等
+        is_special_shape = shape in DatasetConfig.SPECIAL_SHAPES
+    
     if strategy_type == 'none':
         return strategies
     
     elif strategy_type == 'combined':
         # 使用配置文件获取组合策略
         selected = ConfusionConfig.get_combined_strategies(rng)
+        
+        # 如果hollow_center配额已用完，从组合策略中移除它
+        if hollow_center_remaining is not None and hollow_center_remaining <= 0:
+            selected = [s for s in selected if s != 'hollow_center']
         
         # 为每种选中的混淆创建策略
         for s in selected:
@@ -354,9 +368,13 @@ def create_confusion_strategies(
                     ConfusionConfig.get_confusing_gap_params(rng)
                 ))
             elif s == 'hollow_center':
-                strategies.append(HollowCenterConfusion(
-                    ConfusionConfig.get_hollow_center_params(rng)
-                ))
+                # hollow_center只应用于特殊形状（方形、圆形等异形）
+                # 并且要检查配额
+                if is_special_shape and (hollow_center_remaining is None or hollow_center_remaining > 0):
+                    strategies.append(HollowCenterConfusion(
+                        ConfusionConfig.get_hollow_center_params(rng)
+                    ))
+                # 如果不是特殊形状或配额用完，跳过hollow_center
             elif s == 'gap_edge_highlight':
                 # 缺口边缘高光混淆
                 strategies.append(GapEdgeHighlightConfusion(
@@ -382,9 +400,12 @@ def create_confusion_strategies(
                 ConfusionConfig.get_confusing_gap_params(rng)
             ))
         elif strategy_type == 'hollow_center':
-            strategies.append(HollowCenterConfusion(
-                ConfusionConfig.get_hollow_center_params(rng)
-            ))
+            # hollow_center只应用于特殊形状（方形、圆形等异形）
+            if is_special_shape:
+                strategies.append(HollowCenterConfusion(
+                    ConfusionConfig.get_hollow_center_params(rng)
+                ))
+            # 如果不是特殊形状，返回空策略列表
         elif strategy_type == 'gap_edge_highlight':
             # 缺口边缘高光混淆（单一策略）
             strategies.append(GapEdgeHighlightConfusion(
@@ -490,13 +511,36 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
     # 统计每个尺寸使用的次数，用于循环选择位置
     size_usage_counter = defaultdict(int)
     
+    # 追踪hollow_center的使用情况
+    hollow_center_used = 0  # 已使用的hollow_center数量
+    hollow_center_quota = confusion_counts.get('hollow_center', 0)  # 配额
+    
     generated_count = 0
     for sample_idx in range(num_samples):
         # 从计划中获取当前样本的size
         size = sample_size_plan[sample_idx]
         
-        # 随机选择形状
-        shape = random.choice(shapes)
+        # 获取混淆策略类型（提前获取，用于决定形状选择）
+        confusion_type = confusion_plan[sample_idx]
+        
+        # 根据混淆策略类型智能选择形状
+        if confusion_type == 'hollow_center':
+            # hollow_center强制使用特殊形状（圆形、方形、三角形、六边形）
+            shape = random.choice(DatasetConfig.SPECIAL_SHAPES)
+        elif confusion_type == 'combined':
+            # 对于组合策略，需要检查是否包含hollow_center
+            # 获取组合策略的成员（使用相同的随机数生成器确保一致性）
+            temp_rng = np.random.RandomState(seed + sample_idx)  # 使用固定种子
+            combined_strategies = ConfusionConfig.get_combined_strategies(temp_rng)
+            if 'hollow_center' in combined_strategies:
+                # 组合策略中包含hollow_center，使用特殊形状
+                shape = random.choice(DatasetConfig.SPECIAL_SHAPES)
+            else:
+                # 不包含hollow_center，正常随机选择
+                shape = random.choice(shapes)
+        else:
+            # 其他策略正常随机选择
+            shape = random.choice(shapes)
         
         # 获取该尺寸对应的位置列表
         positions = all_positions[size]
@@ -511,11 +555,26 @@ def generate_captcha_batch(args: Tuple) -> Tuple[List[Dict], Dict, str, List[Dic
         size_usage_counter[size] += 1
         slider_pos, gap_pos = positions[pos_idx]
         
-        # 获取混淆策略类型
-        confusion_type = confusion_plan[sample_idx]
+        # 计算剩余的hollow_center配额
+        hollow_remaining = hollow_center_quota - hollow_center_used
         
-        # 创建混淆策略实例
-        strategies = create_confusion_strategies(confusion_type, rng)
+        # 创建混淆策略实例（传递shape参数和hollow_center配额）
+        # confusion_type已在前面获取
+        strategies = create_confusion_strategies(
+            confusion_type, rng, 
+            shape=shape,
+            hollow_center_remaining=hollow_remaining
+        )
+        
+        # 更新hollow_center使用计数
+        if confusion_type == 'hollow_center':
+            hollow_center_used += 1
+        elif confusion_type == 'combined':
+            # 检查组合策略中是否实际包含了hollow_center
+            for strategy in strategies:
+                if strategy.name == 'hollow_center':
+                    hollow_center_used += 1
+                    break  # 一个组合策略最多计为1个hollow_center
         
         try:
             # 生成验证码
