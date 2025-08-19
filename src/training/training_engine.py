@@ -226,6 +226,7 @@ class TrainingEngine:
             'offset_loss': 0.0,
             'hard_negative_loss': 0.0,
             'angle_loss': 0.0,
+            'padding_bce_loss': 0.0,
             'gap_mae': 0.0,
             'slider_mae': 0.0,
             'lr': self.optimizer.param_groups[0]['lr']
@@ -280,6 +281,7 @@ class TrainingEngine:
                 avg_offset = (metrics['offset_loss'] / batch_count).item() if torch.is_tensor(metrics['offset_loss']) else metrics['offset_loss'] / batch_count
                 avg_hard_neg = (metrics['hard_negative_loss'] / batch_count).item() if torch.is_tensor(metrics['hard_negative_loss']) else metrics['hard_negative_loss'] / batch_count
                 avg_angle = (metrics['angle_loss'] / batch_count).item() if torch.is_tensor(metrics['angle_loss']) else metrics['angle_loss'] / batch_count
+                avg_padding_bce = (metrics['padding_bce_loss'] / batch_count).item() if torch.is_tensor(metrics['padding_bce_loss']) else metrics['padding_bce_loss'] / batch_count
                 
                 # 计算时间估计
                 avg_batch_time = sum(batch_times) / len(batch_times)
@@ -306,6 +308,7 @@ class TrainingEngine:
                     f"Offset: {avg_offset:.4f}, "
                     f"HardNeg: {avg_hard_neg:.4f}, "
                     f"Angle: {avg_angle:.4f}, "
+                    f"PadBCE: {avg_padding_bce:.4f}, "
                     f"LR: {metrics['lr']:.6f} | "
                     f"ETA: {eta_str} | "
                     f"Speed: {samples_per_second:.0f} samples/s"
@@ -322,6 +325,7 @@ class TrainingEngine:
                     self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/offset_loss', avg_offset, epoch_batch_step)
                     self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/hard_negative_loss', avg_hard_neg, epoch_batch_step)
                     self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/angle_loss', avg_angle, epoch_batch_step)
+                    self.visualizer.writer.add_scalar(f'batch_epoch{epoch}/padding_bce_loss', avg_padding_bce, epoch_batch_step)
                     
                     # 全局步数的损失（连续图表）
                     self.visualizer.writer.add_scalar('batch_global/loss', avg_loss, self.global_step)
@@ -329,6 +333,7 @@ class TrainingEngine:
                     self.visualizer.writer.add_scalar('batch_global/offset_loss', avg_offset, self.global_step)
                     self.visualizer.writer.add_scalar('batch_global/hard_negative_loss', avg_hard_neg, self.global_step)
                     self.visualizer.writer.add_scalar('batch_global/angle_loss', avg_angle, self.global_step)
+                    self.visualizer.writer.add_scalar('batch_global/padding_bce_loss', avg_padding_bce, self.global_step)
                     
                     # 训练速度
                     self.visualizer.writer.add_scalar('training/speed_samples_per_sec', samples_per_second, self.global_step)
@@ -399,6 +404,7 @@ class TrainingEngine:
             'offset_loss': loss_dict.get('offset_loss', torch.tensor(0.0, device=self.device)),
             'hard_negative_loss': loss_dict.get('hard_negative_loss', torch.tensor(0.0, device=self.device)),
             'angle_loss': loss_dict.get('angle_loss', torch.tensor(0.0, device=self.device)),
+            'padding_bce_loss': loss_dict.get('padding_bce', torch.tensor(0.0, device=self.device)),
             'gap_mae': gap_error,
             'slider_mae': slider_error
         }
@@ -548,7 +554,8 @@ class TrainingEngine:
             'focal_loss': loss_dict.get('heatmap', torch.tensor(0.0, device=self.device)),
             'offset_loss': loss_dict.get('offset', torch.tensor(0.0, device=self.device)),
             'hard_negative_loss': loss_dict.get('hard_negative', torch.tensor(0.0, device=self.device)),
-            'angle_loss': loss_dict.get('angle', torch.tensor(0.0, device=self.device))
+            'angle_loss': loss_dict.get('angle', torch.tensor(0.0, device=self.device)),
+            'padding_bce': loss_dict.get('padding_bce', torch.tensor(0.0, device=self.device))
         }
         
         return total_loss, result_dict

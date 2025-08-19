@@ -8,7 +8,7 @@ import sys
 import json
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
 import numpy as np
 import cv2
 from datetime import datetime

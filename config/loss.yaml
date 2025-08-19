@@ -22,6 +22,12 @@ angle_loss:
   pos_threshold: 0.7       # Threshold for supervision region (M_ang = 1(Y_gap > 0.7))
   eps: 1.0e-8              # Small constant to prevent division by zero
 
+# Padding BCE Loss Configuration (Padding region suppression)
+padding_bce_loss:
+  enabled: true            # Enable padding BCE loss
+  eps: 1.0e-8             # Numerical stability constant
+  max_loss_per_pixel: 10.0 # Maximum loss per pixel to prevent gradient explosion
+
 # Total Loss Configuration
 total_loss:
   # Loss weights (λ in the formula)
@@ -30,6 +36,7 @@ total_loss:
     offset: 1.0          # Weight for offset loss (λ=1.0 from documentation)
     hard_negative: 1.5   # Weight for hard negative loss (提高到1.5以强化假缺口抑制)
     angle: 0.5           # Weight for angle loss
+    padding_bce: 0.5     # Weight for padding BCE loss
   
   # Feature flags
   use_angle: true            # Enable angle loss (for rotated gaps) - 必须启用以处理旋转混淆
@@ -62,4 +69,5 @@ stage_configs:
         offset: 1.0
         hard_negative: 1.5    # 提高权重以强化假缺口抑制
         angle: 0.5
+        padding_bce: 0.5      # Padding BCE损失权重
       use_angle: true

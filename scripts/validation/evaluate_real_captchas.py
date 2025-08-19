@@ -8,10 +8,8 @@ import sys
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 import numpy as np
-import cv2
-import torch
 from tqdm import tqdm
 import pandas as pd
 from datetime import datetime

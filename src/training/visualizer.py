@@ -107,6 +107,7 @@ class Visualizer:
         self.writer.add_scalar('loss/offset', metrics['offset_loss'], epoch)
         self.writer.add_scalar('loss/hard_negative', metrics.get('hard_negative_loss', 0.0), epoch)
         self.writer.add_scalar('loss/angle', metrics.get('angle_loss', 0.0), epoch)
+        self.writer.add_scalar('loss/padding_bce', metrics.get('padding_bce_loss', 0.0), epoch)
         
         # MAE
         self.writer.add_scalar('train/gap_mae', metrics['gap_mae'], epoch)

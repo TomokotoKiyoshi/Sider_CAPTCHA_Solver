@@ -10,6 +10,7 @@ from .focal_loss import create_focal_loss
 from .offset_loss import create_offset_loss
 from .hard_negative_loss import create_hard_negative_loss
 from .angle_loss import create_angle_loss
+from .padding_bce_loss import create_padding_bce_loss
 
 
 class TotalLoss(nn.Module):
@@ -45,6 +46,11 @@ class TotalLoss(nn.Module):
         self.use_angle = config['total_loss'].get('use_angle', False)
         if self.use_angle:
             self.angle_loss = create_angle_loss(config['angle_loss'])
+        
+        # Padding BCE损失（可选）
+        self.use_padding_bce = config.get('padding_bce_loss', {}).get('enabled', False)
+        if self.use_padding_bce:
+            self.padding_bce_loss = create_padding_bce_loss(config.get('padding_bce_loss', {}))
         
         # 损失权重
         self.weights = config['total_loss']['weights']
@@ -154,7 +160,29 @@ class TotalLoss(nn.Module):
         
         loss_dict['angle'] = loss_angle
         
-        # ========== 5. 计算总损失 ==========
+        # ========== 5. Padding BCE损失 ==========
+        if self.use_padding_bce:
+            try:
+                # PaddingBCELoss需要概率值，不是logits，所以需要先sigmoid激活
+                heatmap_gap_prob = torch.sigmoid(predictions['heatmap_gap'])
+                heatmap_piece_prob = torch.sigmoid(predictions['heatmap_piece'])
+                
+                loss_padding_bce = self.padding_bce_loss(
+                    heatmap_gap_prob,
+                    heatmap_piece_prob,
+                    mask
+                )
+                # 检查是否有效
+                if torch.isnan(loss_padding_bce) or torch.isinf(loss_padding_bce):
+                    loss_padding_bce = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+            except Exception as e:
+                loss_padding_bce = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+        else:
+            loss_padding_bce = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+        
+        loss_dict['padding_bce'] = loss_padding_bce
+        
+        # ========== 6. 计算总损失 ==========
         valid_losses = []
         
         # 必须有的损失（focal和offset）
@@ -171,6 +199,10 @@ class TotalLoss(nn.Module):
             
         if self.use_angle and loss_angle.item() > 0 and not torch.isnan(loss_angle) and not torch.isinf(loss_angle):
             valid_losses.append(self.weights['angle'] * loss_angle)
+        
+        # Padding BCE损失
+        if self.use_padding_bce and not torch.isnan(loss_padding_bce) and not torch.isinf(loss_padding_bce):
+            valid_losses.append(self.weights.get('padding_bce', 0.5) * loss_padding_bce)
         
         # 计算总损失
         if len(valid_losses) > 0:

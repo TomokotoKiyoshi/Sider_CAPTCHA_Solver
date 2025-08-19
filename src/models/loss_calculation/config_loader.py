@@ -98,6 +98,23 @@ class ConfigLoader:
         """
         return self.config['angle_loss']
     
+    def get_padding_bce_loss_config(self) -> Dict[str, Any]:
+        """
+        Get Padding BCE Loss configuration
+        
+        Returns:
+            Padding BCE Loss configuration dictionary
+        """
+        if 'padding_bce_loss' in self.config:
+            return self.config['padding_bce_loss']
+        else:
+            # 返回默认配置
+            return {
+                'enabled': False,
+                'eps': 1e-8,
+                'max_loss_per_pixel': 10.0
+            }
+    
     def get_total_loss_config(self, stage: Optional[str] = None) -> Dict[str, Any]:
         """
         Get Total Loss configuration
@@ -135,6 +152,7 @@ class ConfigLoader:
             'offset_loss': self.get_offset_loss_config(stage),
             'hard_negative_loss': self.get_hard_negative_loss_config(),
             'angle_loss': self.get_angle_loss_config(),
+            'padding_bce_loss': self.get_padding_bce_loss_config(),
             'total_loss': self.get_total_loss_config(stage)
         }
     
