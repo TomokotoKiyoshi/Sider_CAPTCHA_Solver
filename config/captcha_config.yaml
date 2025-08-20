@@ -24,14 +24,14 @@ dataset:
   
   # Confusion strategy distribution
   confusion_counts:
-    none: 30
-    rotation: 10
+    none: 35
+    rotation: 0
     perlin_noise: 5
     highlight: 10
-    confusing_gap: 20
-    hollow_center: 5
+    confusing_gap: 25
+    hollow_center: 5  
     gap_edge_highlight: 10  # 缺口边缘高光混淆，每张图生成10张
-    combined: 10  # 减少combined数量，保持总数100
+    combined: 10  # 组合混淆，每张图生成10张
   
   # Shape configuration
   shapes:
@@ -107,8 +107,8 @@ confusion_strategies:
   # Rotation
   rotation:
     rotation_angle:
-      min: 0.5
-      max: 1.5
+      min: 0
+      max: 0
   
   # Highlight
   highlight:

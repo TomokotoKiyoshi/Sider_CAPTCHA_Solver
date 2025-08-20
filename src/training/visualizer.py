@@ -454,17 +454,35 @@ class Visualizer:
     
     def log_model_graph(self, model: nn.Module, input_sample: torch.Tensor):
         """
-        记录模型结构图
+        记录模型结构图和详细信息
         
         Args:
             model: 模型
             input_sample: 输入样本
         """
+        # 1. 记录模型参数统计
+        self._log_model_statistics(model)
+        
+        # 2. 记录各层详细信息
+        self._log_layer_details(model)
+        
+        # 3. 尝试记录模型结构图
         try:
-            self.writer.add_graph(model, input_sample)
+            # 使用torch.jit.trace追踪模型，允许字典输出
+            with torch.no_grad():
+                traced_model = torch.jit.trace(model, input_sample, strict=False)
+            self.writer.add_graph(traced_model, input_sample)
             self.logger.info("模型结构图已添加到TensorBoard")
         except Exception as e:
-            self.logger.warning(f"无法添加模型结构图: {e}")
+            # 如果追踪失败，尝试直接添加（可能不会显示完整结构）
+            try:
+                self.writer.add_graph(model, input_sample)
+                self.logger.info("模型结构图已添加到TensorBoard（简化版）")
+            except Exception as e2:
+                self.logger.warning(f"无法添加模型结构图: {e2}")
+        
+        # 4. 记录模型复杂度分析
+        self._log_model_complexity(model, input_sample)
     
     def log_hyperparameters(self, hparams: Dict, metrics: Dict):
         """
@@ -475,6 +493,96 @@ class Visualizer:
             metrics: 最终指标字典
         """
         self.writer.add_hparams(hparams, metrics)
+    
+    def _log_model_statistics(self, model: nn.Module):
+        """记录模型参数统计信息"""
+        total_params = 0
+        trainable_params = 0
+        layer_params = {}
+        
+        # 统计每个模块的参数
+        for name, module in model.named_modules():
+            if len(list(module.children())) == 0:  # 叶子节点
+                params = sum(p.numel() for p in module.parameters())
+                if params > 0:
+                    layer_params[name] = params
+                    total_params += params
+                    if any(p.requires_grad for p in module.parameters()):
+                        trainable_params += params
+        
+        # 记录到TensorBoard
+        self.writer.add_text('Model/Statistics', 
+            f"Total Parameters: {total_params:,}\n"
+            f"Trainable Parameters: {trainable_params:,}\n"
+            f"Non-trainable Parameters: {total_params - trainable_params:,}\n"
+            f"Model Size: ~{total_params * 4 / 1024 / 1024:.2f} MB (FP32)", 0)
+        
+        # 记录前10个参数最多的层
+        top_layers = sorted(layer_params.items(), key=lambda x: x[1], reverse=True)[:10]
+        layer_info = "Top 10 Layers by Parameter Count:\n"
+        for name, params in top_layers:
+            layer_info += f"  {name}: {params:,} params\n"
+        self.writer.add_text('Model/Top_Layers', layer_info, 0)
+        
+        self.logger.info(f"模型总参数: {total_params:,}, 可训练: {trainable_params:,}")
+    
+    def _log_layer_details(self, model: nn.Module):
+        """记录模型各层详细信息"""
+        layer_info = []
+        
+        # 遍历所有层
+        for name, module in model.named_modules():
+            if len(list(module.children())) == 0:  # 叶子节点
+                module_type = module.__class__.__name__
+                
+                # 获取层的详细信息
+                if hasattr(module, 'weight'):
+                    if module.weight is not None:
+                        shape = tuple(module.weight.shape)
+                        layer_info.append(f"{name} ({module_type}): {shape}")
+                elif hasattr(module, 'in_channels') and hasattr(module, 'out_channels'):
+                    layer_info.append(f"{name} ({module_type}): in={module.in_channels}, out={module.out_channels}")
+                else:
+                    layer_info.append(f"{name} ({module_type})")
+        
+        # 分批记录（避免文本太长）
+        batch_size = 50
+        for i in range(0, len(layer_info), batch_size):
+            batch = layer_info[i:i+batch_size]
+            self.writer.add_text(f'Model/Layers_{i//batch_size}', '\n'.join(batch), 0)
+        
+        self.logger.info(f"记录了 {len(layer_info)} 个层的详细信息")
+    
+    def _log_model_complexity(self, model: nn.Module, input_sample: torch.Tensor):
+        """记录模型复杂度分析"""
+        try:
+            from torchinfo import summary
+            
+            # 使用torchinfo获取详细的模型信息
+            model_info = summary(
+                model, 
+                input_data=input_sample,
+                verbose=0,
+                col_names=["input_size", "output_size", "num_params", "mult_adds"],
+                row_settings=["depth", "var_names"]
+            )
+            
+            # 记录模型摘要
+            self.writer.add_text('Model/Summary', str(model_info), 0)
+            
+            # 记录FLOPs和MACs
+            if hasattr(model_info, 'total_mult_adds'):
+                flops = model_info.total_mult_adds * 2  # MACs to FLOPs
+                self.writer.add_text('Model/Complexity', 
+                    f"FLOPs: {flops:,}\n"
+                    f"MACs: {model_info.total_mult_adds:,}\n"
+                    f"GFLOPs: {flops / 1e9:.3f}", 0)
+                self.logger.info(f"模型FLOPs: {flops:,} ({flops/1e9:.3f} GFLOPs)")
+            
+        except ImportError:
+            self.logger.warning("torchinfo未安装，跳过详细复杂度分析。使用 'pip install torchinfo' 安装")
+        except Exception as e:
+            self.logger.warning(f"复杂度分析失败: {e}")
     
     def _should_log(self, tag: str) -> bool:
         """

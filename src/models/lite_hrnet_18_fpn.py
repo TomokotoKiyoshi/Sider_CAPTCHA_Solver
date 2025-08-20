@@ -281,6 +281,89 @@ class LiteHRNet18FPN(nn.Module):
             slider_heatmap, slider_offset
         )
         
+        # Y轴对齐：在±4像素范围内扫描热力图最大值
+        # 4像素 = 1个网格单位（因为下采样率是4）
+        batch_size = gap_heatmap.size(0)
+        height, width = gap_heatmap.size(1), gap_heatmap.size(2)
+        
+        for b in range(batch_size):
+            if gap_scores[b] > slider_scores[b]:
+                # 缺口置信度更高，用缺口Y作为参考，重新定位滑块
+                # 将缺口Y转换为网格坐标
+                ref_y_grid = torch.clamp(
+                    torch.round((gap_coords[b, 1] / 4.0) - 0.5).long(),
+                    min=0, max=height-1
+                )
+                
+                # 在±1网格范围内扫描（对应±4像素）
+                y_min = max(0, ref_y_grid - 1)
+                y_max = min(height - 1, ref_y_grid + 1)
+                
+                # 提取Y范围内的热力图区域
+                region = slider_heatmap[b, y_min:y_max+1, :]  # [3, 128] or less
+                
+                # 找到区域内的最大值位置
+                region_flat = region.view(-1)
+                max_val, max_idx = torch.max(region_flat, dim=0)
+                
+                # 转换为2D坐标
+                local_y = max_idx // width
+                local_x = max_idx % width
+                
+                # 转换为全局坐标
+                global_y = y_min + local_y
+                global_x = local_x
+                
+                # 获取偏移量
+                offset_x = slider_offset[b, 0, global_y, global_x]
+                offset_y = slider_offset[b, 1, global_y, global_x]
+                
+                # 计算新的滑块坐标
+                new_slider_x = (global_x.float() + 0.5 + offset_x) * 4.0
+                new_slider_y = (global_y.float() + 0.5 + offset_y) * 4.0
+                
+                # 更新滑块坐标
+                slider_coords[b, 0] = torch.clamp(new_slider_x, min=0, max=512)
+                slider_coords[b, 1] = torch.clamp(new_slider_y, min=0, max=256)
+                
+            else:
+                # 滑块置信度更高，用滑块Y作为参考，重新定位缺口
+                ref_y_grid = torch.clamp(
+                    torch.round((slider_coords[b, 1] / 4.0) - 0.5).long(),
+                    min=0, max=height-1
+                )
+                
+                # 在±1网格范围内扫描
+                y_min = max(0, ref_y_grid - 1)
+                y_max = min(height - 1, ref_y_grid + 1)
+                
+                # 提取Y范围内的热力图区域
+                region = gap_heatmap[b, y_min:y_max+1, :]
+                
+                # 找到区域内的最大值位置
+                region_flat = region.view(-1)
+                max_val, max_idx = torch.max(region_flat, dim=0)
+                
+                # 转换为2D坐标
+                local_y = max_idx // width
+                local_x = max_idx % width
+                
+                # 转换为全局坐标
+                global_y = y_min + local_y
+                global_x = local_x
+                
+                # 获取偏移量
+                offset_x = gap_offset[b, 0, global_y, global_x]
+                offset_y = gap_offset[b, 1, global_y, global_x]
+                
+                # 计算新的缺口坐标
+                new_gap_x = (global_x.float() + 0.5 + offset_x) * 4.0
+                new_gap_y = (global_y.float() + 0.5 + offset_y) * 4.0
+                
+                # 更新缺口坐标
+                gap_coords[b, 0] = torch.clamp(new_gap_x, min=0, max=512)
+                gap_coords[b, 1] = torch.clamp(new_gap_y, min=0, max=256)
+        
         return {
             'gap_coords': gap_coords,        # [B, 2]
             'slider_coords': slider_coords,   # [B, 2]
@@ -330,6 +413,7 @@ class LiteHRNet18FPN(nn.Module):
         coords = torch.stack([coords_x, coords_y], dim=1)  # [B, 2]
         
         return coords, scores
+    
     
     def _print_model_info(self):
         """打印模型信息"""
