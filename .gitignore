@@ -22,10 +22,13 @@ src/checkpoints.rar
 # Logs
 logs/
 
-# Model checkpoints - 只忽略大的checkpoint文件，保留best_model.pth
-src/checkpoints/**/*
+# Model checkpoints - 只忽略epoch和last文件，保留best_model和config
+src/checkpoints/**/epoch_*.pth
+src/checkpoints/**/last.pth
+# 明确不忽略best_model和config文件
 !src/checkpoints/**/best_model.pth
 !src/checkpoints/**/best_model_weights.pth
+!src/checkpoints/**/config_*.yaml
 
 # Byte-compiled / optimized / DLL files
 *.so
