@@ -1,0 +1,117 @@
+checkpoints:
+  save_best: true
+  save_dir: D:\Hacker\Sider_CAPTCHA_Solver\src\checkpoints\1.1.0
+  save_interval: 1
+  save_strategy:
+  - name: epoch_{epoch:03d}.pth
+  - name: best_model.pth
+data:
+  processed_dir: data/processed
+eval:
+  early_stopping:
+    min_epochs: 20
+    patience: 10
+    second_guard:
+      metric: mae_px
+      min_delta: 0.05
+      mode: min
+  eval_interval: 1
+  metrics:
+  - mae_px
+  - rmse_px
+  - hit_le_2px
+  - hit_le_5px
+  select_by: hit_le_5px
+  test_visualization:
+    enabled: false
+    max_samples: 1000
+    output_dir: test_output/results_visualization
+    save_format: jpg
+  vis_fail_k: 10
+  visualization:
+    num_best_samples: 3
+    num_heatmap_samples: 6
+    num_worst_samples: 3
+    save_heatmaps: true
+    save_predictions: true
+hardware:
+  allow_tf32: true
+  cudnn_allow_tf32: true
+  cudnn_benchmark: true
+  cudnn_deterministic: false
+  device: cuda
+  matmul_allow_tf32: true
+logging:
+  auto_launch_tensorboard: true
+  log_dir: D:\Hacker\Sider_CAPTCHA_Solver\logs\log-1.1.0
+  log_interval: 10
+  tb_items:
+  - loss/train
+  - loss/val
+  - metrics/mae_px
+  - metrics/rmse_px
+  - metrics/hit_le_2px
+  - metrics/hit_le_5px
+  - lr/current
+  - vis/overlay_gap
+  - vis/overlay_slider
+  - hist/grad_layer_*
+  - hist/weight_layer_*
+  - hist/angle_loss
+  - hist/slider_loss
+  - hist/gap_loss
+  tensorboard: true
+  tensorboard_dir: D:\Hacker\Sider_CAPTCHA_Solver\logs\tensorboard\1.1.0
+  tensorboard_port: 6006
+  time_tracking:
+    display_eta: true
+    enabled: true
+    log_to_tensorboard: true
+    show_progress_bar: true
+    time_format: hours
+    update_interval: 1
+model:
+  input_channels: 4
+  model_path: src.models.lite_hrnet_18_fpn
+  name: Lite-HRNet-18+LiteFPN
+monitoring:
+  profile:
+    active: 0
+    enabled: false
+    repeat: 1
+    wait: 0
+    warmup: 0
+  wandb:
+    enabled: false
+    entity: TomokotoKyoshi
+    project: slider-captcha
+    tags:
+    - lite-hrnet
+    - v1.1.0
+optimizer:
+  betas:
+  - 0.9
+  - 0.999
+  clip_grad_norm: 1.0
+  ema_decay: 0.999
+  eps: 1.0e-08
+  lr: 0.0003
+  name: AdamW
+  weight_decay: 0.05
+sched:
+  cosine_min_lr: 3.0e-06
+  epochs: 40
+  warmup_epochs: 1
+timestamp: '20250821_044429'
+train:
+  amp: true
+  batch_size: 128
+  channels_last: true
+  compile_mode: default
+  compile_model: false
+  gradient_accumulation_steps: 1
+  non_blocking: true
+  num_workers: 8
+  persistent_workers: true
+  pin_memory: true
+  prefetch_factor: 8
