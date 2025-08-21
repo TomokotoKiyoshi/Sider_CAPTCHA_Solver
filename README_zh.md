@@ -91,13 +91,13 @@
 
 #### 真实验证码数据集识别效果
 
-![真实数据集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.3/real_captchas/visualizations/sample_0000.png)
+![真实数据集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.1.0/site2/visualizations/Pic0002_Bgx182Bgy157_Sdx34Sdy157_5a4abbb4_result.png)
 
 *图示：在某网站真实验证码上的识别效果，红色圆圈标记缺口位置，蓝色圆圈标记滑块位置*
 
 #### 测试集识别效果
 
-![测试集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.0.3/test_dataset/visualizations/sample_0025.png)
+![测试集识别效果](https://github.com/TomokotoKiyoshi/Sider_CAPTCHA_Solver/blob/main/results/1.1.0/test/visualizations/Pic2002_Bgx210Bgy43_Sdx25Sdy43_4ed0c0fd_result.png)
 
 ## 🚀 快速开始
 
