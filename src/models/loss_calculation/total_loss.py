@@ -11,6 +11,7 @@ from .offset_loss import create_offset_loss
 from .hard_negative_loss import create_hard_negative_loss
 from .angle_loss import create_angle_loss
 from .padding_bce_loss import create_padding_bce_loss
+from .y_axis_loss import create_y_axis_loss
 
 
 class TotalLoss(nn.Module):
@@ -51,6 +52,11 @@ class TotalLoss(nn.Module):
         self.use_padding_bce = config.get('padding_bce_loss', {}).get('enabled', False)
         if self.use_padding_bce:
             self.padding_bce_loss = create_padding_bce_loss(config.get('padding_bce_loss', {}))
+        
+        # Y轴损失（可选）
+        self.use_y_axis = config.get('y_axis_loss', {}).get('enabled', False)
+        if self.use_y_axis:
+            self.y_axis_loss = create_y_axis_loss(config.get('y_axis_loss', {}))
         
         # 损失权重
         self.weights = config['total_loss']['weights']
@@ -182,7 +188,36 @@ class TotalLoss(nn.Module):
         
         loss_dict['padding_bce'] = loss_padding_bce
         
-        # ========== 6. 计算总损失 ==========
+        # ========== 6. Y轴损失（可选） ==========
+        if self.use_y_axis and 'gap_center' in targets and 'slider_center' in targets:
+            try:
+                # 提取y坐标（targets中的center是[B, 2]格式，第二维是y）
+                gap_y = targets['gap_center'][:, 1]  # [B]
+                slider_y = targets['slider_center'][:, 1]  # [B]
+                
+                # 计算Y轴损失
+                loss_y_axis, y_axis_dict = self.y_axis_loss(
+                    predictions['heatmap_gap'],
+                    predictions['heatmap_piece'],
+                    gap_y,
+                    slider_y
+                )
+                
+                # 更新损失字典
+                loss_dict.update(y_axis_dict)
+                
+                # 检查是否有效
+                if torch.isnan(loss_y_axis) or torch.isinf(loss_y_axis):
+                    loss_y_axis = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+            except Exception as e:
+                print(f"Y轴损失计算失败: {e}")
+                loss_y_axis = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+        else:
+            loss_y_axis = torch.tensor(0.0, device=predictions['heatmap_gap'].device, requires_grad=True)
+        
+        loss_dict['y_axis'] = loss_y_axis
+        
+        # ========== 7. 计算总损失 ==========
         valid_losses = []
         
         # 必须有的损失（focal和offset）
@@ -203,6 +238,10 @@ class TotalLoss(nn.Module):
         # Padding BCE损失
         if self.use_padding_bce and not torch.isnan(loss_padding_bce) and not torch.isinf(loss_padding_bce):
             valid_losses.append(self.weights.get('padding_bce', 0.5) * loss_padding_bce)
+        
+        # Y轴损失
+        if self.use_y_axis and not torch.isnan(loss_y_axis) and not torch.isinf(loss_y_axis):
+            valid_losses.append(self.weights.get('y_axis', 0.8) * loss_y_axis)
         
         # 计算总损失
         if len(valid_losses) > 0:

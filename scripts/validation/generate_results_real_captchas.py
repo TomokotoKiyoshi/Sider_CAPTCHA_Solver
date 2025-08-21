@@ -112,10 +112,14 @@ class RealCaptchaResultGenerator:
             "metrics": {}
         }
         
-        # 错误统计
+        # 错误统计 - 添加更多指标
         distance_errors = []
         gap_errors = []
         slider_errors = []
+        gap_x_errors = []
+        gap_y_errors = []
+        slider_x_errors = []
+        slider_y_errors = []
         processing_times = []
         
         # 处理每张图片
@@ -142,6 +146,12 @@ class RealCaptchaResultGenerator:
                     )
                     distance_error = abs(pred['sliding_distance'] - gt_info['sliding_distance'])
                     
+                    # 计算各坐标轴误差
+                    gap_x_error = abs(pred['gap_x'] - gt_info['gap_x'])
+                    gap_y_error = abs(pred['gap_y'] - gt_info['gap_y'])
+                    slider_x_error = abs(pred['slider_x'] - gt_info['slider_x'])
+                    slider_y_error = abs(pred['slider_y'] - gt_info['slider_y'])
+                    
                     # 记录结果
                     prediction = {
                         "image": img_path.name,
@@ -163,7 +173,11 @@ class RealCaptchaResultGenerator:
                         "errors": {
                             "gap_error": float(gap_error),
                             "slider_error": float(slider_error),
-                            "distance_error": float(distance_error)
+                            "distance_error": float(distance_error),
+                            "gap_x_error": float(gap_x_error),
+                            "gap_y_error": float(gap_y_error),
+                            "slider_x_error": float(slider_x_error),
+                            "slider_y_error": float(slider_y_error)
                         },
                         "processing_time_ms": pred['processing_time_ms']
                     }
@@ -172,6 +186,10 @@ class RealCaptchaResultGenerator:
                     distance_errors.append(distance_error)
                     gap_errors.append(gap_error)
                     slider_errors.append(slider_error)
+                    gap_x_errors.append(gap_x_error)
+                    gap_y_errors.append(gap_y_error)
+                    slider_x_errors.append(slider_x_error)
+                    slider_y_errors.append(slider_y_error)
                     processing_times.append(pred['processing_time_ms'])
                     
                     # 生成可视化
@@ -189,17 +207,40 @@ class RealCaptchaResultGenerator:
             distance_errors = np.array(distance_errors)
             gap_errors = np.array(gap_errors)
             slider_errors = np.array(slider_errors)
+            gap_x_errors = np.array(gap_x_errors)
+            gap_y_errors = np.array(gap_y_errors)
+            slider_x_errors = np.array(slider_x_errors)
+            slider_y_errors = np.array(slider_y_errors)
+            
+            # 判断两者都在阈值内的精度
+            both_within_5px = np.mean((gap_errors <= 5) & (slider_errors <= 5)) * 100
+            both_within_7px = np.mean((gap_errors <= 7) & (slider_errors <= 7)) * 100
             
             results["metrics"] = {
+                # 距离相关指标
                 "distance_mae": float(np.mean(distance_errors)),
-                "gap_mae": float(np.mean(gap_errors)),
+                "distance_within_5px": float(np.mean(distance_errors <= 5) * 100),
+                "distance_within_7px": float(np.mean(distance_errors <= 7) * 100),
+                
+                # 滑块和缺口都在阈值内
+                "both_within_5px": float(both_within_5px),
+                "both_within_7px": float(both_within_7px),
+                
+                # 滑块指标
                 "slider_mae": float(np.mean(slider_errors)),
+                "slider_within_5px": float(np.mean(slider_errors <= 5) * 100),
+                "slider_within_7px": float(np.mean(slider_errors <= 7) * 100),
+                
+                # 缺口指标
+                "gap_mae": float(np.mean(gap_errors)),
+                "gap_within_5px": float(np.mean(gap_errors <= 5) * 100),
+                "gap_within_7px": float(np.mean(gap_errors <= 7) * 100),
+                
+                # 其他原有指标
                 "median_distance_error": float(np.median(distance_errors)),
                 "max_distance_error": float(np.max(distance_errors)),
                 "hit_le_2px": float(np.mean(distance_errors <= 2) * 100),
                 "hit_le_3px": float(np.mean(distance_errors <= 3) * 100),
-                "hit_le_5px": float(np.mean(distance_errors <= 5) * 100),
-                "hit_le_7px": float(np.mean(distance_errors <= 7) * 100),
                 "hit_le_10px": float(np.mean(distance_errors <= 10) * 100),
                 "avg_processing_time_ms": float(np.mean(processing_times)),
                 "success_rate": float(len(results["predictions"]) / len(image_files) * 100)
@@ -215,10 +256,22 @@ class RealCaptchaResultGenerator:
         
         # 打印结果
         print(f"\n✅ {site_name} Results:")
-        print(f"   - MAE: {results['metrics'].get('distance_mae', 0):.2f} px")
-        print(f"   - 5px Accuracy: {results['metrics'].get('hit_le_5px', 0):.1f}%")
-        print(f"   - 7px Accuracy: {results['metrics'].get('hit_le_7px', 0):.1f}%")
-        print(f"   - Results saved to: {output_dir}")
+        print(f"   📊 Core Metrics:")
+        print(f"      - Both within 5px: {results['metrics'].get('both_within_5px', 0):.1f}%")
+        print(f"      - Both within 7px: {results['metrics'].get('both_within_7px', 0):.1f}%")
+        print(f"   📏 Distance Metrics:")
+        print(f"      - Distance MAE: {results['metrics'].get('distance_mae', 0):.2f}px")
+        print(f"      - Distance within 5px: {results['metrics'].get('distance_within_5px', 0):.1f}%")
+        print(f"      - Distance within 7px: {results['metrics'].get('distance_within_7px', 0):.1f}%")
+        print(f"   🎯 Slider Metrics:")
+        print(f"      - Slider MAE: {results['metrics'].get('slider_mae', 0):.2f}px")
+        print(f"      - Slider within 5px: {results['metrics'].get('slider_within_5px', 0):.1f}%")
+        print(f"      - Slider within 7px: {results['metrics'].get('slider_within_7px', 0):.1f}%")
+        print(f"   🔍 Gap Metrics:")
+        print(f"      - Gap MAE: {results['metrics'].get('gap_mae', 0):.2f}px")
+        print(f"      - Gap within 5px: {results['metrics'].get('gap_within_5px', 0):.1f}%")
+        print(f"      - Gap within 7px: {results['metrics'].get('gap_within_7px', 0):.1f}%")
+        print(f"   💾 Results saved to: {output_dir}")
         
         return results
     
@@ -350,20 +403,211 @@ class RealCaptchaResultGenerator:
         plt.tight_layout()
         plt.savefig(output_path, dpi=120, bbox_inches='tight')
         plt.close()
+    
+    def generate_comparison_charts(self, all_results: Dict, output_dir: Path):
+        """生成多站点对比图表"""
+        print("\n📊 Generating comparison charts...")
+        
+        # 准备数据
+        sites = list(all_results.keys())
+        metrics_data = {}
+        
+        # 要对比的指标
+        comparison_metrics = [
+            ('both_within_5px', 'Both within 5px'),
+            ('both_within_7px', 'Both within 7px'),
+            ('distance_within_5px', 'Distance within 5px'),
+            ('distance_within_7px', 'Distance within 7px'),
+            ('slider_within_5px', 'Slider within 5px'),
+            ('slider_within_7px', 'Slider within 7px'),
+            ('gap_within_5px', 'Gap within 5px'),
+            ('gap_within_7px', 'Gap within 7px')
+        ]
+        
+        mae_metrics = [
+            ('distance_mae', 'Distance MAE'),
+            ('slider_mae', 'Slider MAE'),
+            ('gap_mae', 'Gap MAE')
+        ]
+        
+        # 收集数据
+        for metric_key, _ in comparison_metrics + mae_metrics:
+            metrics_data[metric_key] = []
+            for site in sites:
+                value = all_results[site]['metrics'].get(metric_key, 0)
+                metrics_data[metric_key].append(value)
+        
+        # 创建对比图
+        fig = plt.figure(figsize=(18, 10))
+        
+        # 1. 精度对比柱状图
+        ax1 = plt.subplot(2, 3, 1)
+        x = np.arange(len(sites))
+        width = 0.35
+        
+        # 5px精度对比
+        vals_5px = metrics_data['both_within_5px']
+        vals_7px = metrics_data['both_within_7px']
+        
+        bars1 = ax1.bar(x - width/2, vals_5px, width, label='Within 5px', color='#45B7D1')
+        bars2 = ax1.bar(x + width/2, vals_7px, width, label='Within 7px', color='#96CEB4')
+        
+        # 添加数值标签
+        for bar in bars1:
+            height = bar.get_height()
+            ax1.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+        for bar in bars2:
+            height = bar.get_height()
+            ax1.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+        
+        ax1.set_xlabel('Site')
+        ax1.set_ylabel('Accuracy (%)')
+        ax1.set_title('Accuracy Comparison for Both Within Threshold')
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(sites)
+        ax1.legend()
+        ax1.grid(True, alpha=0.3, axis='y')
+        
+        # 2. 距离精度对比
+        ax2 = plt.subplot(2, 3, 2)
+        bars1 = ax2.bar(x - width/2, metrics_data['distance_within_5px'], width, 
+                       label='Within 5px', color='#FF6B6B')
+        bars2 = ax2.bar(x + width/2, metrics_data['distance_within_7px'], width,
+                       label='Within 7px', color='#FFA500')
+        
+        for bar in bars1 + bars2:
+            height = bar.get_height()
+            ax2.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+        
+        ax2.set_xlabel('Site')
+        ax2.set_ylabel('Accuracy (%)')
+        ax2.set_title('Sliding Distance Accuracy Comparison')
+        ax2.set_xticks(x)
+        ax2.set_xticklabels(sites)
+        ax2.legend()
+        ax2.grid(True, alpha=0.3, axis='y')
+        
+        # 3. MAE对比
+        ax3 = plt.subplot(2, 3, 3)
+        x2 = np.arange(len(mae_metrics))
+        colors = ['#FF6B6B', '#4ECDC4', '#45B7D1']
+        
+        for i, site in enumerate(sites):
+            values = [metrics_data[m[0]][i] for m in mae_metrics]
+            offset = (i - len(sites)/2 + 0.5) * width
+            bars = ax3.bar(x2 + offset, values, width, label=site, alpha=0.8)
+            
+            for bar, val in zip(bars, values):
+                ax3.text(bar.get_x() + bar.get_width()/2., bar.get_height(),
+                        f'{val:.1f}', ha='center', va='bottom', fontsize=9)
+        
+        ax3.set_xlabel('Metric')
+        ax3.set_ylabel('MAE (pixels)')
+        ax3.set_title('MAE Comparison')
+        ax3.set_xticks(x2)
+        ax3.set_xticklabels([m[1] for m in mae_metrics])
+        ax3.legend()
+        ax3.grid(True, alpha=0.3, axis='y')
+        
+        # 4. 滑块精度对比
+        ax4 = plt.subplot(2, 3, 4)
+        bars1 = ax4.bar(x - width/2, metrics_data['slider_within_5px'], width,
+                       label='Within 5px', color='#4ECDC4')
+        bars2 = ax4.bar(x + width/2, metrics_data['slider_within_7px'], width,
+                       label='Within 7px', color='#96CEB4')
+        
+        for bar in bars1 + bars2:
+            height = bar.get_height()
+            ax4.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+        
+        ax4.set_xlabel('Site')
+        ax4.set_ylabel('Accuracy (%)')
+        ax4.set_title('Slider Coordinate Accuracy Comparison')
+        ax4.set_xticks(x)
+        ax4.set_xticklabels(sites)
+        ax4.legend()
+        ax4.grid(True, alpha=0.3, axis='y')
+        
+        # 5. 缺口精度对比
+        ax5 = plt.subplot(2, 3, 5)
+        bars1 = ax5.bar(x - width/2, metrics_data['gap_within_5px'], width,
+                       label='Within 5px', color='#45B7D1')
+        bars2 = ax5.bar(x + width/2, metrics_data['gap_within_7px'], width,
+                       label='Within 7px', color='#FFA500')
+        
+        for bar in bars1 + bars2:
+            height = bar.get_height()
+            ax5.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{height:.1f}%', ha='center', va='bottom', fontsize=9)
+        
+        ax5.set_xlabel('Site')
+        ax5.set_ylabel('Accuracy (%)')
+        ax5.set_title('Gap Coordinate Accuracy Comparison')
+        ax5.set_xticks(x)
+        ax5.set_xticklabels(sites)
+        ax5.legend()
+        ax5.grid(True, alpha=0.3, axis='y')
+        
+        # 6. 综合指标雷达图
+        ax6 = plt.subplot(2, 3, 6, projection='polar')
+        
+        # 准备雷达图数据
+        categories = ['Both 5px', 'Both 7px', 'Dist 5px', 'Dist 7px', 'Slider 5px', 'Gap 5px']
+        angles = np.linspace(0, 2 * np.pi, len(categories), endpoint=False).tolist()
+        angles += angles[:1]
+        
+        for i, site in enumerate(sites):
+            values = [
+                metrics_data['both_within_5px'][i],
+                metrics_data['both_within_7px'][i],
+                metrics_data['distance_within_5px'][i],
+                metrics_data['distance_within_7px'][i],
+                metrics_data['slider_within_5px'][i],
+                metrics_data['gap_within_5px'][i]
+            ]
+            values += values[:1]
+            
+            ax6.plot(angles, values, 'o-', linewidth=2, label=site, alpha=0.7)
+            ax6.fill(angles, values, alpha=0.25)
+        
+        ax6.set_xticks(angles[:-1])
+        ax6.set_xticklabels(categories, size=8)
+        ax6.set_ylim(0, 100)
+        ax6.set_title('Comprehensive Performance Radar Chart', y=1.08)
+        ax6.legend(loc='upper right', bbox_to_anchor=(1.2, 1.1))
+        ax6.grid(True)
+        
+        plt.suptitle('Multi-Site Performance Comparison Analysis', fontsize=16, fontweight='bold')
+        plt.tight_layout()
+        
+        # 保存图表
+        comparison_path = output_dir / "comparison_charts.png"
+        plt.savefig(comparison_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        
+        print(f"   ✅ Comparison charts saved to: {comparison_path}")
 
 
 def main():
     """主函数"""
     import argparse
     
-    parser = argparse.ArgumentParser(description='评估真实验证码数据集')
-    parser.add_argument('--site', type=str, choices=['site1', 'site2', 'both'], 
-                       default='both', help='选择要评估的站点')
+    parser = argparse.ArgumentParser(description='Evaluate Real CAPTCHA Dataset')
     parser.add_argument('--model', type=str, 
                        default='src/checkpoints/1.1.0/best_model.pth',
-                       help='模型路径')
+                       help='Model path')
     parser.add_argument('--max-images', type=int, default=None,
-                       help='每个站点最大处理图片数')
+                       help='Maximum images per site')
+    parser.add_argument('--auto', action='store_true',
+                       help='Automatically analyze all folders without prompting')
+    parser.add_argument('--skip', nargs='+', default=[],
+                       help='List of folder names to skip (e.g., --skip site1 test)')
+    parser.add_argument('--only', nargs='+', default=[],
+                       help='Only analyze specified folders (e.g., --only site1 site2)')
     
     args = parser.parse_args()
     
@@ -373,17 +617,113 @@ def main():
     # 创建生成器
     generator = RealCaptchaResultGenerator(model_path=args.model)
     
-    # 评估site1
-    if args.site in ['site1', 'both']:
-        site1_data = Path("data/real_captchas/annotated/site1")
-        site1_output = Path("results/1.1.0/real_captchas/site1")
-        generator.evaluate_site('site1', site1_data, site1_output, args.max_images)
+    # 获取所有annotated子文件夹
+    annotated_dir = Path("data/real_captchas/annotated")
+    all_results = {}
     
-    # 评估site2
-    if args.site in ['site2', 'both']:
-        site2_data = Path("data/real_captchas/annotated/site2")
-        site2_output = Path("results/1.1.0/real_captchas/site2")
-        generator.evaluate_site('site2', site2_data, site2_output, args.max_images)
+    if annotated_dir.exists():
+        # Get all subdirectories
+        all_site_dirs = [d for d in sorted(annotated_dir.iterdir()) if d.is_dir()]
+        
+        # Apply command-line filters
+        if args.only:
+            # Filter to only specified folders
+            all_site_dirs = [d for d in all_site_dirs if d.name in args.only]
+            if not all_site_dirs:
+                print(f"\n⚠️ No folders found matching: {', '.join(args.only)}")
+                return
+        
+        if args.skip:
+            # Remove skipped folders
+            all_site_dirs = [d for d in all_site_dirs if d.name not in args.skip]
+        
+        # Show available folders
+        print("\n" + "="*60)
+        print("Available folders for analysis:")
+        print("="*60)
+        for i, site_dir in enumerate(all_site_dirs, 1):
+            # Count images in folder
+            img_count = len(list(site_dir.glob("*.png"))) + len(list(site_dir.glob("*.jpg")))
+            skip_note = " [SKIPPED]" if site_dir.name in args.skip else ""
+            print(f"{i}. {site_dir.name} ({img_count} images){skip_note}")
+        print("="*60)
+        
+        selected_dirs = []
+        
+        # Check if auto mode or command-line selection
+        if args.auto or args.only:
+            # Auto-select folders based on arguments
+            selected_dirs = all_site_dirs
+            if args.auto:
+                print("\n✓ Auto mode: analyzing all folders")
+            else:
+                print(f"\n✓ Analyzing specified folders: {', '.join(args.only)}")
+            
+            for site_dir in selected_dirs:
+                img_count = len(list(site_dir.glob("*.png"))) + len(list(site_dir.glob("*.jpg")))
+                print(f"  • {site_dir.name} ({img_count} images)")
+        else:
+            # Interactive selection
+            print("\nFolder selection options:")
+            print("  A - Analyze all folders")
+            print("  S - Select folders individually")
+            print("  Q - Quit")
+            
+            batch_choice = input("\nYour choice [A/s/q]: ").strip().lower()
+            
+            if batch_choice in ['', 'a', 'all']:
+                # Select all folders
+                selected_dirs = all_site_dirs
+                print("\n✓ Selected all folders for analysis")
+                for site_dir in selected_dirs:
+                    img_count = len(list(site_dir.glob("*.png"))) + len(list(site_dir.glob("*.jpg")))
+                    print(f"  • {site_dir.name} ({img_count} images)")
+            elif batch_choice in ['q', 'quit']:
+                print("\nExiting...")
+                selected_dirs = []
+            else:
+                # Ask user which folders to analyze individually
+                print("\nSelecting folders individually...")
+                for site_dir in all_site_dirs:
+                    img_count = len(list(site_dir.glob("*.png"))) + len(list(site_dir.glob("*.jpg")))
+                    
+                    while True:
+                        response = input(f"\nAnalyze folder '{site_dir.name}' ({img_count} images)? [Y/n/q]: ").strip().lower()
+                        
+                        if response in ['', 'y', 'yes']:
+                            selected_dirs.append(site_dir)
+                            print(f"  ✓ Will analyze: {site_dir.name}")
+                            break
+                        elif response in ['n', 'no']:
+                            print(f"  ✗ Skipping: {site_dir.name}")
+                            break
+                        elif response in ['q', 'quit']:
+                            print("\nStopping folder selection.")
+                            break
+                        else:
+                            print("  Please enter Y (yes), N (no), or Q (quit)")
+                    
+                    if response in ['q', 'quit']:
+                        break
+        
+        # Process selected folders
+        if selected_dirs:
+            print("\n" + "="*60)
+            print(f"Processing {len(selected_dirs)} selected folder(s)...")
+            print("="*60)
+            
+            for site_dir in selected_dirs:
+                site_name = site_dir.name
+                output_dir = Path("results/1.1.0") / site_name
+                result = generator.evaluate_site(site_name, site_dir, output_dir, args.max_images)
+                if result:
+                    all_results[site_name] = result
+        else:
+            print("\nNo folders selected for analysis.")
+    
+    # 生成对比图表
+    if len(all_results) > 1:
+        generator.generate_comparison_charts(all_results, Path("results/1.1.0"))
     
     print("\n✅ Evaluation completed!")
 

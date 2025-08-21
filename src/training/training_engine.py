@@ -227,6 +227,9 @@ class TrainingEngine:
             'hard_negative_loss': 0.0,
             'angle_loss': 0.0,
             'padding_bce_loss': 0.0,
+            'y_axis_loss': 0.0,
+            'y_axis_row_ce': 0.0,
+            'y_axis_emd': 0.0,
             'gap_mae': 0.0,
             'slider_mae': 0.0,
             'lr': self.optimizer.param_groups[0]['lr']
@@ -282,6 +285,7 @@ class TrainingEngine:
                 avg_hard_neg = (metrics['hard_negative_loss'] / batch_count).item() if torch.is_tensor(metrics['hard_negative_loss']) else metrics['hard_negative_loss'] / batch_count
                 avg_angle = (metrics['angle_loss'] / batch_count).item() if torch.is_tensor(metrics['angle_loss']) else metrics['angle_loss'] / batch_count
                 avg_padding_bce = (metrics['padding_bce_loss'] / batch_count).item() if torch.is_tensor(metrics['padding_bce_loss']) else metrics['padding_bce_loss'] / batch_count
+                avg_y_axis = (metrics['y_axis_loss'] / batch_count).item() if torch.is_tensor(metrics['y_axis_loss']) else metrics['y_axis_loss'] / batch_count
                 
                 # 计算时间估计
                 avg_batch_time = sum(batch_times) / len(batch_times)
@@ -309,6 +313,7 @@ class TrainingEngine:
                     f"HardNeg: {avg_hard_neg:.4f}, "
                     f"Angle: {avg_angle:.4f}, "
                     f"PadBCE: {avg_padding_bce:.4f}, "
+                    f"YAxis: {avg_y_axis:.4f}, "
                     f"LR: {metrics['lr']:.6f} | "
                     f"ETA: {eta_str} | "
                     f"Speed: {samples_per_second:.0f} samples/s"
@@ -405,6 +410,9 @@ class TrainingEngine:
             'hard_negative_loss': loss_dict.get('hard_negative_loss', torch.tensor(0.0, device=self.device)),
             'angle_loss': loss_dict.get('angle_loss', torch.tensor(0.0, device=self.device)),
             'padding_bce_loss': loss_dict.get('padding_bce', torch.tensor(0.0, device=self.device)),
+            'y_axis_loss': loss_dict.get('y_axis', torch.tensor(0.0, device=self.device)),
+            'y_axis_row_ce': loss_dict.get('y_axis_row_ce', torch.tensor(0.0, device=self.device)),
+            'y_axis_emd': loss_dict.get('y_axis_emd', torch.tensor(0.0, device=self.device)),
             'gap_mae': gap_error,
             'slider_mae': slider_error
         }
@@ -475,6 +483,16 @@ class TrainingEngine:
             # 如果没有提供坐标，从热力图中提取峰值位置
             gap_centers = self._extract_peak_coords(targets['heatmap_gap'])
             loss_targets['gap_center'] = gap_centers
+        
+        # 添加滑块中心（用于Y轴损失）
+        if 'slider_coords' in targets:
+            # slider_coords是原图坐标，需要转换到特征图坐标
+            slider_centers = targets['slider_coords'] / 4.0  # [B, 2]
+            loss_targets['slider_center'] = slider_centers
+        else:
+            # 如果没有提供坐标，从热力图中提取峰值位置
+            slider_centers = self._extract_peak_coords(targets['heatmap_slider'])
+            loss_targets['slider_center'] = slider_centers
         
         # 提取混淆缺口坐标（必须存在）
         if 'confusing_gaps' not in targets:
@@ -555,7 +573,10 @@ class TrainingEngine:
             'offset_loss': loss_dict.get('offset', torch.tensor(0.0, device=self.device)),
             'hard_negative_loss': loss_dict.get('hard_negative', torch.tensor(0.0, device=self.device)),
             'angle_loss': loss_dict.get('angle', torch.tensor(0.0, device=self.device)),
-            'padding_bce': loss_dict.get('padding_bce', torch.tensor(0.0, device=self.device))
+            'padding_bce': loss_dict.get('padding_bce', torch.tensor(0.0, device=self.device)),
+            'y_axis': loss_dict.get('y_axis', torch.tensor(0.0, device=self.device)),
+            'y_axis_row_ce': loss_dict.get('y_axis_row_ce', torch.tensor(0.0, device=self.device)),
+            'y_axis_emd': loss_dict.get('y_axis_emd', torch.tensor(0.0, device=self.device))
         }
         
         return total_loss, result_dict

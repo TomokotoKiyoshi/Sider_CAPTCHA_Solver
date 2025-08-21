@@ -28,6 +28,15 @@ padding_bce_loss:
   eps: 1.0e-8             # Numerical stability constant
   max_loss_per_pixel: 10.0 # Maximum loss per pixel to prevent gradient explosion
 
+# Y-Axis Loss Configuration (Different y-axis enforcement)
+y_axis_loss:
+  enabled: true            # Enable y-axis loss
+  tau: 1.0                # Softmax temperature parameter
+  eps: 1.0e-8             # Numerical stability constant
+  log_stretch: true       # Apply log stretching to row energies
+  row_ce_weight: 1.0      # Weight for row classification loss
+  emd_weight: 0.3         # Weight for EMD loss (0.2~0.5 recommended)
+
 # Total Loss Configuration
 total_loss:
   # Loss weights (λ in the formula)
@@ -37,6 +46,7 @@ total_loss:
     hard_negative: 1.5   # Weight for hard negative loss (提高到1.5以强化假缺口抑制)
     angle: 0.5           # Weight for angle loss
     padding_bce: 0.3     # Weight for padding BCE loss
+    y_axis: 0.8          # Weight for y-axis loss (确保不同y轴)
   
   # Feature flags
   use_angle: true            # Enable angle loss (for rotated gaps) - 必须启用以处理旋转混淆

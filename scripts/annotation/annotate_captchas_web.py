@@ -11,19 +11,19 @@ import hashlib
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file
 import base64
+import sys
 
 app = Flask(__name__)
 
-# Configuration
-INPUT_DIR = Path("data/real_captchas/merged/site2")
-OUTPUT_DIR = Path("data/real_captchas/annotated/site2")
+# Configuration - will be set after user selection
+INPUT_DIR = None
+OUTPUT_DIR = None
 MAX_IMAGES = 200
 
 # Global state
 current_index = 0
 images_list = []
 annotations = []
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_images():
     """Load list of images to annotate"""
@@ -381,11 +381,96 @@ def download_annotations():
     """Download annotations JSON file"""
     return send_file(OUTPUT_DIR / 'annotations.json', as_attachment=True)
 
+def select_folder():
+    """Let user select input and output folders"""
+    global INPUT_DIR, OUTPUT_DIR
+    
+    print("\n" + "="*60)
+    print("CAPTCHA Annotation Tool - Folder Selection")
+    print("="*60)
+    
+    # Select input folder
+    print("\n选择输入文件夹 (merged目录下):")
+    merged_dir = Path("data/real_captchas/merged")
+    
+    if not merged_dir.exists():
+        print(f"错误: {merged_dir} 不存在")
+        return False
+    
+    # List available folders
+    folders = [d for d in merged_dir.iterdir() if d.is_dir()]
+    if not folders:
+        print("错误: merged目录下没有文件夹")
+        return False
+    
+    print("可用的文件夹:")
+    for i, folder in enumerate(sorted(folders), 1):
+        img_count = len(list(folder.glob("*.png")))
+        print(f"  {i}. {folder.name} ({img_count} 张图片)")
+    
+    # Get user choice
+    while True:
+        try:
+            choice = input(f"\n请选择输入文件夹 (1-{len(folders)}): ").strip()
+            idx = int(choice) - 1
+            if 0 <= idx < len(folders):
+                INPUT_DIR = sorted(folders)[idx]
+                break
+            else:
+                print("无效的选择")
+        except ValueError:
+            print("请输入数字")
+    
+    # Set output folder
+    folder_name = INPUT_DIR.name
+    OUTPUT_DIR = Path("data/real_captchas/annotated") / folder_name
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Check for existing annotations
+    existing_json = OUTPUT_DIR / "annotations.json"
+    if existing_json.exists():
+        print(f"\n⚠️  发现已存在的标注文件: {existing_json}")
+        overwrite = input("是否覆盖? (y/n): ").strip().lower()
+        if overwrite != 'y':
+            print("选择另一个文件夹或退出")
+            return False
+    
+    print(f"\n✅ 输入文件夹: {INPUT_DIR}")
+    print(f"✅ 输出文件夹: {OUTPUT_DIR}")
+    
+    # Load existing annotations if any
+    global annotations
+    if existing_json.exists():
+        try:
+            with open(existing_json, 'r') as f:
+                annotations = json.load(f)
+                print(f"   已加载 {len(annotations)} 个现有标注")
+        except:
+            annotations = []
+    
+    return True
+
 if __name__ == '__main__':
-    print(f"Loading images from: {INPUT_DIR}")
+    # Select folders first
+    if not select_folder():
+        print("文件夹选择失败，退出程序")
+        sys.exit(1)
+    
+    print(f"\nLoading images from: {INPUT_DIR}")
     num_images = load_images()
     print(f"Found {num_images} images to annotate")
     print(f"Output directory: {OUTPUT_DIR}")
+    
+    # Ask for max images
+    try:
+        max_input = input(f"\n要标注多少张图片? (默认: {MAX_IMAGES}, 最大: {num_images}): ").strip()
+        if max_input:
+            MAX_IMAGES = min(int(max_input), num_images)
+            images_list = images_list[:MAX_IMAGES]
+            print(f"将标注 {len(images_list)} 张图片")
+    except ValueError:
+        print(f"使用默认值: {MAX_IMAGES}")
+    
     print("\nStarting web server...")
     print("Open your browser to: http://localhost:5000")
     print("Press Ctrl+C to stop the server\n")

@@ -17,6 +17,14 @@ matplotlib.use('Agg')  # 非GUI环境
 import io
 from PIL import Image
 
+# 尝试导入torchinfo，如果失败则设置为None
+try:
+    from torchinfo import summary  # type: ignore
+    TORCHINFO_AVAILABLE = True
+except ImportError:
+    summary = None
+    TORCHINFO_AVAILABLE = False
+
 
 class Visualizer:
     """
@@ -108,6 +116,9 @@ class Visualizer:
         self.writer.add_scalar('loss/hard_negative', metrics.get('hard_negative_loss', 0.0), epoch)
         self.writer.add_scalar('loss/angle', metrics.get('angle_loss', 0.0), epoch)
         self.writer.add_scalar('loss/padding_bce', metrics.get('padding_bce_loss', 0.0), epoch)
+        self.writer.add_scalar('loss/y_axis', metrics.get('y_axis_loss', 0.0), epoch)
+        self.writer.add_scalar('loss/y_axis_row_ce', metrics.get('y_axis_row_ce', 0.0), epoch)
+        self.writer.add_scalar('loss/y_axis_emd', metrics.get('y_axis_emd', 0.0), epoch)
         
         # MAE
         self.writer.add_scalar('train/gap_mae', metrics['gap_mae'], epoch)
@@ -555,9 +566,11 @@ class Visualizer:
     
     def _log_model_complexity(self, model: nn.Module, input_sample: torch.Tensor):
         """记录模型复杂度分析"""
+        if not TORCHINFO_AVAILABLE:
+            self.logger.warning("torchinfo未安装，跳过详细复杂度分析。使用 'pip install torchinfo' 安装")
+            return
+        
         try:
-            from torchinfo import summary
-            
             # 使用torchinfo获取详细的模型信息
             model_info = summary(
                 model, 
@@ -579,8 +592,6 @@ class Visualizer:
                     f"GFLOPs: {flops / 1e9:.3f}", 0)
                 self.logger.info(f"模型FLOPs: {flops:,} ({flops/1e9:.3f} GFLOPs)")
             
-        except ImportError:
-            self.logger.warning("torchinfo未安装，跳过详细复杂度分析。使用 'pip install torchinfo' 安装")
         except Exception as e:
             self.logger.warning(f"复杂度分析失败: {e}")
     
