@@ -71,6 +71,34 @@ class DatasetConfig:
         self.SPECIAL_SHAPES = special_shapes
         self.NORMAL_SHAPES_COUNT = normal_count
         
+        # Polygon配置
+        polygon_config = self.loader.get('captcha_config.dataset.shapes.polygon_config')
+        if polygon_config is None:
+            raise ValueError("Must configure dataset.shapes.polygon_config in captcha_config.yaml")
+        
+        # 顶点数范围
+        vertices = polygon_config.get('vertices')
+        if vertices is None:
+            raise ValueError("Must configure dataset.shapes.polygon_config.vertices in captcha_config.yaml")
+        self.POLYGON_MIN_VERTICES = vertices.get('min')
+        self.POLYGON_MAX_VERTICES = vertices.get('max')
+        if self.POLYGON_MIN_VERTICES is None or self.POLYGON_MAX_VERTICES is None:
+            raise ValueError("Must configure min and max in polygon_config.vertices")
+        
+        # 角度扰动参数
+        self.POLYGON_ANGLE_PERTURBATION_DIVISOR = polygon_config.get('angle_perturbation_divisor')
+        if self.POLYGON_ANGLE_PERTURBATION_DIVISOR is None:
+            raise ValueError("Must configure angle_perturbation_divisor in polygon_config")
+        
+        # 半径变化范围
+        radius_variation = polygon_config.get('radius_variation')
+        if radius_variation is None:
+            raise ValueError("Must configure radius_variation in polygon_config")
+        self.POLYGON_RADIUS_MIN = radius_variation.get('min')
+        self.POLYGON_RADIUS_MAX = radius_variation.get('max')
+        if self.POLYGON_RADIUS_MIN is None or self.POLYGON_RADIUS_MAX is None:
+            raise ValueError("Must configure min and max in radius_variation")
+        
         # Puzzle尺寸配置
         all_sizes = self.loader.get('captcha_config.dataset.puzzle_sizes.all_sizes')
         sizes_per_image = self.loader.get('captcha_config.dataset.puzzle_sizes.sizes_per_image')

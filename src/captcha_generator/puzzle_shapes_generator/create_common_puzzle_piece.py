@@ -92,4 +92,3 @@ def create_common_puzzle_piece(piece_size: int, knob_radius_ratio: float,
     rgba[:, :, 3] = canvas  # alpha通道
 
     return rgba     # 返回RGBA格式图像: 拼图部分(255,255,255,255), 背景部分(0,0,0,0)
-

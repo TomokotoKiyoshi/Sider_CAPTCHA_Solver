@@ -1,5 +1,5 @@
-# Complete CAPTCHA Configuration
-# 完整的验证码系统配置文件
+# Test CAPTCHA Configuration
+# 测试版验证码系统配置文件
 
 # ============================================================
 # Dataset Generation Configuration
@@ -9,7 +9,7 @@ dataset:
   # Input/Output paths
   paths:
     input_dir: 'data/raw'
-    output_dir: 'data'
+    output_dir: 'data/real_captchas/annotated/test_01'  # 修改为测试输出目录
   
   # Parallel processing
   processing:
@@ -20,35 +20,37 @@ dataset:
   # Dataset scale
   scale:
     min_backgrounds: 2000
-    captchas_per_image: 100  # Number of CAPTCHAs to generate per background image
+    max_backgrounds: 20  # 限制使用的背景图片数量
+    captchas_per_image: 10  # Number of CAPTCHAs to generate per background image
   
   # Confusion strategy distribution
   confusion_counts:
-    none: 35
+    none: 0
     rotation: 0
     perlin_noise: 5
-    highlight: 10
-    confusing_gap: 25
-    hollow_center: 5  
-    gap_edge_highlight: 10  # 缺口边缘高光混淆，每张图生成10张
-    combined: 10  # 组合混淆，每张图生成10张
+    highlight: 0
+    confusing_gap: 0
+    hollow_center: 0  
+    gap_edge_highlight: 5  # 缺口边缘高光混淆，每张图生成10张
+    combined: 0  # 组合混淆，每张图生成10张
   
   # Shape configuration
   shapes:
     special: ['circle', 'rectangle', 'rounded_rect', 'triangle', 'polygon']
+    # special: []  # 可以设为空数组来禁用特殊形状
     normal_count: 6
     # Polygon configuration (for random polygon generation)
     polygon_config:
       # Vertex count range
       vertices:
         min: 5
-        max: 9
+        max: 12
       # Angle perturbation (fraction of angle step, e.g., 10 means 1/10)
-      angle_perturbation_divisor: 20  #10-20：轻微不规则，保持基本形态 ; 5-10：中等不规则，有明显变化
+      angle_perturbation_divisor: 10  # smaller = more regular, larger = more irregular
       # Radius variation range [min, max] as fraction of base radius
       radius_variation:
-        min: 0.95  # 95% of base radius
-        max: 0.95  # 95% of base radius
+        min: 0.8  # 80% of base radius
+        max: 1.0  # 100% of base radius
   
   # Puzzle sizes
   puzzle_sizes:
@@ -70,8 +72,8 @@ dataset:
   
   # Save options
   save:
-    full_image: false
-    components: false
+    full_image: true   # 改为true，直接保存完整图片
+    components: false  # 不保存组件
     component_format: 'png'
     masks: false
   
@@ -112,9 +114,9 @@ confusion_strategies:
   # Perlin Noise
   perlin_noise:
     noise_strength:
-      min: 0.2
-      max: 0.5
-    noise_scale: 0.1
+      min: 2
+      max: 2.5
+    noise_scale: 0.9
   
   # Rotation
   rotation:
@@ -195,12 +197,12 @@ confusion_strategies:
 # ============================================================
 lighting_effects:
   gap_shadow:
-    base_darkness: 40
+    base_darkness: 100
     edge_darkness: 50
     directional_darkness: 20
   
   gap_highlight:
-    base_lightness: 30
+    base_lightness: 100
     edge_lightness: 45
     directional_lightness: 20
     outer_edge_lightness: 0
