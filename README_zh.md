@@ -106,6 +106,7 @@
 #### 可直接使用 pip 安装
 
 ```bash
+# v1.0.3 版本的使用方法请参考 Releases\v1.0.3 项目根目录下的 api_example.py
 pip install sider-captcha-solver  # 安装 v1.0.3 版本（v1.1.0即将发布）
 ```
 

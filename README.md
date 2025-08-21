@@ -106,6 +106,7 @@ This project is an industrial-grade slider CAPTCHA recognition system that solve
 #### Install via pip
 
 ```bash
+# Please refer to Releases\v1.0.3\api_example.py in the project root directory for usage instructions of version v1.0.3.
 pip install sider-captcha-solver  # Install v1.0.3 (v1.1.0 coming soon)
 ```
 
