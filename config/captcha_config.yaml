@@ -44,7 +44,7 @@ dataset:
         min: 5
         max: 9
       # Angle perturbation (fraction of angle step, e.g., 10 means 1/10)
-      angle_perturbation_divisor: 20  #10-20：轻微不规则，保持基本形态 ; 5-10：中等不规则，有明显变化
+      angle_perturbation_divisor: 15  #10-20：轻微不规则，保持基本形态 ; 5-10：中等不规则，有明显变化
       # Radius variation range [min, max] as fraction of base radius
       radius_variation:
         min: 0.95  # 95% of base radius
