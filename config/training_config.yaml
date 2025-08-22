@@ -56,7 +56,7 @@ eval:
     save_predictions: true            # 是否保存预测图像
     save_heatmaps: true              # 是否保存热力图
   early_stopping:
-    min_epochs: 20                    # 最少训练20个epoch后才考虑早停
+    min_epochs: 15                    # 最少训练20个epoch后才考虑早停
     patience: 10                      # 连续10个epoch无改善则停止
     second_guard:                     # 第二道防护措施
       metric: mae_px                  # 监控MAE指标

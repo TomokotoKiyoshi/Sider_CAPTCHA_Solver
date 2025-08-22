@@ -29,6 +29,7 @@
 """
 import cv2
 import numpy as np
+import random
 
 def create_common_puzzle_piece(piece_size: int, knob_radius_ratio: float, 
                        edges: tuple[str, str, str, str]):
@@ -47,13 +48,17 @@ def create_common_puzzle_piece(piece_size: int, knob_radius_ratio: float,
     H = W = piece_size
     canvas = np.zeros((H, W), dtype=np.uint8)
     
-    # 计算中央正方形的边长和knob_radius
-    # 中央正方形需要为凸起预留空间
-    # center_square_size + 2*knob_radius = piece_size
-    # knob_radius = center_square_size * knob_radius_ratio
-    # 所以：center_square_size = piece_size / (1 + 2*knob_radius_ratio)
-    center_square_size = int(piece_size / (1 + 2 * knob_radius_ratio))
-    knob_radius = int(center_square_size * knob_radius_ratio)
+    # 计算中央正方形的边长
+    # 使用最大的knob_radius_ratio来计算中央正方形，确保有足够空间
+    max_knob_ratio = 0.3
+    center_square_size = int(piece_size / (1 + 2 * max_knob_ratio))
+    
+    # 为每个边生成独立的随机knob_radius
+    knob_radii = []
+    for i in range(4):
+        # 在0.2到0.3之间随机
+        random_ratio = random.uniform(0.2, 0.3)
+        knob_radii.append(int(center_square_size * random_ratio))
     
     # 计算中央正方形的起始位置（居中）
     square_offset = (piece_size - center_square_size) // 2
@@ -78,14 +83,14 @@ def create_common_puzzle_piece(piece_size: int, knob_radius_ratio: float,
             # 减去凹陷
             mask[:] = cv2.bitwise_and(mask, cv2.bitwise_not(knob))
 
-    # 上边
-    apply_knob(canvas, (piece_size // 2, square_offset), knob_radius, edges[0])
-    # 右边
-    apply_knob(canvas, (square_offset + center_square_size, piece_size // 2), knob_radius, edges[1])
-    # 下边
-    apply_knob(canvas, (piece_size // 2, square_offset + center_square_size), knob_radius, edges[2])
-    # 左边
-    apply_knob(canvas, (square_offset, piece_size // 2), knob_radius, edges[3])
+    # 上边 - 使用独立的knob_radius
+    apply_knob(canvas, (piece_size // 2, square_offset), knob_radii[0], edges[0])
+    # 右边 - 使用独立的knob_radius
+    apply_knob(canvas, (square_offset + center_square_size, piece_size // 2), knob_radii[1], edges[1])
+    # 下边 - 使用独立的knob_radius
+    apply_knob(canvas, (piece_size // 2, square_offset + center_square_size), knob_radii[2], edges[2])
+    # 左边 - 使用独立的knob_radius
+    apply_knob(canvas, (square_offset, piece_size // 2), knob_radii[3], edges[3])
 
     # 转换为RGBA
     rgba = cv2.cvtColor(canvas, cv2.COLOR_GRAY2RGBA)

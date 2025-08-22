@@ -28,7 +28,7 @@ class RealCaptchaEvaluator:
     """真实验证码评估器"""
     
     def __init__(self, 
-                 data_dir: str = "data/real_captchas/annotated",
+                 data_dir: str = "data/real_captchas/annotated/site3",
                  checkpoint_dir: str = "src/checkpoints/1.1.0",
                  device: str = "auto"):
         """
@@ -429,7 +429,7 @@ def main():
     
     parser = argparse.ArgumentParser(description='评估模型在真实验证码数据集上的表现')
     parser.add_argument('--data-dir', type=str, 
-                       default='data/real_captchas/annotated',
+                       default='data/real_captchas/annotated/site3',
                        help='真实验证码数据目录')
     parser.add_argument('--checkpoint-dir', type=str,
                        default='src/checkpoints/1.1.0',
