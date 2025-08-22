@@ -11,7 +11,7 @@ __pycache__/
 .Python
 
 # Data directory (contains large dataset)
-data/
+/data/
 
 # Test output directory (contains test images)
 test_output/
