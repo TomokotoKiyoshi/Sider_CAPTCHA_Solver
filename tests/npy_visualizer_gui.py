@@ -200,17 +200,22 @@ class NPYVisualizerGUI:
                 'offsets': np.load(offset_path),    # [B, 4, 64, 128]
             }
             
-            # 从第4通道生成权重掩码（使用AvgPool下采样到1/4分辨率）
-            # 第4通道是padding mask，0=padding, 1=valid
+            # 从padding mask通道生成权重掩码（使用AvgPool下采样到1/4分辨率）
+            # padding mask: 0=padding, 1=valid
             # P_1/4 = AvgPool_{k=4,s=4}(M_pad)
-            channel4 = self.batch_data['images'][:, 3]  # [B, 256, 512]
+            num_channels = self.batch_data['images'].shape[1]
+            if num_channels == 2:
+                padding_mask = self.batch_data['images'][:, 1]  # 第2通道是padding mask [B, 256, 512]
+            else:
+                padding_mask = self.batch_data['images'][:, 3]  # 第4通道是padding mask [B, 256, 512]
+            
             # 使用平均池化下采样到1/4分辨率 [B, 64, 128]
-            batch_size = channel4.shape[0]
+            batch_size = padding_mask.shape[0]
             weights = np.zeros((batch_size, 64, 128), dtype=np.float32)
             
             # 对每个样本应用平均池化
             for b in range(batch_size):
-                mask = channel4[b]  # [256, 512]
+                mask = padding_mask[b]  # [256, 512]
                 # AvgPool with kernel=4, stride=4
                 for i in range(64):
                     for j in range(128):
@@ -259,8 +264,13 @@ class NPYVisualizerGUI:
         # 显示图像和叠加层
         self.display_image_with_overlay(idx)
         
-        # 显示第四通道可视化
-        self.display_channel4_visual(idx)
+        # 检查是否有第四通道（RGB+padding的情况）
+        num_channels = self.batch_data['images'].shape[1]
+        if num_channels > 3:
+            # 显示第四通道可视化
+            self.display_channel4_visual(idx)
+            # 显示第四通道
+            self.display_channel4(idx)
         
         # 显示热力图
         self.display_heatmaps(idx)
@@ -268,20 +278,26 @@ class NPYVisualizerGUI:
         # 显示权重掩码
         self.display_weight_mask(idx)
         
-        # 显示第四通道
-        self.display_channel4(idx)
-        
         # 显示坐标信息
         self.display_coordinate_info(idx)
         
     def display_image_with_overlay(self, idx):
         """显示图像和叠加的标注"""
-        # 获取图像数据 [4, 256, 512]
+        # 获取图像数据 [C, 256, 512] 其中C=2或4
         image_data = self.batch_data['images'][idx]
+        num_channels = image_data.shape[0]
         
-        # 提取RGB通道 [3, 256, 512] -> [256, 512, 3]
-        rgb_image = image_data[:3].transpose(1, 2, 0)
-        rgb_image = (rgb_image * 255).astype(np.uint8)
+        # 根据通道数处理图像
+        if num_channels == 2:
+            # 2通道：灰度+padding mask
+            gray_channel = image_data[0]  # [256, 512]
+            # 将灰度图转为RGB
+            rgb_image = np.stack([gray_channel, gray_channel, gray_channel], axis=2)
+            rgb_image = (rgb_image * 255).astype(np.uint8)
+        else:
+            # 4通道或更多：前3个是RGB
+            rgb_image = image_data[:3].transpose(1, 2, 0)
+            rgb_image = (rgb_image * 255).astype(np.uint8)
         
         # 转换为PIL图像
         pil_image = Image.fromarray(rgb_image)
@@ -379,8 +395,17 @@ class NPYVisualizerGUI:
         """显示第四通道的可视化图像"""
         # 获取数据
         image_data = self.batch_data['images'][idx]
-        channel4 = image_data[3]  # 第四通道 [256, 512]
-        rgb_image = image_data[:3].transpose(1, 2, 0)  # [256, 512, 3]
+        num_channels = image_data.shape[0]
+        
+        # 根据通道数获取padding mask和RGB图像
+        if num_channels == 2:
+            channel4 = image_data[1]  # 第二通道是padding mask
+            # 将灰度图转为RGB
+            gray = image_data[0]
+            rgb_image = np.stack([gray, gray, gray], axis=2)
+        else:
+            channel4 = image_data[3]  # 第四通道 [256, 512]
+            rgb_image = image_data[:3].transpose(1, 2, 0)  # [256, 512, 3]
         
         # 创建合成图像
         composite = np.copy(rgb_image)
@@ -532,8 +557,12 @@ class NPYVisualizerGUI:
         ax1 = self.channel4_fig.add_subplot(121)
         ax2 = self.channel4_fig.add_subplot(122)
         
-        # 获取第四通道数据 [256, 512]
-        channel4_data = self.batch_data['images'][idx, 3]  # 第四通道
+        # 获取padding mask数据 [256, 512]
+        num_channels = self.batch_data['images'].shape[1]
+        if num_channels == 2:
+            channel4_data = self.batch_data['images'][idx, 1]  # 第二通道是padding mask
+        else:
+            channel4_data = self.batch_data['images'][idx, 3]  # 第四通道
         
         # 显示完整分辨率的第四通道
         im1 = ax1.imshow(channel4_data, cmap='RdYlGn', interpolation='nearest', vmin=0, vmax=1)
@@ -638,11 +667,28 @@ Batch: {self.current_batch_id} | Mode: {self.current_mode}
   Valid pixels: {np.mean(self.batch_data['weights'][idx, 0]):.1%}
   Shape: {self.batch_data['weights'][idx, 0].shape}
 
-[Channel 4 (Padding Mask)]
-  Valid pixels: {np.mean(self.batch_data['images'][idx, 3] == 1):.1%}
-  Padding pixels: {np.mean(self.batch_data['images'][idx, 3] == 0):.1%}
-  Unique values: {np.unique(self.batch_data['images'][idx, 3]).tolist()}
-  Shape: {self.batch_data['images'][idx, 3].shape}
+[Padding Mask Channel]"""
+        
+        # 处理padding mask信息（根据通道数）
+        num_channels = self.batch_data['images'].shape[1]
+        if num_channels == 2:
+            padding_mask = self.batch_data['images'][idx, 1]
+            info += f"""
+  Valid pixels: {np.mean(padding_mask == 1):.1%}
+  Padding pixels: {np.mean(padding_mask == 0):.1%}
+  Unique values: {np.unique(padding_mask).tolist()}
+  Shape: {padding_mask.shape}"""
+        elif num_channels > 3:
+            padding_mask = self.batch_data['images'][idx, 3]
+            info += f"""
+  Valid pixels: {np.mean(padding_mask == 1):.1%}
+  Padding pixels: {np.mean(padding_mask == 0):.1%}
+  Unique values: {np.unique(padding_mask).tolist()}
+  Shape: {padding_mask.shape}"""
+        else:
+            info += "\n  (No padding mask channel)"
+        
+        info += """
 """
 
         # 如果有元数据，添加更多信息

@@ -95,13 +95,6 @@ ENV/
 env.bak/
 venv.bak/
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
 # OS
 .DS_Store
 Thumbs.db

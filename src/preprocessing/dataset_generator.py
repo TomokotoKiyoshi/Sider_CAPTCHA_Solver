@@ -177,8 +177,12 @@ class StreamingDatasetGenerator:
         self.target_size = preprocessing_config['letterbox']['target_size']
         self.downsample = preprocessing_config['coordinate']['downsample']
         
+        # 从配置中读取通道数（默认为2：灰度+padding）
+        dimensions_config = self.config.get('dimensions', {})
+        input_channels = dimensions_config.get('input_channels', 2)
+        
         # 计算输出维度
-        self.input_shape = (4, self.target_size[1], self.target_size[0])
+        self.input_shape = (input_channels, self.target_size[1], self.target_size[0])
         self.grid_size = (
             self.target_size[1] // self.downsample,
             self.target_size[0] // self.downsample
