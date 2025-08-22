@@ -251,9 +251,19 @@ class Visualizer:
         
         # 可视化选中的样本（热力图叠加模式）
         for vis_idx, (i, gap_error, slider_error, label, label_color) in enumerate(selected_samples):
-            # 获取原始图像（去除padding通道）
-            img = images[i, :3].cpu().numpy().transpose(1, 2, 0)
-            img = (img * 255).astype(np.uint8)
+            # 获取原始图像（去除最后一个padding通道）
+            num_channels = images.shape[1]
+            if num_channels == 2:
+                # 2通道：灰度+padding，取第一个通道并转为RGB
+                gray_img = images[i, 0].cpu().numpy()
+                gray_img = (gray_img * 255).astype(np.uint8)
+                img = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2RGB)
+            else:
+                # 多通道：取除最后一个通道外的所有通道
+                img = images[i, :-1].cpu().numpy().transpose(1, 2, 0)
+                img = (img * 255).astype(np.uint8)
+                if img.shape[2] == 1:  # 如果只有一个通道，转为RGB
+                    img = cv2.cvtColor(img.squeeze(), cv2.COLOR_GRAY2RGB)
             orig_h, orig_w = img.shape[:2]  # 256, 512
             
             # 获取并叠加热力图
@@ -319,9 +329,21 @@ class Visualizer:
         for i in range(num_vis):
             # 获取原图（如果提供）
             if images is not None and i < images.size(0):
-                # 获取RGB图像（去除padding通道）
-                orig_img = images[i, :3].cpu().numpy().transpose(1, 2, 0)
-                orig_img = (orig_img * 255).astype(np.uint8)
+                # 获取图像（去除最后一个padding通道）
+                num_channels = images.shape[1]
+                if num_channels == 2:
+                    # 2通道：灰度+padding，取第一个通道并转为RGB（用于与3通道热力图叠加）
+                    gray_img = images[i, 0].cpu().numpy()
+                    gray_img = (gray_img * 255).astype(np.uint8)
+                    orig_img = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2RGB)
+                else:
+                    # 多通道：取除最后一个通道外的所有通道
+                    img_data = images[i, :-1].cpu().numpy().transpose(1, 2, 0)
+                    img_data = (img_data * 255).astype(np.uint8)
+                    if img_data.shape[2] == 1:  # 如果只有一个通道，转为RGB
+                        orig_img = cv2.cvtColor(img_data.squeeze(), cv2.COLOR_GRAY2RGB)
+                    else:
+                        orig_img = img_data
                 orig_h, orig_w = orig_img.shape[:2]  # 256, 512
             else:
                 orig_img = None

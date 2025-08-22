@@ -460,7 +460,7 @@ class TrainingEngine:
             ], dim=1)
         }
         
-        # 添加权重掩码（必须存在，因为输入是4通道包含padding mask）
+        # 添加权重掩码（必须存在，因为输入包含padding mask）
         if 'weight_gap' not in targets or 'weight_slider' not in targets:
             raise ValueError("数据批次缺少权重掩码（weight_gap/weight_slider），这是必需的因为输入包含padding mask通道")
         

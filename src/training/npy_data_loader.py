@@ -104,7 +104,7 @@ class NPYBatchDataset(Dataset):
             required_files = [
                 label_dir / f"{prefix}_heatmaps.npy",
                 label_dir / f"{prefix}_offsets.npy",
-                # weights.npy不再需要，权重已集成在图像第4通道
+                # weights.npy不再需要，权重已集成在图像最后一个通道
                 label_dir / f"{prefix}_meta.json"
             ]
             
@@ -155,18 +155,19 @@ class NPYBatchDataset(Dataset):
         image_path = self.data_root / "images" / self.mode / f"{prefix}.npy"
         heatmap_path = self.data_root / "labels" / self.mode / f"{prefix}_heatmaps.npy"
         offset_path = self.data_root / "labels" / self.mode / f"{prefix}_offsets.npy"
-        # weight_path已移除，权重从图像第4通道提取
+        # weight_path已移除，权重从图像最后一个通道提取
         meta_path = self.data_root / "labels" / self.mode / f"{prefix}_meta.json"
         
         # 加载数据
         try:
-            images = np.load(image_path)  # [B, 4, 256, 512] - 第4通道是padding mask
+            images = np.load(image_path)  # [B, C, 256, 512] - 最后一个通道是padding mask
             heatmaps = np.load(heatmap_path)  # [B, 2, 64, 128]
             offsets = np.load(offset_path)  # [B, 4, 64, 128]
             
-            # 从图像第4通道提取权重掩码并下采样到1/4分辨率
+            # 从padding mask通道提取权重掩码并下采样到1/4分辨率
             # padding_mask: [B, 256, 512] -> weights: [B, 1, 64, 128]
-            padding_mask = images[:, 3, :, :]  # 提取第4通道 [B, 256, 512]
+            # 从最后一个通道提取padding mask
+            padding_mask = images[:, -1, :, :]  # 最后一个通道总是padding mask
             
             # 使用向量化操作进行平均池化下采样（4x4窗口）- 性能优化
             batch_size = padding_mask.shape[0]

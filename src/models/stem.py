@@ -61,7 +61,7 @@ class Stem(nn.Module):
         前向传播
         
         Args:
-            x: 输入张量 [B, 4, H, W]，其中H和W应该能被4整除
+            x: 输入张量 [B, C, H, W]，其中H和W应该能被4整除，C为输入通道数
             
         Returns:
             输出张量 [B, 32, H/4, W/4]

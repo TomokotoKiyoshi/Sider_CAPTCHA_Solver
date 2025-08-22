@@ -99,7 +99,7 @@ class LiteHRNet18FPN(nn.Module):
             # ========== Lite-HRNet-18 Backbone配置 ==========
             # Stem配置 (Stage1)
             'stem': {
-                'in_channels': 4,      # RGB(3) + padding mask(1)
+                'in_channels': 2,      # Grayscale(1) + padding mask(1)
                 'out_channels': 32,    # Lite-HRNet-18标准通道数
                 'expansion': 2         # LiteBlock扩张倍率
             },
@@ -160,7 +160,7 @@ class LiteHRNet18FPN(nn.Module):
         """
         # ========== Lite-HRNet-18 Backbone ==========
         # Stage1: Stem特征提取
-        # [B, 4, 256, 512] → [B, 32, 64, 128]
+        # [B, 2, 256, 512] → [B, 32, 64, 128]
         x = self.stem(x)
         
         # Stage2: 双分支
@@ -226,7 +226,7 @@ class LiteHRNet18FPN(nn.Module):
         Args:
             outputs: 模型输出字典
             threshold: 热力图阈值
-            input_images: 输入图像 [B, 4, H, W]，第4通道是padding mask
+            input_images: 输入图像 [B, C, H, W]，最后一个通道是padding mask
             
         Returns:
             解码后的坐标字典：
@@ -246,12 +246,12 @@ class LiteHRNet18FPN(nn.Module):
         gap_offset = outputs['offset_gap']      # [B, 2, 64, 128]
         slider_offset = outputs['offset_slider'] # [B, 2, 64, 128]
         
-        # 如果提供了输入图像，从第4通道提取padding mask并下采样到1/4分辨率
+        # 如果提供了输入图像，从最后一个通道提取padding mask并下采样到1/4分辨率
         mask_1_4 = None
         valid_mask_1_4 = None  # 保存有效mask供坐标裁剪使用
         if input_images is not None:
-            # 提取valid mask（第4通道）: valid=1, padding=0
-            valid_mask = input_images[:, 3:4, :, :]  # [B, 1, 256, 512]
+            # 提取valid mask（最后一个通道）: valid=1, padding=0
+            valid_mask = input_images[:, -1:, :, :]  # [B, 1, 256, 512]
             
             # 使用最小池化下采样valid mask到1/4分辨率
             # min_pool确保任何包含padding(0)的网格都被标记为无效(0)
@@ -488,8 +488,12 @@ if __name__ == "__main__":
     # 创建模型
     model = create_lite_hrnet_18_fpn()
     
+    # 从模型配置获取输入通道数
+    in_channels = model.stem.conv1.in_channels
+    print(f"Model expects {in_channels} input channels")
+    
     # 测试前向传播
-    x = torch.randn(2, 4, 256, 512)  # 批次大小2，4通道（RGB+mask），256×512分辨率
+    x = torch.randn(2, in_channels, 256, 512)  # 批次大小2，动态通道数，256×512分辨率
     outputs = model(x)
     
     print("\nOutput shapes:")
@@ -497,7 +501,7 @@ if __name__ == "__main__":
         print(f"  {key}: {value.shape}")
     
     # 测试解码
-    decoded = model.decode_predictions(outputs)
+    decoded = model.decode_predictions(outputs, input_images=x)
     print("\nDecoded predictions:")
     for key, value in decoded.items():
         print(f"  {key}: {value.shape}")

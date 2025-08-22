@@ -75,10 +75,10 @@ def process_single_sample_optimized(label: Dict) -> Optional[Dict[str, Any]]:
         
         # 只返回必要的数据，减少序列化开销
         # 注意：result中的数据已经是NumPy数组，不需要再调用.numpy()
-        # 权重掩码已经集成在第4通道，不再单独生成
+        # 权重掩码已经集成在最后一个通道，不再单独生成
         return {
             'sample_id': label.get('sample_id', 'unknown'),
-            'input': result['input'],  # 已经是numpy数组（4通道，第4通道是padding mask）
+            'input': result['input'],  # 已经是numpy数组（多通道，最后一个通道是padding mask）
             'heatmaps': result['heatmaps'],  # 已经是numpy数组
             'offsets': result['offsets'],  # 已经是numpy数组
             'transform_params': result['transform_params'],
@@ -251,7 +251,7 @@ class StreamingDatasetGenerator:
         self._buf_images[idx] = sample['input']
         self._buf_heatmaps[idx] = sample['heatmaps']
         self._buf_offsets[idx] = sample['offsets']
-        # 权重掩码已集成在第4通道，不需要单独处理
+        # 权重掩码已集成在最后一个通道，不需要单独处理
         
         # 元数据添加到列表
         self._buf_metadata['sample_ids'].append(sample['sample_id'])
@@ -307,7 +307,7 @@ class StreamingDatasetGenerator:
         np.save(image_path, self._buf_images[:batch_size])
         np.save(heatmap_path, self._buf_heatmaps[:batch_size])
         np.save(offset_path, self._buf_offsets[:batch_size])
-        # 权重掩码已集成在第4通道，不再单独保存
+        # 权重掩码已集成在最后一个通道，不再单独保存
         
         # 保存元数据
         metadata = {
@@ -458,7 +458,7 @@ class StreamingDatasetGenerator:
                 'image_file': img_file.name,
                 'heatmap_file': self.file_naming['heatmap_pattern'].format(split=split, batch_id=batch_id),
                 'offset_file': self.file_naming['offset_pattern'].format(split=split, batch_id=batch_id),
-                # 权重掩码已集成在第4通道，不再单独保存
+                # 权重掩码已集成在最后一个通道，不再单独保存
                 'meta_file': meta_file.name
             }
             index['batches'].append(batch_info)

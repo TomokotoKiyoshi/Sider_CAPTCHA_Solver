@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 核心预处理模块
-实现Letterbox变换、坐标映射和4通道输入生成
+实现Letterbox变换、坐标映射和多通道输入生成
 """
 from typing import Tuple, Dict, Optional, Union, List, Any
 import numpy as np
@@ -114,7 +114,7 @@ class LetterboxTransform:
     
     def create_padding_mask(self, params: Dict) -> np.ndarray:
         """
-        生成padding mask作为第4通道
+        生成padding mask作为最后一个通道
         
         Args:
             params: letterbox变换参数
@@ -365,7 +365,7 @@ class TrainingPreprocessor:
             - confusing_gaps: 混淆缺口栅格坐标
             - gap_angle: 缺口角度（弧度）
             - transform_params: 变换参数
-            注：权重掩码可从第4通道下采样获得，无需单独生成
+            注：权重掩码可从最后一个通道下采样获得，无需单独生成
         """
         # 1. 加载图像并转换为灰度图
         if isinstance(image, str):

@@ -191,11 +191,15 @@ class CaptchaPredictor:
         image_tensor = torch.from_numpy(image_letterboxed).float().permute(2, 0, 1) / 255.0
         valid_mask_tensor = torch.from_numpy(valid_mask).float().unsqueeze(0)
         
-        # 组合4通道输入 [RGB(3) + Valid_Mask(1)]  
-        # 第4通道: 1=有效区域, 0=padding区域
-        image_tensor = torch.cat([image_tensor, valid_mask_tensor], dim=0)
+        # 转换为灰度图
+        gray_tensor = 0.299 * image_tensor[0] + 0.587 * image_tensor[1] + 0.114 * image_tensor[2]
+        gray_tensor = gray_tensor.unsqueeze(0)  # 添加通道维度
         
-        # 添加batch维度 [1, 4, 256, 512]
+        # 组合输入 [Grayscale(1) + Valid_Mask(1)]  
+        # 最后一个通道: 1=有效区域, 0=padding区域
+        image_tensor = torch.cat([gray_tensor, valid_mask_tensor], dim=0)
+        
+        # 添加batch维度 [1, 2, 256, 512]
         image_tensor = image_tensor.unsqueeze(0).to(self.device)
         
         return image_tensor
