@@ -316,7 +316,9 @@ def main():
     
     # 创建模型
     logging.info("创建模型...")
-    model = create_lite_hrnet_18_fpn(config['model'])
+    # create_lite_hrnet_18_fpn 默认会使用内置的模型配置，不需要传递参数
+    # 或者如果需要自定义配置，应该传递完整的模型配置字典
+    model = create_lite_hrnet_18_fpn()
     
     # 启用torch.compile优化（PyTorch 2.0+）
     if config['train'].get('compile_model', False):

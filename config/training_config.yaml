@@ -56,12 +56,12 @@ eval:
     save_predictions: true            # 是否保存预测图像
     save_heatmaps: true              # 是否保存热力图
   early_stopping:
-    min_epochs: 15                    # 最少训练20个epoch后才考虑早停
+    min_epochs: 20                    # 最少训练20个epoch后才考虑早停
     patience: 10                      # 连续10个epoch无改善则停止
     second_guard:                     # 第二道防护措施
       metric: mae_px                  # 监控MAE指标
       mode: min                       # 越小越好
-      min_delta: 0.05                 # MAE（缺口和滑块误差的综合平均值）至少改善0.05px才算"有进步"
+      min_delta: 0.1                  # MAE（缺口和滑块误差的综合平均值）至少改善0.1px才算"有进步"
   
   # 测试集可视化配置
   test_visualization:
