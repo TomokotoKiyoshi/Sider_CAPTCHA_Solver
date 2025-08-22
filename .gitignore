@@ -61,6 +61,8 @@ MANIFEST.in
 pyproject.toml
 sider_captcha_solver.py
 setup.py
+uv.lock
+PYPI_MINIMAL_STRUCTURE.md
 
 # PyInstaller
 *.manifest
