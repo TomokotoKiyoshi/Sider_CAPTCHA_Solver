@@ -18,6 +18,9 @@ import torch.nn.functional as F
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
+# 导入配置加载器
+from .config_loader import load_model_config
+
 # 导入各个阶段的模块
 from .stem import create_stem
 from .stage2 import create_stage2
@@ -40,7 +43,7 @@ class LiteHRNet18FPN(nn.Module):
     5. LiteFPN: 轻量级特征金字塔，统一到128通道
     6. DualHead: 双头预测（热力图+偏移）
     
-    输入: [B, 4, 256, 512] (RGB + padding mask)
+    输入: [B, C, 256, 512] (C=输入通道数，当前为2: 灰度图 + padding mask)
     输出: 缺口和滑块的热力图及偏移量
     """
     
@@ -49,17 +52,18 @@ class LiteHRNet18FPN(nn.Module):
         初始化Lite-HRNet-18+LiteFPN模型
         
         Args:
-            config: 模型配置字典，如果为None则使用默认配置
+            config: 模型配置字典，如果为None则从配置文件加载
         """
         super().__init__()
         
         # 模型名称
         self.model_name = "Lite-HRNet-18+LiteFPN"
         
-        # 使用默认配置或用户配置
-        self.config = self._get_default_config()
-        if config is not None:
-            self.config.update(config)
+        # 从配置文件加载或使用用户配置
+        if config is None:
+            self.config = self._load_config_from_file()
+        else:
+            self.config = config
         
         # ========== 构建Lite-HRNet-18主干网络 ==========
         # Stage1: Stem特征提取
@@ -88,67 +92,47 @@ class LiteHRNet18FPN(nn.Module):
         # 打印模型信息
         self._print_model_info()
     
-    def _get_default_config(self) -> Dict:
+    def _load_config_from_file(self) -> Dict:
         """
-        获取Lite-HRNet-18+LiteFPN的默认配置
+        从配置文件加载模型配置
         
         Returns:
-            默认配置字典
+            模型配置字典
         """
-        return {
-            # ========== Lite-HRNet-18 Backbone配置 ==========
-            # Stem配置 (Stage1)
-            'stem': {
-                'in_channels': 2,      # Grayscale(1) + padding mask(1)
-                'out_channels': 32,    # Lite-HRNet-18标准通道数
-                'expansion': 2         # LiteBlock扩张倍率
-            },
-            
-            # Stage2配置（双分支）
-            'stage2': {
-                'in_channels': 32,
-                'channels': [32, 64],      # [1/4分辨率, 1/8分辨率]
-                'num_blocks': [2, 2],      # Lite-HRNet-18配置
-                'expansion': 2
-            },
-            
-            # Stage3配置（三分支）
-            'stage3': {
-                'channels': [32, 64, 128],    # [1/4, 1/8, 1/16分辨率]
-                'num_blocks': [3, 3, 3],      # Lite-HRNet-18配置
-                'expansion': 2
-            },
-            
-            # Stage4配置（四分支）
-            'stage4': {
-                'channels': [32, 64, 128, 256],   # [1/4, 1/8, 1/16, 1/32分辨率]
-                'num_blocks': [2, 2, 2, 2],       # Lite-HRNet-18配置
-                'expansion': 2
-            },
-            
-            # ========== LiteFPN Neck配置 ==========
-            'lite_fpn': {
-                'in_channels': [32, 64, 128, 256],  # 来自Lite-HRNet-18的4个分支
-                'fpn_channels': 128,                # FPN统一通道数
-                'fusion_type': 'weighted',          # 适合处理混淆缺口
-                'return_pyramid': False             # 只返回主特征
-            },
-            
-            # ========== DualHead配置 ==========
-            'dual_head': {
-                'in_channels': 128,          # 来自LiteFPN
-                'mid_channels': 64,          # 中间层通道数
-                'use_angle': True,           # 预测旋转角度（处理旋转缺口）
-                'use_tanh_offset': True      # 限制偏移范围到[-0.5, 0.5]
-            }
+        # 加载完整配置
+        full_config = load_model_config()
+        
+        # 提取backbone配置
+        if 'backbone' not in full_config:
+            raise ValueError("配置文件缺少backbone部分")
+        
+        backbone_config = full_config['backbone']
+        if 'lite_hrnet' not in backbone_config:
+            raise ValueError("配置文件缺少lite_hrnet部分")
+        
+        lite_hrnet = backbone_config['lite_hrnet']
+        
+        # 构建模型需要的配置格式
+        model_config = {
+            'stem': lite_hrnet['stem'],
+            'stage2': lite_hrnet['stage2'],
+            'stage3': lite_hrnet['stage3'],
+            'stage4': lite_hrnet['stage4'],
+            'lite_fpn': lite_hrnet['stage5_lite_fpn'],
+            'dual_head': lite_hrnet['stage6_dual_head']
         }
+        
+        # 添加Stage2的输入通道（来自Stem的输出）
+        model_config['stage2']['in_channels'] = model_config['stem']['out_channels']
+        
+        return model_config
     
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """
         前向传播
         
         Args:
-            x: 输入图像 [B, 4, 256, 512] (RGB + padding mask)
+            x: 输入图像 [B, C, 256, 512] (C=输入通道数)
             
         Returns:
             包含预测结果的字典：
@@ -160,7 +144,7 @@ class LiteHRNet18FPN(nn.Module):
         """
         # ========== Lite-HRNet-18 Backbone ==========
         # Stage1: Stem特征提取
-        # [B, 2, 256, 512] → [B, 32, 64, 128]
+        # [B, C, 256, 512] → [B, 32, 64, 128]
         x = self.stem(x)
         
         # Stage2: 双分支
@@ -423,7 +407,7 @@ class LiteHRNet18FPN(nn.Module):
         print(f"Model: {self.model_name}")
         print("=" * 60)
         print(f"Architecture: Lite-HRNet-18 (Backbone) + LiteFPN (Neck) + DualHead")
-        print(f"Input shape: [B, 4, 256, 512]")
+        print(f"Input shape: [B, C, 256, 512] (C=input channels)")
         print(f"Output shape: [B, 2, 64, 128] (heatmaps) + [B, 4, 64, 128] (offsets)")
         print(f"Total parameters: {total_params:,}")
         print(f"Trainable parameters: {trainable_params:,}")

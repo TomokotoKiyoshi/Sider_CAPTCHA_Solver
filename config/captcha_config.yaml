@@ -20,18 +20,18 @@ dataset:
   # Dataset scale
   scale:
     min_backgrounds: 2000
-    captchas_per_image: 100  # Number of CAPTCHAs to generate per background image
+    captchas_per_image: 20  # Number of CAPTCHAs to generate per background image
   
   # Confusion strategy distribution
   confusion_counts:
-    none: 35
+    none: 7
     rotation: 0
-    perlin_noise: 5
+    perlin_noise: 3
     highlight: 10
-    confusing_gap: 25
-    hollow_center: 5  
-    gap_edge_highlight: 10  # 缺口边缘高光混淆，每张图生成10张
-    combined: 10  # 组合混淆，每张图生成10张
+    confusing_gap: 5
+    hollow_center: 2  
+    gap_edge_highlight: 3  # 缺口边缘高光混淆，每张图生成10张
+    combined: 5  # 组合混淆，每张图生成10张
   
   # Shape configuration
   shapes:

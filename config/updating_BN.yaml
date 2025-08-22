@@ -1,0 +1,46 @@
+# BatchNorm 统计量更新配置
+# 用于更新模型的 BN 层 running_mean 和 running_var
+
+# 输入输出路径配置
+paths:
+  # 输入模型路径
+  input_checkpoint: "D:src/checkpoints/1.1.0/epoch_003.pth"
+  
+  # 输出模型路径和名称
+  output_checkpoint: "src/checkpoints/1.1.0/best_model_bn_updated.pth"
+  
+  # RGB 图片数据目录
+  rgb_data_dir: "data/real_captchas/merged/site3"
+
+# BN 更新参数
+bn_update:
+  # 输入通道数配置
+  # 2 = 灰度图 + padding mask（原始模式）
+  # 3 = RGB 三通道（彩色图模式）
+  input_channels: 3
+  
+  # 使用多少张图片来更新 BN 统计量
+  # None 或不设置表示使用全部图片
+  num_samples: None
+  
+  # 批次大小
+  batch_size: 64
+  
+  # BN 动量参数
+  momentum: 0.1
+  
+  # 是否在更新前重置 BN 统计量
+  # true = 完全使用新数据的统计量
+  # false = 在原有统计量基础上更新
+  reset_stats: true
+  
+  # 数据加载的工作进程数
+  num_workers: 4
+  
+  # 设备配置（cuda 或 cpu）
+  device: "cuda"
+
+# 模型配置（与原始模型保持一致）
+model:
+  name: "Lite-HRNet-18+LiteFPN"
+  input_channels: 3  # 这会被 bn_update.input_channels 覆盖

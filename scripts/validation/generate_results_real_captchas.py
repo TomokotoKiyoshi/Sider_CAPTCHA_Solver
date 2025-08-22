@@ -15,6 +15,8 @@ from datetime import datetime
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import torch
+import time
 
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
@@ -27,14 +29,30 @@ from sider_captcha_solver.predictor import CaptchaPredictor
 class RealCaptchaResultGenerator:
     """真实验证码结果生成器"""
     
-    def __init__(self, model_path: str = "src/checkpoints/1.1.0/best_model.pth"):
+    def __init__(self, model_path: str = "src/checkpoints/1.1.0/best_model.pth", device: str = None):
         """
         初始化结果生成器
         
         Args:
             model_path: 模型路径
+            device: 推理设备 ('cuda', 'cpu', 或 None 自动选择)
         """
         self.model_path = Path(model_path)
+        
+        # 自动选择设备 - 优先使用GPU
+        if device is None:
+            if torch.cuda.is_available():
+                self.device = 'cuda'
+                print(f"🚀 CUDA available! Using GPU: {torch.cuda.get_device_name(0)}")
+                print(f"   GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+            else:
+                self.device = 'cpu'
+                print("⚠️ CUDA not available, using CPU")
+        else:
+            self.device = device
+            if device == 'cuda' and not torch.cuda.is_available():
+                print("⚠️ CUDA requested but not available, falling back to CPU")
+                self.device = 'cpu'
         
         # 加载模型
         self.predictor = None
@@ -43,11 +61,27 @@ class RealCaptchaResultGenerator:
     def _load_model(self):
         """加载模型"""
         try:
+            # 强制使用指定的设备
             self.predictor = CaptchaPredictor(
                 model_path=str(self.model_path),
-                device='auto'
+                device=self.device  # 使用指定的设备而不是'auto'
             )
-            print(f"✅ Model loaded: {self.model_path}")
+            
+            # 验证模型确实在GPU上
+            if self.device == 'cuda':
+                # 获取模型的第一个参数来检查设备
+                first_param = next(self.predictor.model.parameters())
+                if first_param.is_cuda:
+                    print(f"✅ Model loaded on GPU: {self.model_path}")
+                    # 显示GPU内存使用情况
+                    allocated = torch.cuda.memory_allocated() / 1024**2
+                    reserved = torch.cuda.memory_reserved() / 1024**2
+                    print(f"   GPU Memory - Allocated: {allocated:.1f} MB, Reserved: {reserved:.1f} MB")
+                else:
+                    print(f"⚠️ Model loaded but not on GPU!")
+            else:
+                print(f"✅ Model loaded on CPU: {self.model_path}")
+                
         except Exception as e:
             print(f"❌ Failed to load model: {e}")
             raise
@@ -73,18 +107,21 @@ class RealCaptchaResultGenerator:
             }
         return None
     
-    def evaluate_site(self, site_name: str, data_dir: Path, output_dir: Path, max_images: int = None):
+    def evaluate_site(self, site_name: str, data_dir: Path, output_dir: Path, max_images: int = None, batch_size: int = 32):
         """
-        评估单个站点的数据
+        评估单个站点的数据 - 使用批量GPU推理
         
         Args:
             site_name: 站点名称 (site1或site2)
             data_dir: 数据目录
             output_dir: 输出目录
             max_images: 最大处理图片数
+            batch_size: 批处理大小
         """
         print(f"\n📊 Evaluating {site_name}...")
         print(f"   Data directory: {data_dir}")
+        print(f"   Batch size: {batch_size}")
+        print(f"   Device: {self.device}")
         
         if not data_dir.exists():
             print(f"❌ Directory not found: {data_dir}")
@@ -112,7 +149,7 @@ class RealCaptchaResultGenerator:
             "metrics": {}
         }
         
-        # 错误统计 - 添加更多指标
+        # 错误统计
         distance_errors = []
         gap_errors = []
         slider_errors = []
@@ -122,77 +159,100 @@ class RealCaptchaResultGenerator:
         slider_y_errors = []
         processing_times = []
         
-        # 处理每张图片
-        for idx, img_path in enumerate(tqdm(image_files, desc=f"Processing {site_name}")):
+        # 解析所有GT信息
+        gt_infos = []
+        valid_files = []
+        for img_path in image_files:
+            gt_info = self.parse_filename(img_path.name)
+            if gt_info:
+                gt_infos.append(gt_info)
+                valid_files.append(img_path)
+            else:
+                print(f"⚠️ Cannot parse filename: {img_path.name}")
+        
+        if not valid_files:
+            print(f"❌ No valid files to process")
+            return None
+        
+        # 批量推理 - 使用新的批量方法
+        print(f"\n🚀 开始批量GPU推理 ({len(valid_files)} 张图片, 批大小={batch_size})...")
+        start_time = time.time()
+        
+        # 使用批量推理方法
+        batch_predictions = self.predictor.predict_batch(
+            [str(f) for f in valid_files], 
+            batch_size=batch_size
+        )
+        
+        inference_time = time.time() - start_time
+        print(f"⚡ 推理完成! 耗时: {inference_time:.2f}秒 ({len(valid_files)/inference_time:.1f} 张/秒)")
+        
+        # 处理结果
+        for idx, (img_path, gt_info, pred) in enumerate(zip(valid_files, gt_infos, batch_predictions)):
             try:
-                # 解析文件名获取GT
-                gt_info = self.parse_filename(img_path.name)
-                if not gt_info:
-                    print(f"⚠️ Cannot parse filename: {img_path.name}")
+                if not pred['success']:
+                    print(f"❌ Prediction failed for {img_path.name}: {pred.get('error', 'Unknown')}")
                     continue
                 
-                # 预测
-                pred = self.predictor.predict(str(img_path))
+                # 计算误差
+                gap_error = np.sqrt(
+                    (pred['gap_x'] - gt_info['gap_x'])**2 + 
+                    (pred['gap_y'] - gt_info['gap_y'])**2
+                )
+                slider_error = np.sqrt(
+                    (pred['slider_x'] - gt_info['slider_x'])**2 + 
+                    (pred['slider_y'] - gt_info['slider_y'])**2
+                )
+                distance_error = abs(pred['sliding_distance'] - gt_info['sliding_distance'])
                 
-                if pred['success']:
-                    # 计算误差
-                    gap_error = np.sqrt(
-                        (pred['gap_x'] - gt_info['gap_x'])**2 + 
-                        (pred['gap_y'] - gt_info['gap_y'])**2
-                    )
-                    slider_error = np.sqrt(
-                        (pred['slider_x'] - gt_info['slider_x'])**2 + 
-                        (pred['slider_y'] - gt_info['slider_y'])**2
-                    )
-                    distance_error = abs(pred['sliding_distance'] - gt_info['sliding_distance'])
-                    
-                    # 计算各坐标轴误差
-                    gap_x_error = abs(pred['gap_x'] - gt_info['gap_x'])
-                    gap_y_error = abs(pred['gap_y'] - gt_info['gap_y'])
-                    slider_x_error = abs(pred['slider_x'] - gt_info['slider_x'])
-                    slider_y_error = abs(pred['slider_y'] - gt_info['slider_y'])
-                    
-                    # 记录结果
-                    prediction = {
-                        "image": img_path.name,
-                        "ground_truth": {
-                            "gap_x": gt_info['gap_x'],
-                            "gap_y": gt_info['gap_y'],
-                            "slider_x": gt_info['slider_x'],
-                            "slider_y": gt_info['slider_y'],
-                            "sliding_distance": gt_info['sliding_distance']
-                        },
-                        "prediction": {
-                            "gap_x": pred['gap_x'],
-                            "gap_y": pred['gap_y'],
-                            "slider_x": pred['slider_x'],
-                            "slider_y": pred['slider_y'],
-                            "sliding_distance": pred['sliding_distance'],
-                            "confidence": pred['confidence']
-                        },
-                        "errors": {
-                            "gap_error": float(gap_error),
-                            "slider_error": float(slider_error),
-                            "distance_error": float(distance_error),
-                            "gap_x_error": float(gap_x_error),
-                            "gap_y_error": float(gap_y_error),
-                            "slider_x_error": float(slider_x_error),
-                            "slider_y_error": float(slider_y_error)
-                        },
-                        "processing_time_ms": pred['processing_time_ms']
-                    }
-                    
-                    results["predictions"].append(prediction)
-                    distance_errors.append(distance_error)
-                    gap_errors.append(gap_error)
-                    slider_errors.append(slider_error)
-                    gap_x_errors.append(gap_x_error)
-                    gap_y_errors.append(gap_y_error)
-                    slider_x_errors.append(slider_x_error)
-                    slider_y_errors.append(slider_y_error)
-                    processing_times.append(pred['processing_time_ms'])
-                    
-                    # 生成可视化
+                # 计算各坐标轴误差
+                gap_x_error = abs(pred['gap_x'] - gt_info['gap_x'])
+                gap_y_error = abs(pred['gap_y'] - gt_info['gap_y'])
+                slider_x_error = abs(pred['slider_x'] - gt_info['slider_x'])
+                slider_y_error = abs(pred['slider_y'] - gt_info['slider_y'])
+                
+                # 记录结果
+                prediction = {
+                    "image": img_path.name,
+                    "ground_truth": {
+                        "gap_x": gt_info['gap_x'],
+                        "gap_y": gt_info['gap_y'],
+                        "slider_x": gt_info['slider_x'],
+                        "slider_y": gt_info['slider_y'],
+                        "sliding_distance": gt_info['sliding_distance']
+                    },
+                    "prediction": {
+                        "gap_x": pred['gap_x'],
+                        "gap_y": pred['gap_y'],
+                        "slider_x": pred['slider_x'],
+                        "slider_y": pred['slider_y'],
+                        "sliding_distance": pred['sliding_distance'],
+                        "confidence": pred['confidence']
+                    },
+                    "errors": {
+                        "gap_error": float(gap_error),
+                        "slider_error": float(slider_error),
+                        "distance_error": float(distance_error),
+                        "gap_x_error": float(gap_x_error),
+                        "gap_y_error": float(gap_y_error),
+                        "slider_x_error": float(slider_x_error),
+                        "slider_y_error": float(slider_y_error)
+                    },
+                    "processing_time_ms": pred.get('processing_time_ms', 0)  # 批量推理时可能没有单独的时间
+                }
+                
+                results["predictions"].append(prediction)
+                distance_errors.append(distance_error)
+                gap_errors.append(gap_error)
+                slider_errors.append(slider_error)
+                gap_x_errors.append(gap_x_error)
+                gap_y_errors.append(gap_y_error)
+                slider_x_errors.append(slider_x_error)
+                slider_y_errors.append(slider_y_error)
+                processing_times.append(pred.get('processing_time_ms', inference_time * 1000 / len(valid_files)))
+                
+                # 生成可视化（可选，只对前几张）
+                if idx < 10:  # 只可视化前10张
                     self._visualize_prediction(
                         img_path, pred, gt_info,
                         vis_dir / f"{img_path.stem}_result.png"
@@ -283,7 +343,7 @@ class RealCaptchaResultGenerator:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             
             # 创建图形
-            fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
             ax.imshow(image)
             
             # 坐标
@@ -297,52 +357,142 @@ class RealCaptchaResultGenerator:
             pred_slider_x = prediction['slider_x']
             pred_slider_y = prediction['slider_y']
             
-            # 标注大小
-            circle_size = 8
+            # 获取置信度
+            confidence = prediction.get('confidence', 0.0)
+            
+            # 标注大小 - 根据置信度调整
+            base_circle_size = 8
+            pred_circle_size = base_circle_size * (0.7 + 0.3 * confidence)  # 置信度越高，圆圈越大
+            
+            # 根据置信度选择颜色
+            if confidence >= 0.9:
+                pred_gap_color = 'darkred'
+                pred_slider_color = 'darkblue'
+                conf_color = 'darkgreen'
+            elif confidence >= 0.7:
+                pred_gap_color = 'red'
+                pred_slider_color = 'blue'
+                conf_color = 'orange'
+            else:
+                pred_gap_color = 'lightcoral'
+                pred_slider_color = 'lightblue'
+                conf_color = 'red'
             
             # GT标注 - 绿色实心
-            gt_gap_circle = patches.Circle((gt_gap_x, gt_gap_y), circle_size, 
+            gt_gap_circle = patches.Circle((gt_gap_x, gt_gap_y), base_circle_size, 
                                           linewidth=2, edgecolor='green', 
                                           facecolor='green', alpha=0.3)
             ax.add_patch(gt_gap_circle)
-            ax.text(gt_gap_x, gt_gap_y - 15, 'GT Gap', 
+            ax.text(gt_gap_x, gt_gap_y - 18, 'GT Gap', 
                    color='green', fontsize=10, fontweight='bold',
-                   ha='center', va='bottom')
+                   ha='center', va='bottom',
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
             
-            gt_slider_circle = patches.Circle((gt_slider_x, gt_slider_y), circle_size,
+            gt_slider_circle = patches.Circle((gt_slider_x, gt_slider_y), base_circle_size,
                                              linewidth=2, edgecolor='green',
                                              facecolor='green', alpha=0.3)
             ax.add_patch(gt_slider_circle)
-            ax.text(gt_slider_x, gt_slider_y - 15, 'GT Slider',
+            ax.text(gt_slider_x, gt_slider_y - 18, 'GT Slider',
                    color='green', fontsize=10, fontweight='bold',
-                   ha='center', va='bottom')
+                   ha='center', va='bottom',
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
             
-            # 预测标注 - 红色虚线
-            pred_gap_circle = patches.Circle((pred_gap_x, pred_gap_y), circle_size, 
-                                            linewidth=2, edgecolor='red', 
-                                            facecolor='none', linestyle='--')
+            # 预测标注 - 根据置信度调整样式
+            pred_gap_circle = patches.Circle((pred_gap_x, pred_gap_y), pred_circle_size, 
+                                            linewidth=2 + confidence, edgecolor=pred_gap_color, 
+                                            facecolor='none', linestyle='--',
+                                            alpha=0.5 + 0.5 * confidence)
             ax.add_patch(pred_gap_circle)
-            ax.text(pred_gap_x, pred_gap_y + 15, 'Pred Gap',
-                   color='red', fontsize=10, fontweight='bold',
-                   ha='center', va='top')
             
-            pred_slider_circle = patches.Circle((pred_slider_x, pred_slider_y), circle_size,
-                                               linewidth=2, edgecolor='blue',
-                                               facecolor='none', linestyle='--')
+            # Gap预测标签带置信度
+            gap_label = f'Pred Gap\n(conf: {confidence:.2f})'
+            ax.text(pred_gap_x, pred_gap_y + 18, gap_label,
+                   color=pred_gap_color, fontsize=9, fontweight='bold',
+                   ha='center', va='top',
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
+            
+            pred_slider_circle = patches.Circle((pred_slider_x, pred_slider_y), pred_circle_size,
+                                               linewidth=2 + confidence, edgecolor=pred_slider_color,
+                                               facecolor='none', linestyle='--',
+                                               alpha=0.5 + 0.5 * confidence)
             ax.add_patch(pred_slider_circle)
-            ax.text(pred_slider_x, pred_slider_y + 15, 'Pred Slider',
-                   color='blue', fontsize=10, fontweight='bold',
-                   ha='center', va='top')
+            
+            # Slider预测标签带置信度
+            slider_label = f'Pred Slider\n(conf: {confidence:.2f})'
+            ax.text(pred_slider_x, pred_slider_y + 18, slider_label,
+                   color=pred_slider_color, fontsize=9, fontweight='bold',
+                   ha='center', va='top',
+                   bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7))
+            
+            # 添加连接线
+            # GT连接线
+            ax.plot([gt_slider_x, gt_gap_x], [gt_slider_y, gt_gap_y], 
+                   'g-', linewidth=1.5, alpha=0.5, label='GT Distance')
+            
+            # 预测连接线
+            ax.plot([pred_slider_x, pred_gap_x], [pred_slider_y, pred_gap_y], 
+                   'r--', linewidth=1.5, alpha=0.5, label='Pred Distance')
             
             # 计算误差
             gt_distance = gt_gap_x - gt_slider_x
             pred_distance = prediction['sliding_distance']
             error = abs(pred_distance - gt_distance)
             
-            # 标题
-            title = f"GT Distance: {gt_distance}px | Pred: {pred_distance:.1f}px | Error: {error:.1f}px"
-            ax.set_title(title, fontsize=12)
+            # 计算坐标误差
+            gap_error = np.sqrt((pred_gap_x - gt_gap_x)**2 + (pred_gap_y - gt_gap_y)**2)
+            slider_error = np.sqrt((pred_slider_x - gt_slider_x)**2 + (pred_slider_y - gt_slider_y)**2)
+            
+            # 标题 - 包含更多信息
+            title = (f"GT Distance: {gt_distance}px | Pred: {pred_distance:.1f}px | "
+                    f"Error: {error:.1f}px | Confidence: {confidence:.3f}")
+            ax.set_title(title, fontsize=12, fontweight='bold')
+            
+            # 添加详细信息框
+            info_text = (f"Gap Error: {gap_error:.1f}px\n"
+                        f"Slider Error: {slider_error:.1f}px\n"
+                        f"Distance Error: {error:.1f}px\n"
+                        f"Confidence: {confidence:.3f}")
+            
+            # 根据置信度选择信息框背景色
+            if confidence >= 0.9:
+                info_bg_color = '#e8f5e9'  # 浅绿色
+            elif confidence >= 0.7:
+                info_bg_color = '#fff3e0'  # 浅橙色
+            else:
+                info_bg_color = '#ffebee'  # 浅红色
+            
+            ax.text(0.02, 0.98, info_text,
+                   transform=ax.transAxes,
+                   fontsize=10,
+                   verticalalignment='top',
+                   bbox=dict(boxstyle='round,pad=0.5', 
+                            facecolor=info_bg_color, 
+                            edgecolor=conf_color,
+                            linewidth=2,
+                            alpha=0.9))
+            
+            # 添加置信度条
+            conf_bar_width = 100
+            conf_bar_height = 10
+            conf_bar_x = image.shape[1] - conf_bar_width - 20
+            conf_bar_y = 20
+            
+            # 背景条
+            bg_rect = patches.Rectangle((conf_bar_x, conf_bar_y), conf_bar_width, conf_bar_height,
+                                       linewidth=1, edgecolor='black', facecolor='lightgray')
+            ax.add_patch(bg_rect)
+            
+            # 置信度条
+            conf_rect = patches.Rectangle((conf_bar_x, conf_bar_y), conf_bar_width * confidence, conf_bar_height,
+                                        linewidth=0, facecolor=conf_color)
+            ax.add_patch(conf_rect)
+            
+            # 置信度文字
+            ax.text(conf_bar_x + conf_bar_width/2, conf_bar_y - 5, f'Confidence: {confidence:.1%}',
+                   ha='center', va='bottom', fontsize=10, fontweight='bold')
+            
             ax.axis('off')
+            ax.legend(loc='upper right', fontsize=9, framealpha=0.8)
             
             # 保存
             plt.savefig(output_path, dpi=100, bbox_inches='tight')
@@ -600,6 +750,11 @@ def main():
     parser.add_argument('--model', type=str, 
                        default='src/checkpoints/1.1.0/best_model.pth',
                        help='Model path')
+    parser.add_argument('--device', type=str, default=None,
+                       choices=['cuda', 'cpu', None],
+                       help='Device to use for inference (cuda/cpu, default: auto-detect)')
+    parser.add_argument('--batch-size', type=int, default=32,
+                       help='Batch size for GPU inference (default: 32)')
     parser.add_argument('--max-images', type=int, default=None,
                        help='Maximum images per site')
     parser.add_argument('--auto', action='store_true',
@@ -614,8 +769,19 @@ def main():
     print("🚀 Real CAPTCHA Evaluation")
     print("="*60)
     
-    # 创建生成器
-    generator = RealCaptchaResultGenerator(model_path=args.model)
+    # 显示GPU信息
+    if torch.cuda.is_available():
+        print(f"📊 GPU Information:")
+        print(f"   Device: {torch.cuda.get_device_name(0)}")
+        print(f"   Total Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+        print(f"   CUDA Version: {torch.version.cuda}")
+        print("="*60)
+    
+    # 创建生成器，传入device参数
+    generator = RealCaptchaResultGenerator(
+        model_path=args.model,
+        device=args.device  # 传入设备参数
+    )
     
     # 获取所有annotated子文件夹
     annotated_dir = Path("data/real_captchas/annotated")
@@ -715,7 +881,12 @@ def main():
             for site_dir in selected_dirs:
                 site_name = site_dir.name
                 output_dir = Path("results/1.1.0") / site_name
-                result = generator.evaluate_site(site_name, site_dir, output_dir, args.max_images)
+                # 使用批量推理
+                result = generator.evaluate_site(
+                    site_name, site_dir, output_dir, 
+                    max_images=args.max_images,
+                    batch_size=args.batch_size
+                )
                 if result:
                     all_results[site_name] = result
         else:

@@ -12,21 +12,21 @@ class Stem(nn.Module):
     """
     Stem - 特征提取阶段 (Stage1)
     
-    功能：将输入从 [B, 4, 256, 512] 降采样到 [B, 32, 64, 128]
+    功能：将输入从 [B, C, 256, 512] 降采样到 [B, 32, 64, 128] (C=输入通道数)
     结构：Conv1 → Conv2 → LiteBlock×2
     """
     
     def __init__(self, in_channels: int, out_channels: int, expansion: int = 2):
         """
         Args:
-            in_channels: 输入通道数 (RGB + padding mask)
+            in_channels: 输入通道数 (当前为2: 灰度图 + padding mask)
             out_channels: 输出通道数
             expansion: LiteBlock扩张倍率
         """
         super().__init__()
         
         # Conv1: 3×3, stride=2, 32通道
-        # [B, 4, 256, 512] → [B, 32, 128, 256]
+        # [B, C, 256, 512] → [B, 32, 128, 256] (C=输入通道数)
         self.conv1 = ConvBNAct(
             in_channels=in_channels,
             out_channels=out_channels,
