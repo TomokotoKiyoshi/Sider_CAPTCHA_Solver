@@ -294,7 +294,7 @@ class CoordinateTransform:
 class TrainingPreprocessor:
     """
     训练预处理器
-    生成4通道输入和完整标签
+    生成2通道输入和完整标签
     """
     
     def __init__(self, config: Dict[str, Any]):
@@ -319,6 +319,19 @@ class TrainingPreprocessor:
             sigma = heatmap_cfg['sigma']
         except KeyError as e:
             raise ValueError(f"Config missing required key: {e}")
+        
+        # 提取量化配置（如果存在）
+        quantization_cfg = config['preprocessing'].get('quantization', {})
+        self.quantization_enabled = quantization_cfg.get('enabled', False)
+        self.bits_to_keep = quantization_cfg.get('bits_to_keep', 8)
+        
+        # 计算量化掩码
+        if self.quantization_enabled and self.bits_to_keep < 8:
+            # 生成掩码：保留高N位，清除低(8-N)位
+            # 例如：bits_to_keep=4 -> mask=0b11110000 (240)
+            self.quantization_mask = ((1 << self.bits_to_keep) - 1) << (8 - self.bits_to_keep)
+        else:
+            self.quantization_mask = 0xFF  # 不量化，保留所有位
         
         self.letterbox = LetterboxTransform(target_size, fill_value)
         self.coord_transform = CoordinateTransform(downsample)
@@ -346,7 +359,7 @@ class TrainingPreprocessor:
         
         Returns:
             预处理结果字典，包含：
-            - input: 4通道输入张量 [4, H, W]（第4通道是padding mask）
+            - input: 2通道输入张量 [2, H, W]（第2通道是padding mask）
             - heatmaps: 热图标签 [2, H/4, W/4]
             - offsets: 偏移标签 [4, H/4, W/4]
             - confusing_gaps: 混淆缺口栅格坐标
@@ -354,27 +367,41 @@ class TrainingPreprocessor:
             - transform_params: 变换参数
             注：权重掩码可从第4通道下采样获得，无需单独生成
         """
-        # 1. 加载图像
+        # 1. 加载图像并转换为灰度图
         if isinstance(image, str):
             image = cv2.imread(image)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # 转换为灰度图
+            grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         elif isinstance(image, Image.Image):
             image = np.array(image)
+            # 如果是RGB图像，转换为灰度图
+            if len(image.shape) == 3:
+                grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            else:
+                grayscale = image
+        else:
+            # 如果已经是numpy数组
+            if len(image.shape) == 3:
+                grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            else:
+                grayscale = image
         
-        # 2. Letterbox处理
-        image_letterboxed, transform_params = self.letterbox.apply(image)
+        # 应用量化（如果启用）
+        if self.quantization_enabled:
+            grayscale = grayscale & self.quantization_mask
+        
+        # 2. Letterbox处理（灰度图）
+        image_letterboxed, transform_params = self.letterbox.apply(grayscale)
         
         # 3. 生成padding mask
         padding_mask = self.letterbox.create_padding_mask(transform_params)
         
-        # 4. 组合4通道输入 - 优化：使用更高效的内存布局
+        # 4. 组合2通道输入 - 灰度图 + padding mask
         image_normalized = image_letterboxed.astype(np.float32) / 255.0
-        # 使用ascontiguousarray避免transpose创建新数组
-        image_channels = np.ascontiguousarray(image_normalized.transpose(2, 0, 1))
-        input_tensor = np.concatenate([
-            image_channels,                       # [3, H, W]
-            padding_mask[np.newaxis, :, :]        # [1, H, W]
-        ], axis=0)  # [4, H, W]
+        input_tensor = np.stack([
+            image_normalized,                      # [H, W] - 灰度图
+            padding_mask                           # [H, W] - padding mask
+        ], axis=0)  # [2, H, W]
         
         # 5. 坐标变换
         gap_input = self.coord_transform.original_to_input(gap_center, transform_params)
@@ -520,26 +547,39 @@ class InferencePreprocessor:
             image: 输入图像或图像路径
         
         Returns:
-            (4通道输入张量, 变换参数)
+            (2通道输入张量, 变换参数)
         """
-        # 加载图像
+        # 加载图像并转换为灰度图
         if isinstance(image, str):
             image = cv2.imread(image)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         elif isinstance(image, Image.Image):
             image = np.array(image)
+            if len(image.shape) == 3:
+                grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            else:
+                grayscale = image
+        else:
+            if len(image.shape) == 3:
+                grayscale = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+            else:
+                grayscale = image
         
-        # Letterbox处理
-        image_letterboxed, transform_params = self.letterbox.apply(image)
+        # 应用量化（如果启用）
+        if self.quantization_enabled:
+            grayscale = grayscale & self.quantization_mask
+        
+        # Letterbox处理（灰度图）
+        image_letterboxed, transform_params = self.letterbox.apply(grayscale)
         
         # 生成padding mask
         padding_mask = self.letterbox.create_padding_mask(transform_params)
         
-        # 组合4通道输入
+        # 组合2通道输入
         image_normalized = image_letterboxed.astype(np.float32) / 255.0
-        input_tensor = np.concatenate([
-            image_normalized.transpose(2, 0, 1),
-            padding_mask[np.newaxis, :, :]
+        input_tensor = np.stack([
+            image_normalized,
+            padding_mask
         ], axis=0)
         
         # 推理时返回NumPy数组，避免在多进程中创建PyTorch张量

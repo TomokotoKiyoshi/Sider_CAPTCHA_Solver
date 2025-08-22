@@ -58,13 +58,13 @@ preprocessing:
 input:
   # 网络输入通道配置
   channels:
-    rgb: 3          # RGB通道数
+    grayscale: 1    # 灰度图通道数
     padding: 1      # Padding掩码通道
-    total: 4        # 总输入通道数 (RGB + padding_mask)
+    total: 2        # 总输入通道数 (Grayscale + padding_mask)
   
   # PyTorch张量格式 [channels, height, width]
   # 会根据captcha_config.yaml中的size_confusion.target_size自动计算
-  tensor_shape: [4, 256, 512]  # [C, H, W]
+  tensor_shape: [2, 256, 512]  # [C, H, W]
 
 # ============== 网络架构配置 ==============
 backbone:
@@ -74,7 +74,7 @@ backbone:
   lite_hrnet:
     # Stem (Stage1) - 特征提取阶段
     stem:
-      in_channels: 4        # 输入通道数 (RGB + padding_mask)
+      in_channels: 2        # 输入通道数 (Grayscale + padding_mask)
       out_channels: 32      # 输出通道数
       expansion: 2          # LiteBlock扩张倍率
       

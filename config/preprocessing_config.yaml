@@ -14,6 +14,15 @@ preprocessing:
   # 热图生成配置
   heatmap:
     sigma: 1.5               # 高斯分布标准差（栅格单位）
+  
+  # 图像量化配置
+  quantization:
+    enabled: true            # 是否启用量化
+    bits_to_keep: 4          # 保留的高位数（4表示保留高4位，清除低4位）
+    # 量化掩码会根据bits_to_keep自动计算
+    # bits_to_keep=4 -> mask=0b11110000 (240)
+    # bits_to_keep=5 -> mask=0b11111000 (248)
+    # bits_to_keep=6 -> mask=0b11111100 (252)
       
 # 数据集生成配置
 dataset:
@@ -52,8 +61,8 @@ file_naming:
   
 # 输入输出维度（自动计算，无需修改）
 dimensions:
-  input_channels: 4          # RGB(3) + padding_mask(1)
-  input_shape: [4, 256, 512] # [C, H, W]
+  input_channels: 2          # Grayscale(1) + padding_mask(1)
+  input_shape: [2, 256, 512] # [C, H, W]
   grid_size: [64, 128]       # [H/4, W/4] - 特征图尺寸
   heatmap_channels: 2        # gap + slider
   offset_channels: 4         # gap_x, gap_y, slider_x, slider_y

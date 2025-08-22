@@ -80,7 +80,16 @@ def get_preprocessing_config(config_path: Optional[str] = None) -> Dict[str, Any
         预处理配置字典
     """
     config = load_config(config_path)
-    return config.get('preprocessing', {})
+    preprocessing_config = config.get('preprocessing', {})
+    
+    # 添加量化配置的默认值（如果没有配置）
+    if 'quantization' not in preprocessing_config:
+        preprocessing_config['quantization'] = {
+            'enabled': False,
+            'bits_to_keep': 8
+        }
+    
+    return preprocessing_config
 
 
 def get_dataset_config(config_path: Optional[str] = None) -> Dict[str, Any]:
