@@ -30,7 +30,7 @@ class PixabayDownloader:
             # 获取项目根目录
             current_file = Path(__file__).resolve()
             project_root = current_file.parent.parent.parent
-            config_path = project_root / "configs" / "config.yaml"
+            config_path = project_root / "config" / "pixabay_config.yaml"
         
         # 加载配置
         with open(config_path, 'r', encoding='utf-8') as f:

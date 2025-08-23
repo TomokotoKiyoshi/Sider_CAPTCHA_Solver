@@ -1,0 +1,51 @@
+# Pixabay API Configuration
+pixabay:
+  api_key: "51344584-28fc0c141a3613f523fa0b79f"  # 请替换为你的Pixabay API密钥
+  base_url: "https://pixabay.com/api/"
+
+# Data Collection Configuration
+data_collection:
+  # 要下载的图片类别
+  categories:
+    - "People"
+    - "Abstract Geometric Art"
+    - "Anime Cityscape"
+    - "backgrounds"
+    - "Block Illustration"
+    - "Block Public Square"
+    - "buildings"
+    - "Geometric art"
+    - "minecraft"
+    - "nature"
+    - "Pixel Food"
+    - "Puzzle Backgrounds"
+    - "scenery"
+    - "animals"
+    - "Square"
+    - "wallpapers"
+    - "Vector Art"
+    - "Vector Backgrounds"
+    - "Vector Geometric"
+    - "Vector Pattern"
+    - "scenery"
+    - "technology"
+    - "transportation"
+    - "bus"
+    - "car"
+    - "motorcycle"
+    - "train"
+
+  # 每个类别下载的图片数量
+  images_per_category: 400
+  
+  # 输出目录
+  output_dir: "data/raw"
+  
+  # 下载超时时间（秒）
+  download_timeout: 30
+  
+  # 最大重试次数
+  max_retries: 3
+  
+  # 并发下载数
+  concurrent_downloads: 5
