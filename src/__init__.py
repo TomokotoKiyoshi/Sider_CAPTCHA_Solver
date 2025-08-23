@@ -6,7 +6,14 @@ This package provides a high-precision slider CAPTCHA recognition solution
 based on deep learning, utilizing an improved CenterNet architecture.
 """
 
-__version__ = "1.0.3"
+# 从配置文件读取版本号
+import yaml
+import os
+
+_config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'version.yaml')
+with open(_config_path, 'r') as f:
+    _config = yaml.safe_load(f)
+    __version__ = _config['version']
 __author__ = "TomokotoKiyoshi"
 __email__ = ""
 __license__ = "MIT"

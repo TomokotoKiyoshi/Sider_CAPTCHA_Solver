@@ -4,7 +4,14 @@
 提供多种混淆策略来增强验证码的抗破解能力
 """
 
-__version__ = "1.0.0"
+# 从配置文件读取版本号（组件版本与主版本保持一致）
+import yaml
+import os
+
+_config_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'config', 'version.yaml')
+with open(_config_path, 'r') as f:
+    _config = yaml.safe_load(f)
+    __version__ = _config['version']
 
 # 暂时留空，等各模块实现后再导入
 # 这样可以避免循环依赖问题

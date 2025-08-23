@@ -71,7 +71,7 @@ eval:
                                       # 作用：即使hit_le_5px提升不足0.5%，但MAE显著改善时给模型更多机会
   
 checkpoints:
-  save_dir: "src/checkpoints/1.1.0"
+  save_dir: "src/checkpoints/1.1.1"
   save_interval: 1                   # 每个epoch保存
   save_best: true                    # 保存最佳模型
   
@@ -81,10 +81,10 @@ checkpoints:
     - name: "best_model.pth"         # 最佳模型
     
 logging:
-  log_dir: "logs/log-1.1.0"
+  log_dir: "logs/log-1.1.1"
   log_interval: 10                   # 每10个batch记录一次
   tensorboard: true
-  tensorboard_dir: "logs/tensorboard/1.1.0"
+  tensorboard_dir: "logs/tensorboard/1.1.1"
   auto_launch_tensorboard: true      # 训练开始时自动启动TensorBoard
   tensorboard_port: 6006              # TensorBoard端口
   
@@ -127,4 +127,4 @@ monitoring:
     enabled: false
     project: "slider-captcha"
     entity: "TomokotoKyoshi"
-    tags: ["lite-hrnet", "v1.1.0"]
+    tags: ["lite-hrnet", "v1.1.1"]
