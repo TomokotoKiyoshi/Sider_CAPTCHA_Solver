@@ -74,13 +74,13 @@ class TrainingEngine:
             # RTX 40/50系列优先使用BFloat16
             self.use_amp = True
             self.amp_dtype = torch.bfloat16
-            self.scaler = GradScaler(enabled=False)  # BFloat16不需要GradScaler
+            self.scaler = GradScaler('cuda', enabled=False)  # BFloat16不需要GradScaler，使用新API格式
             self.logger.info("使用BFloat16混合精度训练")
         elif amp_config == 'fp16':
             # 兼容旧GPU的FP16模式
             self.use_amp = True
             self.amp_dtype = torch.float16
-            self.scaler = GradScaler(enabled=True)  # FP16需要GradScaler
+            self.scaler = GradScaler('cuda', enabled=True)  # FP16需要GradScaler，使用新API格式
             self.logger.info("使用FP16混合精度训练")
         else:
             # 不使用混合精度

@@ -79,6 +79,7 @@ class Validator:
         
         # 最佳epoch跟踪
         self.best_epoch = 0
+        self.best_metrics = None  # 初始化最佳指标
         
         # 失败案例收集
         self.vis_fail_k = self.eval_config.get('vis_fail_k', 10)
@@ -194,6 +195,7 @@ class Validator:
         # 检查是否为最佳模型
         if self._is_best_model(metrics):
             self.best_epoch = epoch
+            self.best_metrics = metrics.copy()  # 保存最佳指标
             metrics['is_best'] = True
             self.logger.info(f"新的最佳模型! {self.select_metric}: {metrics[self.select_metric]:.4f}")
         else:

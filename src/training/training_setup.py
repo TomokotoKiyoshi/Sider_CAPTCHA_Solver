@@ -60,15 +60,9 @@ def setup_data_pipeline(config: Dict):
     npy_train_dir = Path(processed_dir) / "images" / "train"
     npy_val_dir = Path(processed_dir) / "images" / "val"
     
-    # 检查索引文件
-    npy_train_index = Path(processed_dir) / "train_index.json"
-    npy_val_index = Path(processed_dir) / "val_index.json"
-    
-    # 或在split_info目录
-    if not npy_train_index.exists():
-        npy_train_index = Path(processed_dir) / "split_info" / "train_index.json"
-    if not npy_val_index.exists():
-        npy_val_index = Path(processed_dir) / "split_info" / "val_index.json"
+    # 索引文件路径
+    npy_train_index = Path(processed_dir) / "split_info" / "train_sample_ids.json"
+    npy_val_index = Path(processed_dir) / "split_info" / "val_sample_ids.json"
     
     if not npy_train_dir.exists() or not npy_val_dir.exists():
         raise FileNotFoundError(
@@ -133,7 +127,8 @@ def setup_training_components(model, config: Dict, device: torch.device):
     
     # 记录模型结构（可选）
     try:
-        dummy_input = torch.randn(1, 4, 256, 512).to(device)
+        # 创建与模型期望匹配的输入（2通道：灰度图+padding掩码）
+        dummy_input = torch.randn(1, 2, 256, 512).to(device)
         visualizer.log_model_graph(model, dummy_input)
     except Exception as e:
         logging.debug(f"无法记录模型结构图: {e}")
