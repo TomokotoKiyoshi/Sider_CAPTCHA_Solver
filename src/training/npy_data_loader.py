@@ -277,7 +277,7 @@ class NPYBatchDataset(Dataset):
     def _get_empty_batch(self, batch_size):
         """创建空批次用于错误处理"""
         return {
-            'image': torch.zeros(batch_size, 4, 256, 512),
+            'image': torch.zeros(batch_size, 2, 256, 512),  # 修正：2通道(grayscale + padding_mask)
             'heatmap_gap': torch.zeros(batch_size, 64, 128),
             'heatmap_slider': torch.zeros(batch_size, 64, 128),
             'offset_gap': torch.zeros(batch_size, 2, 64, 128),

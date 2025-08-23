@@ -22,7 +22,7 @@ optimizer:
   eps: 1.0e-8
   weight_decay: 0.05
   clip_grad_norm: 1.0
-  ema_decay: 0.999
+  
 
 sched:
   warmup_epochs: 1

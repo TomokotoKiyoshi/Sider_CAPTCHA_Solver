@@ -86,8 +86,7 @@ class Validator:
     def validate(self, 
                 model: nn.Module, 
                 dataloader, 
-                epoch: int,
-                use_ema: bool = False) -> Dict[str, float]:
+                epoch: int) -> Dict[str, float]:
         """
         执行验证
         
@@ -95,7 +94,6 @@ class Validator:
             model: 模型
             dataloader: 验证数据加载器
             epoch: 当前epoch
-            use_ema: 是否使用EMA模型
             
         Returns:
             验证指标字典

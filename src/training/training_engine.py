@@ -32,10 +32,9 @@ class TrainingEngine:
     功能：
     1. 优化器和调度器管理
     2. 混合精度训练(BFloat16)
-    3. EMA模型管理
-    4. 训练循环执行
-    5. 梯度裁剪
-    6. 损失计算
+    3. 训练循环执行
+    4. 梯度裁剪
+    5. 损失计算
     """
     
     def __init__(self, 
@@ -90,14 +89,7 @@ class TrainingEngine:
             self.amp_dtype = None
             self.logger.info("不使用混合精度训练")
         
-        # EMA设置
-        self.ema_decay = config['optimizer'].get('ema_decay', 0)
-        if self.ema_decay > 0:
-            self.ema_model = self._setup_ema()
-            self.logger.info(f"启用EMA，decay={self.ema_decay}")
-        else:
-            self.ema_model = None
-            self.logger.info("未启用EMA")
+        # EMA已移除
         
         # 内存布局优化
         if config['train'].get('channels_last', False):
@@ -194,16 +186,7 @@ class TrainingEngine:
         
         return scheduler
     
-    def _setup_ema(self) -> nn.Module:
-        """设置指数移动平均模型"""
-        ema_model = deepcopy(self.model)
-        ema_model.eval()
-        
-        # 禁用梯度
-        for param in ema_model.parameters():
-            param.requires_grad = False
-        
-        return ema_model
+    
     
     def train_epoch(self, dataloader, epoch: int) -> Dict[str, float]:
         """
@@ -249,15 +232,12 @@ class TrainingEngine:
             # 数据传输到设备
             batch = self._batch_to_device(batch)
             
+            
             # 前向传播
             loss, batch_metrics = self._forward_step(batch)
             
             # 反向传播
             self._backward_step(loss)
-            
-            # 更新EMA
-            if self.ema_model is not None:
-                self._update_ema()
             
             # 累积指标 - 处理tensor
             for key in batch_metrics:
@@ -391,6 +371,7 @@ class TrainingEngine:
             outputs = self.model(batch['image'])
                         
             loss, loss_dict = self._compute_loss(outputs, batch)
+        
         
         # 计算预测误差（用于监控） - 不使用.item()避免GPU同步！
         with torch.no_grad():
@@ -738,6 +719,7 @@ class TrainingEngine:
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
                 self.optimizer.zero_grad()
+                
         else:
             # BFloat16或FP32模式
             loss.backward()
@@ -747,19 +729,8 @@ class TrainingEngine:
                 nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_grad_norm)
                 self.optimizer.step()
                 self.optimizer.zero_grad()
+                
     
-    def _update_ema(self):
-        """更新EMA模型"""
-        if self.ema_model is None:
-            return
-        
-        with torch.no_grad():
-            decay = self.ema_decay
-            for ema_param, model_param in zip(
-                self.ema_model.parameters(), 
-                self.model.parameters()
-            ):
-                ema_param.data.mul_(decay).add_(model_param.data, alpha=1-decay)
     
     def step_scheduler(self):
         """更新学习率调度器"""
@@ -784,8 +755,6 @@ class TrainingEngine:
             'epoch': self.epoch
         }
         
-        if self.ema_model is not None:
-            checkpoint['ema_state_dict'] = self.ema_model.state_dict()
         
         return checkpoint
     
@@ -802,8 +771,6 @@ class TrainingEngine:
         self.global_step = checkpoint.get('global_step', 0)
         self.epoch = checkpoint.get('epoch', 0)
         
-        if self.ema_model is not None and 'ema_state_dict' in checkpoint:
-            self.ema_model.load_state_dict(checkpoint['ema_state_dict'])
         
         self.logger.info(f"从epoch {self.epoch}恢复训练")
 
