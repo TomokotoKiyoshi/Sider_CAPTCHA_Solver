@@ -28,6 +28,7 @@ from .stage3 import create_stage3
 from .stage4 import create_stage4
 from .stage5_lite_fpn import create_stage5_lite_fpn
 from .stage6_dual_head import create_stage6_dual_head
+from .tamh import create_tamh
 from .utils import init_weights, count_parameters
 
 
@@ -86,6 +87,12 @@ class LiteHRNet18FPN(nn.Module):
         # Stage6: DualHead (双头预测)
         self.dual_head = create_stage6_dual_head(self.config['dual_head'])
         
+        # ========== 构建TAMH模块（可选）==========
+        # TAMH: Template-Aware Matching Head
+        self.use_tamh = self.config.get('tamh', {}).get('enabled', False)
+        if self.use_tamh:
+            self.tamh = create_tamh(self.config.get('tamh', {}))
+        
         # 初始化权重
         self.apply(init_weights)
         
@@ -121,6 +128,10 @@ class LiteHRNet18FPN(nn.Module):
             'lite_fpn': lite_hrnet['stage5_lite_fpn'],
             'dual_head': lite_hrnet['stage6_dual_head']
         }
+        
+        # 添加TAMH配置（如果存在）
+        if 'tamh' in lite_hrnet:
+            model_config['tamh'] = lite_hrnet['tamh']
         
         # 添加Stage2的输入通道（来自Stem的输出）
         model_config['stage2']['in_channels'] = model_config['stem']['out_channels']
@@ -169,6 +180,20 @@ class LiteHRNet18FPN(nn.Module):
         # → {'heatmap_gap': ..., 'heatmap_piece': ..., 'offset': ..., 'angle': ...}
         predictions = self.dual_head(fpn_features)
         
+        # ========== TAMH增强（可选）==========
+        if self.use_tamh:
+            # 使用TAMH增强缺口热图预测
+            tamh_outputs = self.tamh(
+                Hf=fpn_features,
+                H_piece=predictions['heatmap_piece'],
+                H_gap=predictions['heatmap_gap']
+            )
+            # 用增强后的热图替换原始预测
+            predictions['heatmap_gap'] = tamh_outputs['heatmap_gap_final']
+            # 添加额外的输出（用于可视化和调试）
+            predictions['heatmap_corr'] = tamh_outputs['heatmap_corr']
+            predictions['template'] = tamh_outputs['template']
+        
         # 重新组织输出格式
         outputs = self._reorganize_outputs(predictions)
         
@@ -198,6 +223,12 @@ class LiteHRNet18FPN(nn.Module):
         # 角度（可选）
         if 'angle' in predictions:
             outputs['angle'] = predictions['angle']  # [B, 2, 64, 128]
+        
+        # TAMH相关输出（可选）
+        if 'heatmap_corr' in predictions:
+            outputs['heatmap_corr'] = predictions['heatmap_corr']  # [B, 1, 64, 128]
+        if 'template' in predictions:
+            outputs['template'] = predictions['template']  # [B, 128, 16, 16]
         
         return outputs
     

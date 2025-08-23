@@ -27,7 +27,7 @@ optimizer:
 sched:
   warmup_epochs: 1
   cosine_min_lr: 3.0e-6
-  epochs: 64                      # 总训练轮数
+  epochs: 40                      # 总训练轮数
 
 train:
   batch_size: 128          # 增大批量大小以提高GPU利用率
@@ -57,8 +57,8 @@ eval:
     save_heatmaps: true              # 是否保存热力图
   early_stopping:
     # ===== 基础早停参数 =====
-    min_epochs: 40                    # 最少训练40个epoch后才考虑早停    
-    patience: 16                      # 连续16个epoch无改善则停止 / 注：第二道防护可以减少这个计数器，延长训练
+    min_epochs: 10                    # 最少训练40个epoch后才考虑早停    
+    patience: 10                      # 连续16个epoch无改善则停止 / 注：第二道防护可以减少这个计数器，延长训练
     min_improvement: 0.5              # hit_le_5px至少提升0.5%才算有进步 / 工作原理：current_hit - best_hit >= 0.5 才重置patience_counter
                                       # 示例：94.5% → 95.0% ✓有效改进  94.5% → 94.8% ✗无效改进
 

@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import torch
 import time
+import yaml
 
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
@@ -29,14 +30,23 @@ from sider_captcha_solver.predictor import CaptchaPredictor
 class RealCaptchaResultGenerator:
     """真实验证码结果生成器"""
     
-    def __init__(self, model_path: str = "src/checkpoints/1.1.0/best_model.pth", device: str = None):
+    def __init__(self, model_path: str = None, device: str = None):
         """
         初始化结果生成器
         
         Args:
-            model_path: 模型路径
+            model_path: 模型路径 (默认从配置文件读取版本号)
             device: 推理设备 ('cuda', 'cpu', 或 None 自动选择)
         """
+        # 从配置文件读取版本号
+        config_path = Path('config/version.yaml')
+        with open(config_path, 'r', encoding='utf-8') as f:
+            version_config = yaml.safe_load(f)
+        self.version = version_config['version']
+        
+        # 如果没有指定模型路径，使用基于版本号的默认路径
+        if model_path is None:
+            model_path = f"src/checkpoints/{self.version}/best_model.pth"
         self.model_path = Path(model_path)
         
         # 自动选择设备 - 优先使用GPU
@@ -142,7 +152,7 @@ class RealCaptchaResultGenerator:
         # 初始化结果
         results = {
             "site": site_name,
-            "model_version": "1.1.0",
+            "model_version": self.version,
             "timestamp": datetime.now().isoformat(),
             "total_images": len(image_files),
             "predictions": [],
@@ -748,8 +758,8 @@ def main():
     
     parser = argparse.ArgumentParser(description='Evaluate Real CAPTCHA Dataset')
     parser.add_argument('--model', type=str, 
-                       default='src/checkpoints/1.1.0/best_model.pth',
-                       help='Model path')
+                       default=None,
+                       help='Model path (default: use version from config)')
     parser.add_argument('--device', type=str, default=None,
                        choices=['cuda', 'cpu', None],
                        help='Device to use for inference (cuda/cpu, default: auto-detect)')
@@ -880,7 +890,7 @@ def main():
             
             for site_dir in selected_dirs:
                 site_name = site_dir.name
-                output_dir = Path("results/1.1.0") / site_name
+                output_dir = Path(f"results/{generator.version}") / site_name
                 # 使用批量推理
                 result = generator.evaluate_site(
                     site_name, site_dir, output_dir, 
@@ -894,7 +904,7 @@ def main():
     
     # 生成对比图表
     if len(all_results) > 1:
-        generator.generate_comparison_charts(all_results, Path("results/1.1.0"))
+        generator.generate_comparison_charts(all_results, Path(f"results/{generator.version}"))
     
     print("\n✅ Evaluation completed!")
 

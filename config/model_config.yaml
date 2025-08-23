@@ -127,5 +127,22 @@ backbone:
       # 是否使用tanh限制偏移范围到[-0.5, 0.5]
       use_tanh_offset: true
       
+    # TAMH配置 (Template-Aware Matching Head)
+    tamh:
+      # 是否启用TAMH模块
+      enabled: true
+      # 特征图通道数（与Stage5输出一致）
+      feature_channels: 128
+      # 模板大小（从拼图中心提取的patch大小）
+      template_size: 16
+      # 动态卷积核大小
+      kernel_size: 3
+      # 融合网络中间通道数
+      fusion_channels: 32
+      # 是否对动态卷积核进行L2归一化（稳定对比尺度）
+      use_l2_norm: true
+      # 模板提取时的padding模式 ('replicate', 'zeros', 'reflect')
+      padding_mode: 'zeros'
+      
   # 输出分辨率 (相对于输入)
   output_scales: [1/4, 1/8, 1/16, 1/32]

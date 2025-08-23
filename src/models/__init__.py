@@ -6,6 +6,8 @@ Lite-HRNet-18+LiteFPN 滑块验证码识别模型
 
 # 主模型接口
 from .lite_hrnet_18_fpn import LiteHRNet18FPN, create_lite_hrnet_18_fpn
+# TAMH模块
+from .tamh import TAMH, create_tamh
 
 __all__ = [
     # 主模型类
@@ -13,4 +15,8 @@ __all__ = [
     
     # 模型创建函数
     'create_lite_hrnet_18_fpn',
+    
+    # TAMH模块
+    'TAMH',
+    'create_tamh',
 ]

@@ -150,7 +150,26 @@ class CaptchaPredictor:
         else:
             state_dict = checkpoint
         
-        self.model.load_state_dict(state_dict)
+        # 加载权重，智能处理新旧模型兼容性
+        # 使用strict=False并检查返回值
+        missing_keys, unexpected_keys = self.model.load_state_dict(state_dict, strict=False)
+        
+        # 分析缺失的键
+        tamh_missing = [k for k in missing_keys if k.startswith('tamh.')]
+        other_missing = [k for k in missing_keys if not k.startswith('tamh.')]
+        
+        # 报告加载状态
+        if not missing_keys and not unexpected_keys:
+            print("✅ Model loaded successfully with all weights")
+        elif tamh_missing and not other_missing:
+            print(f"⚠️ Model loaded without TAMH module ({len(tamh_missing)} weights initialized randomly)")
+        elif other_missing:
+            print(f"⚠️ Warning: Missing critical weights: {other_missing}")
+            # 如果有关键权重缺失，抛出错误
+            raise RuntimeError(f"Critical weights missing: {other_missing}")
+        
+        if unexpected_keys:
+            print(f"ℹ️ Unexpected keys in checkpoint (ignored): {unexpected_keys[:5]}...")
     
     def predict(self, image_path: Union[str, Path, np.ndarray]) -> Dict:
         """预测单张图片
