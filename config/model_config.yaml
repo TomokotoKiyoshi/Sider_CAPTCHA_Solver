@@ -70,58 +70,58 @@ input:
 backbone:
   type: "Lite-HRNet-18"
   
-  # Lite-HRNet配置
+  # Lite-HRNet配置 - 优化版本（~28M参数，目标>95% @5px）
   lite_hrnet:
-    # Stem (Stage1) - 特征提取阶段
+    # Stem (Stage1) - 增强特征提取阶段
     stem:
       in_channels: 2        # 输入通道数 (Grayscale + padding_mask)
-      out_channels: 32      # 输出通道数
-      expansion: 2          # LiteBlock扩张倍率
+      out_channels: 48      # 输出通道数 [优化: 32→48，提升50%]
+      expansion: 3          # LiteBlock扩张倍率 [优化: 2→3，增强感受野]
       
-    # Stage2配置
+    # Stage2配置 - 加深加宽
     stage2:
-      # 通道配置 - 决定模型容量
-      channels: [32, 64]  # [1/4分辨率, 1/8分辨率]
-      # 块数量配置 - 决定深度
-      num_blocks: [2, 2]  # 每个分支的LiteBlock数量
-      # 扩张倍率 - 影响参数量
-      expansion: 2
+      # 通道配置 - 提升模型容量
+      channels: [48, 96]  # [1/4分辨率, 1/8分辨率] [优化: 50%增宽]
+      # 块数量配置 - 加深网络
+      num_blocks: [4, 4]  # 每个分支的LiteBlock数量 [优化: 2x深度]
+      # 扩张倍率 - 增强表达能力
+      expansion: 3        # [优化: 2→3]
       
-    # Stage3配置
+    # Stage3配置 - 强化多尺度学习
     stage3:
-      # 通道配置 - 决定模型容量
-      channels: [32, 64, 128]  # [1/4分辨率, 1/8分辨率, 1/16分辨率]
-      # 块数量配置 - 决定深度
-      num_blocks: [3, 3, 3]  # 每个分支的LiteBlock数量
-      # 扩张倍率 - 影响参数量
-      expansion: 2
+      # 通道配置 - 渐进式增宽
+      channels: [48, 96, 192]  # [1/4分辨率, 1/8分辨率, 1/16分辨率]
+      # 块数量配置 - 深度学习
+      num_blocks: [6, 6, 6]  # 每个分支的LiteBlock数量 [优化: 2x深度]
+      # 扩张倍率 - 增强特征
+      expansion: 3
       
-    # Stage4配置
+    # Stage4配置 - 高级语义特征
     stage4:
-      # 通道配置 - 决定模型容量
-      channels: [32, 64, 128, 256]  # [1/4, 1/8, 1/16, 1/32分辨率]
-      # 块数量配置 - 决定深度
-      num_blocks: [2, 2, 2, 2]  # 每个分支的LiteBlock数量
-      # 扩张倍率 - 影响参数量
-      expansion: 2
+      # 通道配置 - 完整多尺度
+      channels: [48, 96, 192, 384]  # [1/4, 1/8, 1/16, 1/32分辨率]
+      # 块数量配置 - 深层抽象
+      num_blocks: [4, 4, 4, 4]  # 每个分支的LiteBlock数量 [优化: 2x深度]
+      # 扩张倍率 - 最大化表达
+      expansion: 3
       
-    # Stage5配置 (LiteFPN)
+    # Stage5配置 (LiteFPN) - 增强特征融合
     stage5_lite_fpn:
       # 输入通道配置（来自Stage4的四个分支）
-      in_channels: [32, 64, 128, 256]  # [1/4, 1/8, 1/16, 1/32分辨率]
+      in_channels: [48, 96, 192, 384]  # 匹配Stage4输出
       # FPN统一通道数
-      fpn_channels: 128
-      # 融合类型: 'add' (直接相加), 'weighted' (可学习权重), 'attention' (通道注意力)
-      fusion_type: 'weighted'
-      # 是否返回中间金字塔特征（用于辅助监督）
-      return_pyramid: false
+      fpn_channels: 256    # [优化: 128→256，2x容量提升]
+      # 融合类型: 使用注意力机制实现自适应特征选择
+      fusion_type: 'attention'  # [优化: weighted→attention]
+      # 启用辅助监督以加速收敛
+      return_pyramid: false     # LiteFPN不返回多尺度特征
       
-    # Stage6配置 (双头预测网络)
+    # Stage6配置 (双头预测网络) - 强化定位精度
     stage6_dual_head:
       # 输入通道数（来自Stage5 LiteFPN的Hf）
-      in_channels: 128
+      in_channels: 256     # 匹配FPN输出
       # 中间层通道数
-      mid_channels: 64
+      mid_channels: 128    # [优化: 64→128，强化特征细化]
       # 是否使用角度预测头（用于处理微旋转）
       use_angle: true
       # 是否使用tanh限制偏移范围到[-0.5, 0.5]

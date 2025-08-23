@@ -501,18 +501,19 @@ class Visualizer:
         
         # 3. 尝试记录模型结构图
         try:
-            # 使用torch.jit.trace追踪模型，允许字典输出
-            with torch.no_grad():
-                traced_model = torch.jit.trace(model, input_sample, strict=False)
-            self.writer.add_graph(traced_model, input_sample)
-            self.logger.info("模型结构图已添加到TensorBoard")
-        except Exception as e:
-            # 如果追踪失败，尝试直接添加（可能不会显示完整结构）
-            try:
+            # 检查模型是否已经是ScriptModule或compiled model
+            if isinstance(model, torch.jit.ScriptModule) or hasattr(model, '_dynamo_orig_callable'):
+                # 如果已经是ScriptModule或torch.compile的模型，直接添加
                 self.writer.add_graph(model, input_sample)
-                self.logger.info("模型结构图已添加到TensorBoard（简化版）")
-            except Exception as e2:
-                self.logger.warning(f"无法添加模型结构图: {e2}")
+                self.logger.info("模型结构图已添加到TensorBoard")
+            else:
+                # 否则使用torch.jit.trace追踪模型
+                with torch.no_grad():
+                    traced_model = torch.jit.trace(model, input_sample, strict=False)
+                self.writer.add_graph(traced_model, input_sample)
+                self.logger.info("模型结构图已添加到TensorBoard")
+        except Exception as e:
+            self.logger.warning(f"无法添加模型结构图: {e}")
         
         # 4. 记录模型复杂度分析
         self._log_model_complexity(model, input_sample)
