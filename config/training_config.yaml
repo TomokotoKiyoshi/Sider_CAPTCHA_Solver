@@ -56,12 +56,19 @@ eval:
     save_predictions: true            # 是否保存预测图像
     save_heatmaps: true              # 是否保存热力图
   early_stopping:
-    min_epochs: 40                    # 最少训练40个epoch后才考虑早停
-    patience: 16                      # 连续10个epoch无改善则停止
-    second_guard:                     # 第二道防护措施
-      metric: mae_px                  # 监控MAE指标
-      mode: min                       # 越小越好
-      min_delta: 1                    # MAE（缺口和滑块误差的综合平均值）至少改善1px才算"有进步"
+    # ===== 基础早停参数 =====
+    min_epochs: 40                    # 最少训练40个epoch后才考虑早停    
+    patience: 16                      # 连续16个epoch无改善则停止 / 注：第二道防护可以减少这个计数器，延长训练
+    min_improvement: 0.5              # hit_le_5px至少提升0.5%才算有进步 / 工作原理：current_hit - best_hit >= 0.5 才重置patience_counter
+                                      # 示例：94.5% → 95.0% ✓有效改进  94.5% → 94.8% ✗无效改进
+
+    second_guard:                     # 第二道防护措施（辅助判断，防止过早停止）
+      metric: mae_px                  # 监控MAE指标（平均绝对误差） MAE = (gap_error + slider_error) / 2 的平均值
+      mode: min                       # 越小越好（MAE应该下降）
+      min_delta: 0.5                  # MAE至少改善0.5px才触发第二道防护
+                                      # 工作原理：当MAE改善>0.5px时，patience_counter减3
+                                      # 示例：MAE从3.2px→2.5px(改善0.7px) → patience_counter -= 3
+                                      # 作用：即使hit_le_5px提升不足0.5%，但MAE显著改善时给模型更多机会
   
 checkpoints:
   save_dir: "src/checkpoints/1.1.0"

@@ -60,6 +60,7 @@ class Validator:
         self.early_stopping_config = self.eval_config.get('early_stopping', {})
         self.min_epochs = self.early_stopping_config.get('min_epochs', 100)
         self.patience = self.early_stopping_config.get('patience', 18)
+        self.min_improvement = self.early_stopping_config.get('min_improvement', 0.0)  # hit_le_5px最小改进阈值
         
         # 主指标跟踪
         self.best_metric = -float('inf') if self._is_higher_better(self.select_metric) else float('inf')
@@ -353,14 +354,29 @@ class Validator:
         # 获取主指标
         current_metric = metrics[self.select_metric]
         
-        # 检查主指标是否改善
+        # 检查主指标是否有足够的改善
         has_primary_improvement = False
-        if self._is_better(current_metric, self.best_metric, self.select_metric):
-            self.best_metric = current_metric
-            self.patience_counter = 0
-            has_primary_improvement = True
+        
+        # 对于hit_le_5px，需要至少提升min_improvement才算改进
+        if self.select_metric == 'hit_le_5px' and self.min_improvement > 0:
+            improvement = current_metric - self.best_metric
+            if improvement >= self.min_improvement:
+                self.best_metric = current_metric
+                self.patience_counter = 0
+                has_primary_improvement = True
+                self.logger.info(f"主指标 {self.select_metric} 提升了 {improvement:.2f}% (需要>={self.min_improvement}%)")
+            else:
+                self.patience_counter += 1
+                if improvement > 0:
+                    self.logger.info(f"主指标 {self.select_metric} 提升了 {improvement:.2f}% (不足{self.min_improvement}%，不算改进)")
         else:
-            self.patience_counter += 1
+            # 其他指标或没有设置min_improvement时的原始逻辑
+            if self._is_better(current_metric, self.best_metric, self.select_metric):
+                self.best_metric = current_metric
+                self.patience_counter = 0
+                has_primary_improvement = True
+            else:
+                self.patience_counter += 1
         
         # 第二道防护检查
         if self.second_guard_enabled and epoch >= self.min_epochs:
@@ -411,7 +427,13 @@ class Validator:
     def _is_best_model(self, metrics: Dict[str, float]) -> bool:
         """判断是否为最佳模型"""
         current_metric = metrics[self.select_metric]
-        return self._is_better(current_metric, self.best_metric, self.select_metric)
+        
+        # 对于hit_le_5px，需要至少提升min_improvement才算更好的模型
+        if self.select_metric == 'hit_le_5px' and self.min_improvement > 0:
+            improvement = current_metric - self.best_metric
+            return improvement >= self.min_improvement
+        else:
+            return self._is_better(current_metric, self.best_metric, self.select_metric)
     
     def _print_metrics(self, metrics: Dict[str, float]):
         """打印验证指标"""
@@ -422,6 +444,15 @@ class Validator:
             f"Hit@2px={metrics['hit_le_2px']:.2f}%, "
             f"Hit@5px={metrics['hit_le_5px']:.2f}%"
         )
+        
+        # 显示主指标改进情况
+        if self.select_metric == 'hit_le_5px' and self.min_improvement > 0:
+            current_metric = metrics[self.select_metric]
+            improvement = current_metric - self.best_metric
+            self.logger.info(
+                f"  主指标进展: 当前={current_metric:.2f}%, 最佳={self.best_metric:.2f}%, "
+                f"改进={improvement:+.2f}% (需要≥{self.min_improvement}%)"
+            )
         
         if self.second_guard_enabled:
             self.logger.info(
