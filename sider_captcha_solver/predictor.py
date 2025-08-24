@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Optional, Union, List
 from tqdm import tqdm
 import time
+import yaml
 
 # 导入src中的模型代码
 import sys
@@ -43,6 +44,9 @@ class CaptchaPredictor:
         # 加载配置
         self.config_loader = ConfigLoader()
         self.model_config = self.config_loader.get_config('model_config')
+        
+        # 获取版本号
+        self.version = self._get_version()
         
         # 初始化预处理器 - 使用正确的 512x256 尺寸
         self.letterbox = LetterboxTransform(
@@ -81,6 +85,13 @@ class CaptchaPredictor:
             return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         return torch.device(device)
     
+    def _get_version(self) -> str:
+        """从配置文件获取版本号"""
+        config_path = Path(__file__).parent.parent / 'config' / 'version.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            version_config = yaml.safe_load(f)
+        return version_config['version']
+    
     def _get_model_path(self, model_path: str) -> Path:
         """获取模型路径，支持本地路径和预设模型名
         
@@ -92,20 +103,26 @@ class CaptchaPredictor:
             return Path(model_path)
         
         # 尝试在src/checkpoints中查找
+        # 从配置文件读取当前版本号
+        config_path = Path(__file__).parent.parent / 'config' / 'version.yaml'
+        with open(config_path, 'r', encoding='utf-8') as f:
+            version_config = yaml.safe_load(f)
+        current_version = version_config['version']
+        
         checkpoints_dir = Path(__file__).parent.parent / 'src' / 'checkpoints'
         if checkpoints_dir.exists():
-            # 查找best模型 - 默认使用1.1.0版本
+            # 查找best模型 - 默认使用当前版本
             if model_path == 'best':
-                # 优先查找1.1.0/best_model_weights.pth（推理专用，文件更小）
-                weights_path = checkpoints_dir / '1.1.0' / 'best_model_weights.pth'
+                # 优先查找当前版本/best_model_weights.pth（推理专用，文件更小）
+                weights_path = checkpoints_dir / current_version / 'best_model_weights.pth'
                 if weights_path.exists():
-                    print(f"   使用推理权重: {weights_path.name} (12.96 MB)")
+                    print(f"   使用推理权重: {weights_path.name} (v{current_version})")
                     return weights_path
                 
-                # 其次查找1.1.0/best_model.pth（完整检查点）
-                best_path = checkpoints_dir / '1.1.0' / 'best_model.pth'
+                # 其次查找当前版本/best_model.pth（完整检查点）
+                best_path = checkpoints_dir / current_version / 'best_model.pth'
                 if best_path.exists():
-                    print(f"   使用完整检查点: {best_path.name} (50.75 MB)")
+                    print(f"   使用完整检查点: {best_path.name} (v{current_version})")
                     return best_path
                 
                 # 否则查找任意版本的权重文件
@@ -150,7 +167,7 @@ class CaptchaPredictor:
         else:
             state_dict = checkpoint
         
-        # 加载权重，智能处理新旧模型兼容性
+        # 加载权重，检查TAMH模块
         # 使用strict=False并检查返回值
         missing_keys, unexpected_keys = self.model.load_state_dict(state_dict, strict=False)
         
@@ -158,14 +175,20 @@ class CaptchaPredictor:
         tamh_missing = [k for k in missing_keys if k.startswith('tamh.')]
         other_missing = [k for k in missing_keys if not k.startswith('tamh.')]
         
+        # 检查模型是否应该有TAMH（通过检查模型结构）
+        has_tamh_module = hasattr(self.model, 'tamh') and self.model.tamh is not None
+        
         # 报告加载状态
         if not missing_keys and not unexpected_keys:
             print("✅ Model loaded successfully with all weights")
-        elif tamh_missing and not other_missing:
-            print(f"⚠️ Model loaded without TAMH module ({len(tamh_missing)} weights initialized randomly)")
+        elif has_tamh_module and tamh_missing:
+            # 如果模型有TAMH模块但权重缺失，这是错误的
+            print(f"❌ Error: Model has TAMH module but checkpoint is missing TAMH weights!")
+            print(f"   Missing TAMH weights: {tamh_missing}")
+            raise RuntimeError(f"TAMH weights missing in checkpoint. This model requires TAMH weights. "
+                             f"Please use a checkpoint with TAMH weights or retrain the model.")
         elif other_missing:
-            print(f"⚠️ Warning: Missing critical weights: {other_missing}")
-            # 如果有关键权重缺失，抛出错误
+            print(f"❌ Error: Missing critical weights: {other_missing}")
             raise RuntimeError(f"Critical weights missing: {other_missing}")
         
         if unexpected_keys:
@@ -439,7 +462,7 @@ class CaptchaPredictor:
             'details': {
                 'gap_coords': [gap_x, gap_y],
                 'slider_coords': [slider_x, slider_y],
-                'model_version': '1.1.0',
+                'model_version': self.version,
                 'device_used': str(self.device),
                 'original_size': original_size,
                 'network_coords': {
@@ -485,7 +508,7 @@ class CaptchaPredictor:
             'details': {
                 'gap_coords': [gap_x, gap_y],
                 'slider_coords': [slider_x, slider_y],
-                'model_version': '1.1.0',
+                'model_version': self.version,
                 'device_used': str(self.device),
                 'original_size': self.original_size,
                 'network_coords': {

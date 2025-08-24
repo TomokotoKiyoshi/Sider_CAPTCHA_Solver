@@ -195,7 +195,7 @@ def run_training_loop(model,
         logging.info(f"Epoch {epoch} 用时: {epoch_time:.2f}秒")
         
         # 检查早停
-        if val_metrics.get('should_stop', False):
+        if val_metrics.get('early_stop', False):
             logging.info(f"早停触发，在Epoch {epoch}停止训练")
             break
         
