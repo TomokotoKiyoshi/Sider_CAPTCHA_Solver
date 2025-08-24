@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from typing import Tuple, Optional
 import pyautogui
-import keyboard
+from pynput import keyboard
 from PIL import Image, ImageDraw, ImageFont
 import tkinter as tk
 from tkinter import messagebox
@@ -39,11 +39,55 @@ class CaptchaCapturer:
         self.background_mode = False  # 后台模式
         self.target_window = None  # 目标窗口句柄
         
+        # 键盘监听器相关
+        self.keyboard_listener = None
+        self.space_pressed = False
+        self.esc_pressed = False
+        self.q_pressed = False
+        
         # 创建保存目录
         os.makedirs(save_dir, exist_ok=True)
         
         # 禁用pyautogui的安全特性
         pyautogui.FAILSAFE = False
+    
+    def on_press(self, key):
+        """键盘按下事件处理"""
+        try:
+            if key == keyboard.Key.space:
+                self.space_pressed = True
+            elif key == keyboard.Key.esc:
+                self.esc_pressed = True
+            elif hasattr(key, 'char') and key.char == 'q':
+                self.q_pressed = True
+        except:
+            pass
+    
+    def on_release(self, key):
+        """键盘释放事件处理"""
+        try:
+            if key == keyboard.Key.space:
+                self.space_pressed = False
+            elif key == keyboard.Key.esc:
+                self.esc_pressed = False
+            elif hasattr(key, 'char') and key.char == 'q':
+                self.q_pressed = False
+        except:
+            pass
+    
+    def start_keyboard_listener(self):
+        """启动键盘监听器"""
+        self.keyboard_listener = keyboard.Listener(
+            on_press=self.on_press,
+            on_release=self.on_release
+        )
+        self.keyboard_listener.start()
+    
+    def stop_keyboard_listener(self):
+        """停止键盘监听器"""
+        if self.keyboard_listener:
+            self.keyboard_listener.stop()
+            self.keyboard_listener = None
         
     def set_click_coordinate(self):
         """设置点击坐标（空格键确认）"""
@@ -53,24 +97,31 @@ class CaptchaCapturer:
         print("请将鼠标移动到需要点击的位置")
         print("按下【空格键】确认坐标...")
         print("按 ESC 取消设置")
+        print("\n等待按键...")  # 不再实时显示坐标
         
-        while True:
-            if keyboard.is_pressed('esc'):
-                print("已取消设置")
-                return False
+        # 启动键盘监听
+        self.start_keyboard_listener()
+        self.space_pressed = False
+        self.esc_pressed = False
+        
+        try:
+            while True:
+                if self.esc_pressed:
+                    print("已取消设置")
+                    return False
                 
-            # 实时显示鼠标位置
-            x, y = pyautogui.position()
-            print(f"\r当前鼠标位置: ({x}, {y})", end="")
-            
-            # 检测空格键
-            if keyboard.is_pressed('space'):
-                self.click_coord = (x, y)
-                print(f"\n✓ 点击坐标已设置: {self.click_coord}")
-                time.sleep(0.5)  # 防止重复检测
-                return True
-                
-            time.sleep(0.01)
+                # 检测空格键
+                if self.space_pressed:
+                    # 只在按下空格时获取鼠标位置
+                    x, y = pyautogui.position()
+                    self.click_coord = (x, y)
+                    print(f"✓ 点击坐标已设置: {self.click_coord}")
+                    time.sleep(0.5)  # 防止重复检测
+                    return True
+                    
+                time.sleep(0.05)  # 降低CPU占用
+        finally:
+            self.stop_keyboard_listener()
     
     def set_capture_region(self):
         """设置截图区域（空格键确认两个角点）"""
@@ -80,57 +131,65 @@ class CaptchaCapturer:
         print("请将鼠标移动到截图区域的【左上角】")
         print("按下【空格键】确认第一个点...")
         print("按 ESC 取消设置")
+        print("\n等待第一个点...")  # 不再实时显示
+        
+        # 启动键盘监听
+        self.start_keyboard_listener()
+        self.space_pressed = False
+        self.esc_pressed = False
         
         start_pos = None
         
-        while True:
-            if keyboard.is_pressed('esc'):
-                print("已取消设置")
-                return False
-            
-            x, y = pyautogui.position()
-            
-            if start_pos is None:
-                # 等待第一个点
-                print(f"\r左上角位置: ({x}, {y})", end="")
+        try:
+            while True:
+                if self.esc_pressed:
+                    print("已取消设置")
+                    return False
                 
-                if keyboard.is_pressed('space'):
-                    start_pos = (x, y)
-                    print(f"\n✓ 左上角已设置: {start_pos}")
-                    print("\n请将鼠标移动到截图区域的【右下角】")
-                    print("按下【空格键】确认第二个点...")
-                    time.sleep(0.5)  # 防止重复检测
-            else:
-                # 等待第二个点
-                width = abs(x - start_pos[0])
-                height = abs(y - start_pos[1])
-                print(f"\r右下角位置: ({x}, {y}) | 区域大小: {width}×{height}", end="")
-                
-                if keyboard.is_pressed('space'):
-                    end_pos = (x, y)
-                    
-                    # 计算区域
-                    left = min(start_pos[0], end_pos[0])
-                    top = min(start_pos[1], end_pos[1])
-                    width = abs(end_pos[0] - start_pos[0])
-                    height = abs(end_pos[1] - start_pos[1])
-                    
-                    if width > 10 and height > 10:  # 最小区域限制
-                        self.capture_region = (left, top, width, height)
-                        print(f"\n✓ 截图区域已设置: 左上角({left}, {top}), 宽度:{width}, 高度:{height}")
+                if start_pos is None:
+                    # 等待第一个点
+                    if self.space_pressed:
+                        x, y = pyautogui.position()  # 只在按键时获取
+                        start_pos = (x, y)
+                        print(f"✓ 左上角已设置: {start_pos}")
+                        print("\n请将鼠标移动到截图区域的【右下角】")
+                        print("按下【空格键】确认第二个点...")
+                        print("\n等待第二个点...")
+                        time.sleep(0.5)  # 防止重复检测
+                        self.space_pressed = False  # 重置状态
+                else:
+                    # 等待第二个点
+                    if self.space_pressed:
+                        x, y = pyautogui.position()  # 只在按键时获取
+                        end_pos = (x, y)
                         
-                        # 显示预览
-                        self._show_region_preview()
-                        time.sleep(0.5)
-                        return True
-                    else:
-                        print("\n选择的区域太小，请重新选择")
-                        start_pos = None
-                        print("\n请将鼠标移动到截图区域的【左上角】")
-                        print("按下【空格键】确认第一个点...")
-                        time.sleep(0.5)
-            
-            time.sleep(0.01)
+                        # 计算区域
+                        left = min(start_pos[0], end_pos[0])
+                        top = min(start_pos[1], end_pos[1])
+                        width = abs(end_pos[0] - start_pos[0])
+                        height = abs(end_pos[1] - start_pos[1])
+                        
+                        if width > 10 and height > 10:  # 最小区域限制
+                            self.capture_region = (left, top, width, height)
+                            print(f"✓ 右下角已设置: {end_pos}")
+                            print(f"✓ 截图区域已设置: 左上角({left}, {top}), 宽度:{width}, 高度:{height}")
+                            
+                            # 显示预览
+                            self._show_region_preview()
+                            time.sleep(0.5)
+                            return True
+                        else:
+                            print("选择的区域太小，请重新选择")
+                            start_pos = None
+                            print("\n请将鼠标移动到截图区域的【左上角】")
+                            print("按下【空格键】确认第一个点...")
+                            print("\n等待第一个点...")
+                            time.sleep(0.5)
+                            self.space_pressed = False
+                
+                time.sleep(0.05)  # 降低CPU占用
+        finally:
+            self.stop_keyboard_listener()
     
     def select_target_window(self):
         """选择目标窗口用于后台截图"""
@@ -353,26 +412,33 @@ class CaptchaCapturer:
         
         self.is_running = True
         
-        while self.is_running:
-            if keyboard.is_pressed('q'):
-                print("\n停止抓取")
-                self.is_running = False
-                break
-            
-            # 执行抓取
-            if self.capture_single():
-                print(f"等待 {interval} 秒后继续...")
+        # 启动键盘监听
+        self.start_keyboard_listener()
+        self.q_pressed = False
+        
+        try:
+            while self.is_running:
+                if self.q_pressed:
+                    print("\n停止抓取")
+                    self.is_running = False
+                    break
                 
-                # 在等待期间检测停止键
-                for _ in range(int(interval * 10)):
-                    if keyboard.is_pressed('q'):
-                        print("\n停止抓取")
-                        self.is_running = False
-                        break
-                    time.sleep(0.1)
-            else:
-                print("抓取失败，停止运行")
-                break
+                # 执行抓取
+                if self.capture_single():
+                    print(f"等待 {interval} 秒后继续...")
+                    
+                    # 在等待期间检测停止键
+                    for _ in range(int(interval * 10)):
+                        if self.q_pressed:
+                            print("\n停止抓取")
+                            self.is_running = False
+                            break
+                        time.sleep(0.1)
+                else:
+                    print("抓取失败，停止运行")
+                    break
+        finally:
+            self.stop_keyboard_listener()
         
         print(f"\n总共抓取了 {self.capture_count} 个验证码")
     
